@@ -5,7 +5,7 @@ use colored::Colorize;
 
 fn main() {
     let user = get_current_user();
-    let path = get_current_path();
+    let path = get_shortened_path();
 
     loop {
         let line = prompt(&user, &path);
@@ -13,12 +13,29 @@ fn main() {
     }
 }
 
+fn get_shortened_path() -> String {
+    let full_path = get_current_path();
+    let home_directory = get_home_directory();
+
+    if full_path.starts_with(&home_directory) {
+        let shortened_path = full_path.replace(&home_directory, "~");
+        shortened_path
+    } else {
+        full_path
+    }
+}
+
+// TODO: Find better names for get_current_* functions
 fn get_current_user() -> String {
     var("USER").expect("Failed to get user")
 }
 
 fn get_current_path() -> String {
     var("PWD").expect("Failed to get path")
+}
+
+fn get_home_directory() -> String {
+    var("HOME").expect("Failed to get home directory")
 }
 
 fn prompt(user: &String, path: &String) -> String {
