@@ -24,6 +24,7 @@ impl Prompt {
         }
     }
 
+    // Repeatedly prompts the user for commands and executes them
     pub fn run(&mut self) {
         let user = get_env_user();
         let cwd_path = Path::from_cwd();
@@ -33,12 +34,14 @@ impl Prompt {
         }
     }
 
+    // Displays the prompt and returns the user input
     fn prompt(&self) -> String {
         print!("{} on {} {} ", self.user.blue(), self.cwd.short().green(), ">".truecolor(60, 60, 60));
         flush();
         read_line()
     }
     
+    // Interprets a command from a string
     fn interpret(&mut self, line: String) {
         // TODO: Command resolution is messy due to using string lookup, find a different way
         if let Some(command) = self.commands.resolve(line.trim()) {
@@ -56,15 +59,18 @@ impl Prompt {
     }
 }
 
+// Gets the name of the current user
 fn get_env_user() -> String {
     var("USER").expect("Failed to get user")
 }
 
+// Flushes stdout
 fn flush() {
     let mut stdout = stdout();
     stdout.flush().expect("Failed to flush");
 }
 
+// Reads a line of input from stdin
 fn read_line() -> String {
     let mut line = String::new();
     let stdin = stdin();
@@ -73,6 +79,7 @@ fn read_line() -> String {
     line
 }
 
+// Defines the commands that are available by default
 // TODO: Refactor this somehow
 fn default_commands() -> CommandManager {
     let mut commands = CommandManager::new();
