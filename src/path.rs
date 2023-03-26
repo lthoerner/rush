@@ -64,6 +64,8 @@ impl Path {
 
                 truncated_directories.push(truncated_dir);
             }
+        } else {
+            truncated_directories = directories;
         }
 
         let truncated_directories = truncated_directories.join("/");
