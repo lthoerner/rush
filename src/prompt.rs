@@ -42,6 +42,7 @@ impl Prompt {
             "exit" => std::process::exit(0),
             "truncate" => self.cwd.set_truncation(1),
             "untruncate" => self.cwd.disable_truncation(),
+            "directory" => println!("{}", self.cwd),
             _ => println!("Unknown command"),
         }
     }

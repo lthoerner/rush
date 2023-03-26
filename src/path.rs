@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 use std::env::var;
+use std::fmt::{Display, Formatter};
 
 // Wrapper class for a directory path string
 pub struct Path {
@@ -8,6 +9,12 @@ pub struct Path {
     home_directory: String,
     shortened_path: String,
     truncation_factor: Option<usize>,
+}
+
+impl Display for Path {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.full_path)
+    }
 }
 
 impl Path {
