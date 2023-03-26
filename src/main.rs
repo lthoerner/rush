@@ -4,8 +4,8 @@ use std::env::var;
 use colored::Colorize;
 
 fn main() {
-    let user = get_current_user();
-    let path = get_shortened_path();
+    let user = get_env_user();
+    let path = get_shortened_cwd();
 
     loop {
         let line = prompt(&user, &path);
@@ -13,9 +13,9 @@ fn main() {
     }
 }
 
-fn get_shortened_path() -> String {
-    let full_path = get_current_path();
-    let home_directory = get_home_directory();
+fn get_shortened_cwd() -> String {
+    let full_path = get_env_cwd();
+    let home_directory = get_env_home_directory();
 
     if full_path.starts_with(&home_directory) {
         let shortened_path = full_path.replace(&home_directory, "~");
@@ -25,16 +25,15 @@ fn get_shortened_path() -> String {
     }
 }
 
-// TODO: Find better names for get_current_* functions
-fn get_current_user() -> String {
+fn get_env_user() -> String {
     var("USER").expect("Failed to get user")
 }
 
-fn get_current_path() -> String {
+fn get_env_cwd() -> String {
     var("PWD").expect("Failed to get path")
 }
 
-fn get_home_directory() -> String {
+fn get_env_home_directory() -> String {
     var("HOME").expect("Failed to get home directory")
 }
 
