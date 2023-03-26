@@ -4,27 +4,37 @@ use std::env::var;
 pub struct Path {
     full_path: String,
     home_directory: String,
+    shortened_path: String,
 }
 
 impl Path {
     pub fn from_cwd() -> Self {
+        let full_path = get_env_cwd();
+        let home_directory = get_env_home_directory();
+        let shortened_path = collapse_home_directory(&full_path, &home_directory);
+
         Self {
-            full_path: get_env_cwd(),
-            home_directory: get_env_home_directory(),
+            full_path,
+            home_directory,
+            shortened_path,
         }
     }
 
-    pub fn full(&self) -> String {
-        self.full_path.clone()
+    pub fn full(&self) -> &String {
+        &self.full_path
     }
 
-    pub fn short(&self) -> String {
-        if self.full_path.starts_with(&self.home_directory) {
-            self.full_path.replace(&self.home_directory, "~")
-        } else {
-            self.full_path.clone()
-        }
+    pub fn short(&self) -> &String {
+        &self.shortened_path
     }
+}
+
+fn collapse_home_directory(full_path: &String, home_directory: &String) -> String {
+    if full_path.starts_with(home_directory) {
+        return full_path.replace(home_directory, "~")
+    }
+
+    full_path.clone()
 }
 
 fn get_env_cwd() -> String {
