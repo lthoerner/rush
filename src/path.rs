@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use std::env::var;
 
 // Wrapper class for a directory path string
@@ -5,6 +7,7 @@ pub struct Path {
     full_path: String,
     home_directory: String,
     shortened_path: String,
+    truncation_factor: Option<usize>,
 }
 
 impl Path {
@@ -17,18 +20,59 @@ impl Path {
             full_path,
             home_directory,
             shortened_path,
+            truncation_factor: None,
         }
     }
 
+    // Gets the full path, with all directory names included
     pub fn full(&self) -> &String {
         &self.full_path
     }
 
+    // Gets the shortened version of the path
+    // If truncation is enabled, the path will be truncated
+    // The shortened path will always have the home directory collapsed
     pub fn short(&self) -> &String {
         &self.shortened_path
     }
+
+    // Sets the Path truncation factor
+    pub fn set_truncation(&mut self, factor: usize) {
+        self.truncation_factor = Some(factor);
+        self.update_shortened_path();
+    }
+
+    // Disables Path truncation
+    pub fn disable_truncation(&mut self) {
+        self.truncation_factor = None;
+        self.update_shortened_path();
+    }
+
+    // Re-generates the shortened path based on the current settings
+    fn update_shortened_path(&mut self) {
+        let path = collapse_home_directory(&self.full_path, &self.home_directory);
+        // ! This might cause a bug with directories that have a '/' in their name
+        let directories: Vec<String> = path.split("/").map(|d| d.to_string()).collect();
+        let mut truncated_directories = Vec::new();
+
+        if let Some(factor) = self.truncation_factor {
+            for dir in directories {
+                let mut truncated_dir = dir.clone();
+                if dir.len() > factor {
+                    truncated_dir.truncate(factor);
+                }
+
+                truncated_directories.push(truncated_dir);
+            }
+        }
+
+        let truncated_directories = truncated_directories.join("/");
+
+        self.shortened_path = truncated_directories
+    }
 }
 
+// ? Should this be turned into a method?
 fn collapse_home_directory(full_path: &String, home_directory: &String) -> String {
     if full_path.starts_with(home_directory) {
         return full_path.replace(home_directory, "~")

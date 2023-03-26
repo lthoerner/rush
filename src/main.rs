@@ -9,7 +9,9 @@ use path::Path;
 
 fn main() {
     let user = get_env_user();
-    let cwd_path = Path::from_cwd();
+    let mut cwd_path = Path::from_cwd();
+
+    cwd_path.set_truncation(1);
 
     loop {
         let line = prompt(&user, &cwd_path);
