@@ -1,5 +1,6 @@
 mod path;
 mod prompt;
+mod command;
 
 use prompt::Prompt;
 
