@@ -1,27 +1,19 @@
+mod path;
+
 use std::io::{stdin, stdout, Write};
 use std::env::var;
 
 use colored::Colorize;
 
+use path::Path;
+
 fn main() {
     let user = get_env_user();
-    let path = get_shortened_cwd();
+    let cwd_path = Path::from_cwd();
 
     loop {
-        let line = prompt(&user, &path);
+        let line = prompt(&user, &cwd_path);
         print!("{}", line);
-    }
-}
-
-fn get_shortened_cwd() -> String {
-    let full_path = get_env_cwd();
-    let home_directory = get_env_home_directory();
-
-    if full_path.starts_with(&home_directory) {
-        let shortened_path = full_path.replace(&home_directory, "~");
-        shortened_path
-    } else {
-        full_path
     }
 }
 
@@ -29,16 +21,8 @@ fn get_env_user() -> String {
     var("USER").expect("Failed to get user")
 }
 
-fn get_env_cwd() -> String {
-    var("PWD").expect("Failed to get path")
-}
-
-fn get_env_home_directory() -> String {
-    var("HOME").expect("Failed to get home directory")
-}
-
-fn prompt(user: &String, path: &String) -> String {
-    print!("{} on {} > ", user.blue(), path.green());
+fn prompt(user: &String, path: &Path) -> String {
+    print!("{} on {} > ", user.blue(), path.short().green());
     flush();
     read_line()
 }
