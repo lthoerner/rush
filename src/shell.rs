@@ -70,11 +70,9 @@ impl Shell {
         let exit_code = dispatcher.dispatch(command_name, command_args, &mut context);
 
         // If the command was not found, print an error message
-        if exit_code.is_none() {
-            println!("{}: command not found", command_name.red());
-            self.success = false;
-        } else {
-            self.success = exit_code.unwrap().is_success();
+        match exit_code {
+            Some(code) => self.success = code.is_success(),
+            None => println!("{}: command not found", command_name.red()),
         }
     }
 
