@@ -68,7 +68,7 @@ impl Shell {
             None => {
                 println!("Unknown command: {}", command_name.red());
                 self.success = false;
-            },
+            }
         }
     }
 

@@ -74,7 +74,7 @@ impl Path {
                 };
 
                 path_string
-            },
+            }
             Err(_) => self.absolute_path.to_string_lossy().to_string(),
         };
 
@@ -120,7 +120,7 @@ impl Path {
 
     fn expand_home(&self, path: &str) -> String {
         if path.starts_with("~") {
-            return path.replace("~", &self.home_directory)
+            return path.replace("~", &self.home_directory);
         }
 
         path.to_string()
