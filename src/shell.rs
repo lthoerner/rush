@@ -56,10 +56,9 @@ impl Shell {
 
     // Interprets a command from a string
     fn interpret(&mut self, dispatcher: &CommandManager, line: String) {
-        // Get the first word (the command name)
         let mut words = line.split_whitespace();
+        // Get the first word (the command name)
         let command_name = words.next().unwrap();
-
         // Get the rest of the words (the command arguments)
         let command_args: Vec<&str> = words.collect();
 
