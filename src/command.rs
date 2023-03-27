@@ -1,3 +1,5 @@
+use crate::path::Path;
+
 // Represents a command that can be run by the prompt
 pub struct Command {
     true_name: String,
@@ -5,7 +7,7 @@ pub struct Command {
 }
 
 impl Command {
-    pub fn new(true_name: &str, aliases: Vec<&str>) -> Self {
+    fn new(true_name: &str, aliases: Vec<&str>) -> Self {
         let true_name = true_name.to_string();
         let aliases = aliases.iter().map(|a| a.to_string()).collect();
 
@@ -34,8 +36,8 @@ impl CommandManager {
     }
 
     // Adds a command to the manager
-    pub fn add_command(&mut self, command: Command) {
-        self.commands.push(command);
+    pub fn add_command(&mut self, true_name: &str, aliases: Vec<&str>) {
+        self.commands.push(Command::new(true_name, aliases));
     }
 
     // Resolves a command name to a command

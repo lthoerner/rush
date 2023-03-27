@@ -6,16 +6,15 @@ use std::env::var;
 use colored::Colorize;
 
 use crate::path::Path;
-use crate::command::{Command, CommandManager};
+use crate::command::CommandManager;
 
-// ? Should this have a different name?
-pub struct Prompt {
+pub struct Shell {
     user: String,
     cwd: Path,
     commands: CommandManager,
 }
 
-impl Prompt {
+impl Shell {
     pub fn new() -> Self {
         Self {
             user: get_env_user(),
@@ -43,7 +42,6 @@ impl Prompt {
     
     // Interprets a command from a string
     fn interpret(&mut self, line: String) {
-        // TODO: Command resolution is messy due to using string lookup, find a different way
         if let Some(command) = self.commands.resolve(line.trim()) {
             match command.true_name().as_str() {
                 "exit" => std::process::exit(0),
@@ -84,12 +82,11 @@ fn read_line() -> String {
 fn default_commands() -> CommandManager {
     let mut commands = CommandManager::new();
 
-    // ? Should Command::new() be built into CommandManager::add_command()?
-    commands.add_command(Command::new("exit", vec!["quit"]));
-    commands.add_command(Command::new("test", vec![]));
-    commands.add_command(Command::new("truncate", vec!["trunc"]));
-    commands.add_command(Command::new("untruncate", vec!["untrunc"]));
-    commands.add_command(Command::new("directory", vec!["dir", "pwd", "wd"]));
+    commands.add_command("exit", vec!["quit"]);
+    commands.add_command("test", vec![]);
+    commands.add_command("truncate", vec!["trunc"]);
+    commands.add_command("untruncate", vec!["untrunc"]);
+    commands.add_command("directory", vec!["dir", "pwd", "wd"]);
 
     commands
 }

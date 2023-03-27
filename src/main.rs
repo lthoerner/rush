@@ -1,10 +1,10 @@
 mod path;
-mod prompt;
+mod shell;
 mod command;
 
-use prompt::Prompt;
+use shell::Shell;
 
 fn main() {
-    let mut prompt = Prompt::new();
+    let mut prompt = Shell::new();
     prompt.run();
 }
