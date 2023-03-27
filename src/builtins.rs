@@ -29,6 +29,18 @@ pub fn directory(context: &mut Context, args: Vec<&str>) -> StatusCode {
     }
 }
 
+// ? Should this just be called clear()?
+pub fn clear_terminal(_context: &mut Context, args: Vec<&str>) -> StatusCode {
+    if args.len() == 0 {
+        // * "Magic" ANSI escape sequence to clear the terminal
+        print!("\x1B[2J\x1B[1;1H");
+        StatusCode::success()
+    } else {
+        println!("Usage: clear");
+        StatusCode::new(1)
+    }
+}
+
 pub fn truncate(context: &mut Context, args: Vec<&str>) -> StatusCode {
     match args.len() {
         0 => {
