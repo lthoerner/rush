@@ -32,8 +32,13 @@ pub fn working_directory(context: &mut Context, args: Vec<&str>) -> StatusCode {
 pub fn change_directory(context: &mut Context, args: Vec<&str>) -> StatusCode {
     if args.len() == 1 {
         let path = args[0];
-        context.shell.environment().working_directory_mut().set_path(path);
-        StatusCode::success()
+        match context.shell.environment().working_directory_mut().set_path(path) {
+            true => StatusCode::success(),
+            false => {
+                println!("Invalid path: {}", path);
+                StatusCode::new(1)
+            }
+        }
     } else {
         println!("Usage: change-directory <path>");
         StatusCode::new(1)

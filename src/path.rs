@@ -6,7 +6,7 @@ use std::path::PathBuf;
 // Wrapper class for a directory path string
 #[derive(Hash, Eq, PartialEq)]
 pub struct Path {
-    full_path: PathBuf,
+    absolute_path: PathBuf,
     // TODO: Figure out how this ties into Environment
     home_directory: String,
     shortened_path: String,
@@ -15,7 +15,7 @@ pub struct Path {
 
 impl Display for Path {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.full_path.display())
+        write!(f, "{}", self.absolute_path.display())
     }
 }
 
@@ -26,7 +26,7 @@ impl Path {
         let home_directory = get_caller_home_directory();
 
         let mut path = Self {
-            full_path,
+            absolute_path: full_path,
             home_directory,
             shortened_path: String::new(),
             truncation_factor: None,
@@ -39,7 +39,7 @@ impl Path {
 
     // Gets the full path, with all directory names included
     pub fn full(&self) -> &PathBuf {
-        &self.full_path
+        &self.absolute_path
     }
 
     // Gets the shortened version of the path
@@ -64,7 +64,7 @@ impl Path {
     // Re-generates the shortened path based on the current settings
     fn update_shortened_path(&mut self) {
         // ? Is there a less redundant way to write this?
-        let path = match self.full_path.strip_prefix(&self.home_directory) {
+        let path = match self.absolute_path.strip_prefix(&self.home_directory) {
             Ok(path) => {
                 let mut path_string = path.to_string_lossy().to_string();
                 // ? Is this really necessary? Wouldn't it be fine to just have '~/'?
@@ -75,7 +75,7 @@ impl Path {
 
                 path_string
             },
-            Err(_) => self.full_path.to_string_lossy().to_string(),
+            Err(_) => self.absolute_path.to_string_lossy().to_string(),
         };
 
         // ! This might cause a bug with directories that have a '/' in their name
@@ -102,9 +102,20 @@ impl Path {
     }
 
     // Updates the Path using a new full path
-    pub fn set_path(&mut self, new_full_path: &str) {
-        self.full_path = PathBuf::from(self.expand_home(new_full_path));
+    // TODO: Result instead of bool for error handling
+    pub fn set_path(&mut self, new_full_path: &str) -> bool {
+        // Home directory shorthand must be expanded before setting the path,
+        // because PathBuf is not user-specific and only uses absolute paths
+        let new_absolute_path = PathBuf::from(self.expand_home(new_full_path));
+
+        if !new_absolute_path.exists() {
+            return false;
+        }
+
+        self.absolute_path = new_absolute_path;
         self.update_shortened_path();
+
+        true
     }
 
     fn expand_home(&self, path: &str) -> String {
@@ -115,15 +126,6 @@ impl Path {
         path.to_string()
     }
 }
-
-// // ? Should this be turned into a method?
-// fn collapse_home_directory(full_path: &String, home_directory: &String) -> String {
-//     if full_path.starts_with(home_directory) {
-//         return full_path.replace(home_directory, "~");
-//     }
-
-//     full_path.clone()
-// }
 
 fn get_caller_cwd() -> PathBuf {
     PathBuf::from(std::env::var("PWD").expect("Failed to get path"))
