@@ -1,7 +1,7 @@
+mod builtins;
+mod commands;
 mod path;
 mod shell;
-mod commands;
-mod builtins;
 
 use shell::Shell;
 

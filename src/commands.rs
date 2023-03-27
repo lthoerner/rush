@@ -1,8 +1,8 @@
 #![allow(dead_code, unused_variables)]
 
+use crate::builtins;
 use crate::path::Path;
 use crate::shell::Shell;
-use crate::builtins;
 
 // Represents a command that can be run by the prompt
 pub struct Command {
@@ -69,23 +69,19 @@ pub struct Context<'a> {
 
 impl<'a> Context<'a> {
     pub fn new(shell: &'a mut Shell) -> Self {
-        Self {
-            shell
-        }
+        Self { shell }
     }
 }
 
 // Represents the status/exit code of a command
 pub struct StatusCode {
-    code: i32
+    code: i32,
 }
 
 // TODO: Move this or reorganize blocks here
 impl StatusCode {
     pub fn new(code: i32) -> Self {
-        Self {
-            code
-        }
+        Self { code }
     }
 
     pub fn success() -> Self {
@@ -108,11 +104,27 @@ impl Default for CommandManager {
     fn default() -> Self {
         let mut manager = Self::new();
 
-        manager.add_command("exit", vec!["quit", "q"], Runnable::internal(builtins::exit));
+        manager.add_command(
+            "exit",
+            vec!["quit", "q"],
+            Runnable::internal(builtins::exit),
+        );
         manager.add_command("test", vec!["t"], Runnable::internal(builtins::test));
-        manager.add_command("truncate", vec!["trunc"], Runnable::internal(builtins::truncate));
-        manager.add_command("untruncate", vec!["untrunc"], Runnable::internal(builtins::untruncate));
-        manager.add_command("directory", vec!["dir", "pwd", "wd"], Runnable::internal(builtins::directory));
+        manager.add_command(
+            "truncate",
+            vec!["trunc"],
+            Runnable::internal(builtins::truncate),
+        );
+        manager.add_command(
+            "untruncate",
+            vec!["untrunc"],
+            Runnable::internal(builtins::untruncate),
+        );
+        manager.add_command(
+            "directory",
+            vec!["dir", "pwd", "wd"],
+            Runnable::internal(builtins::directory),
+        );
 
         manager
     }
@@ -127,7 +139,8 @@ impl CommandManager {
 
     // Adds a command to the manager
     fn add_command(&mut self, true_name: &str, aliases: Vec<&str>, runnable: Runnable) {
-        self.commands.push(Command::new(true_name, aliases, runnable));
+        self.commands
+            .push(Command::new(true_name, aliases, runnable));
     }
 
     // Resolves a command name to a command
@@ -135,12 +148,12 @@ impl CommandManager {
     fn resolve(&self, command_name: &str) -> Option<&Command> {
         for command in &self.commands {
             if command.true_name == command_name {
-                return Some(command)
+                return Some(command);
             }
 
             for alias in &command.aliases {
                 if alias == command_name {
-                    return Some(command)
+                    return Some(command);
                 }
             }
         }
@@ -151,9 +164,14 @@ impl CommandManager {
     // Resolves and dispatches a command to the appropriate function or external binary
     // If the command does not exist, returns None
     // ? How should I consume the Context to ensure that it is not used after the command is run?
-    pub fn dispatch(&self, command_name: &str, command_args: Vec<&str>, context: &mut Context) -> Option<StatusCode> {
+    pub fn dispatch(
+        &self,
+        command_name: &str,
+        command_args: Vec<&str>,
+        context: &mut Context,
+    ) -> Option<StatusCode> {
         if let Some(command) = self.resolve(command_name) {
-            return Some(command.runnable.run(context, command_args))
+            return Some(command.runnable.run(context, command_args));
         }
 
         None

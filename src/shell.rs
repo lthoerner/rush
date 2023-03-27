@@ -1,12 +1,12 @@
 #![allow(dead_code, unused_variables)]
 
-use std::io::{stdin, stdout, Write};
 use std::env::var;
+use std::io::{stdin, stdout, Write};
 
 use colored::Colorize;
 
-use crate::path::Path;
 use crate::commands::{CommandManager, Context};
+use crate::path::Path;
 
 pub struct Shell {
     user: String,
@@ -30,7 +30,7 @@ impl Shell {
 
         // ? What should this name be?
         let dispatcher = CommandManager::default();
-    
+
         loop {
             self.interpret(&dispatcher, self.prompt());
             // Print an extra line break to prevent malformed output
@@ -40,10 +40,15 @@ impl Shell {
 
     // Displays the prompt and returns the user input
     fn prompt(&self) -> String {
-        print!("{} on {}\n{} ", self.user.blue(), self.cwd.short().green(), match self.success {
-            true => ">>".bright_green().bold(),
-            false => ">>".bright_red().bold(),
-        });
+        print!(
+            "{} on {}\n{} ",
+            self.user.blue(),
+            self.cwd.short().green(),
+            match self.success {
+                true => ">>".bright_green().bold(),
+                false => ">>".bright_red().bold(),
+            }
+        );
 
         flush();
         read_line()

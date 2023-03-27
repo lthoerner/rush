@@ -84,7 +84,7 @@ impl Path {
 // ? Should this be turned into a method?
 fn collapse_home_directory(full_path: &String, home_directory: &String) -> String {
     if full_path.starts_with(home_directory) {
-        return full_path.replace(home_directory, "~")
+        return full_path.replace(home_directory, "~");
     }
 
     full_path.clone()
