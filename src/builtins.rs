@@ -21,7 +21,7 @@ pub fn exit(_context: &mut Context, args: Vec<&str>) -> StatusCode {
 
 pub fn directory(context: &mut Context, args: Vec<&str>) -> StatusCode {
     if args.len() == 0 {
-        println!("{}", context.shell.working_directory());
+        println!("{}", context.shell.environment().working_directory());
         StatusCode::success()
     } else {
         println!("Usage: directory");
@@ -44,13 +44,21 @@ pub fn clear_terminal(_context: &mut Context, args: Vec<&str>) -> StatusCode {
 pub fn truncate(context: &mut Context, args: Vec<&str>) -> StatusCode {
     match args.len() {
         0 => {
-            context.shell.working_directory().set_truncation(1);
+            context
+                .shell
+                .environment()
+                .working_directory_mut()
+                .set_truncation(1);
             StatusCode::success()
         }
         1 => {
             // ! This is copilot code, it is probably extremely unsafe
             let truncation = args[0].parse::<usize>().unwrap();
-            context.shell.working_directory().set_truncation(truncation);
+            context
+                .shell
+                .environment()
+                .working_directory_mut()
+                .set_truncation(truncation);
             StatusCode::success()
         }
         _ => {
@@ -62,7 +70,11 @@ pub fn truncate(context: &mut Context, args: Vec<&str>) -> StatusCode {
 
 pub fn untruncate(context: &mut Context, args: Vec<&str>) -> StatusCode {
     if args.len() == 0 {
-        context.shell.working_directory().disable_truncation();
+        context
+            .shell
+            .environment()
+            .working_directory_mut()
+            .disable_truncation();
         StatusCode::success()
     } else {
         println!("Usage: untruncate");

@@ -1,33 +1,27 @@
 #![allow(dead_code, unused_variables)]
 
-use std::env::var;
 use std::io::{stdin, stdout, Write};
 
 use colored::Colorize;
 
 use crate::commands::{CommandManager, Context};
-use crate::path::Path;
+use crate::environment::Environment;
 
 pub struct Shell {
-    user: String,
-    cwd: Path,
+    environment: Environment,
     success: bool,
 }
 
 impl Shell {
     pub fn new() -> Self {
         Self {
-            user: get_env_user(),
-            cwd: Path::from_cwd(),
+            environment: Environment::default(),
             success: true,
         }
     }
 
     // Repeatedly prompts the user for commands and executes them
     pub fn run(&mut self) {
-        let user = get_env_user();
-        let cwd_path = Path::from_cwd();
-
         // ? What should this name be?
         let dispatcher = CommandManager::default();
 
@@ -42,8 +36,8 @@ impl Shell {
     fn prompt(&self) -> String {
         print!(
             "{} on {}\n{} ",
-            self.user.blue(),
-            self.cwd.short().green(),
+            self.environment.user().blue(),
+            self.environment.working_directory().short().green(),
             match self.success {
                 true => ">>".bright_green().bold(),
                 false => ">>".bright_red().bold(),
@@ -75,14 +69,9 @@ impl Shell {
         }
     }
 
-    pub fn working_directory(&mut self) -> &mut Path {
-        &mut self.cwd
+    pub fn environment(&mut self) -> &mut Environment {
+        &mut self.environment
     }
-}
-
-// Gets the name of the current user
-fn get_env_user() -> String {
-    var("USER").expect("Failed to get user")
 }
 
 // Flushes stdout

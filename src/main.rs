@@ -1,5 +1,6 @@
 mod builtins;
 mod commands;
+mod environment;
 mod path;
 mod shell;
 

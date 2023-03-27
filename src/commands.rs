@@ -114,7 +114,11 @@ impl Default for CommandManager {
             vec!["dir", "pwd", "wd"],
             Runnable::internal(builtins::directory),
         );
-        manager.add_command("clear", vec!["cls"], Runnable::internal(builtins::clear_terminal));
+        manager.add_command(
+            "clear",
+            vec!["cls"],
+            Runnable::internal(builtins::clear_terminal),
+        );
         manager.add_command(
             "truncate",
             vec!["trunc"],

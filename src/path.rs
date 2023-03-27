@@ -4,8 +4,10 @@ use std::env::var;
 use std::fmt::{Display, Formatter};
 
 // Wrapper class for a directory path string
+#[derive(Hash, Eq, PartialEq)]
 pub struct Path {
     full_path: String,
+    // TODO: Figure out how this ties into Environment
     home_directory: String,
     shortened_path: String,
     truncation_factor: Option<usize>,
