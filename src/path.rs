@@ -22,11 +22,11 @@ impl Display for Path {
 impl Path {
     // Constructs a Path from the current working directory
     pub fn from_cwd() -> Self {
-        let full_path = get_caller_cwd();
+        let absolute_path = get_caller_cwd();
         let home_directory = get_caller_home_directory();
 
         let mut path = Self {
-            absolute_path: full_path,
+            absolute_path,
             home_directory,
             shortened_path: String::new(),
             truncation_factor: None,
@@ -37,8 +37,8 @@ impl Path {
         path
     }
 
-    // Gets the full path, with all directory names included
-    pub fn full(&self) -> &PathBuf {
+    // Gets the absolute path, with all directory names included
+    pub fn absolute(&self) -> &PathBuf {
         &self.absolute_path
     }
 
@@ -101,12 +101,12 @@ impl Path {
         self.shortened_path = truncated_directories
     }
 
-    // Updates the Path using a new full path
+    // Updates the Path using a new absolute path
     // TODO: Result instead of bool for error handling
-    pub fn set_path(&mut self, new_full_path: &str) -> bool {
+    pub fn set_path(&mut self, new_absolute_path: &str) -> bool {
         // Home directory shorthand must be expanded before setting the path,
         // because PathBuf is not user-specific and only uses absolute paths
-        let new_absolute_path = PathBuf::from(self.expand_home(new_full_path));
+        let new_absolute_path = PathBuf::from(self.expand_home(new_absolute_path));
 
         if !new_absolute_path.exists() {
             return false;
