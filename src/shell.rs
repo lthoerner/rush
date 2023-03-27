@@ -6,12 +6,11 @@ use std::env::var;
 use colored::Colorize;
 
 use crate::path::Path;
-use crate::command::CommandManager;
+use crate::commands::{CommandManager, Context};
 
 pub struct Shell {
     user: String,
     cwd: Path,
-    commands: CommandManager,
 }
 
 impl Shell {
@@ -19,7 +18,6 @@ impl Shell {
         Self {
             user: get_env_user(),
             cwd: Path::from_cwd(),
-            commands: default_commands(),
         }
     }
 
@@ -27,9 +25,12 @@ impl Shell {
     pub fn run(&mut self) {
         let user = get_env_user();
         let cwd_path = Path::from_cwd();
+
+        // ? What should this name be?
+        let dispatcher = CommandManager::default();
     
         loop {
-            self.interpret(self.prompt());
+            self.interpret(&dispatcher, self.prompt());
         }
     }
 
@@ -39,21 +40,30 @@ impl Shell {
         flush();
         read_line()
     }
-    
+
     // Interprets a command from a string
-    fn interpret(&mut self, line: String) {
-        if let Some(command) = self.commands.resolve(line.trim()) {
-            match command.true_name().as_str() {
-                "exit" => std::process::exit(0),
-                "test" => println!("Test command!"),
-                "truncate" => self.cwd.set_truncation(1),
-                "untruncate" => self.cwd.disable_truncation(),
-                "directory" => println!("{}", self.cwd),
-                _ => panic!("Unexpected command"),
-            }
-        } else {
-            println!("Unknown command");
+    fn interpret(&mut self, dispatcher: &CommandManager, line: String) {
+        // Get the first word (the command name)
+        let mut words = line.split_whitespace();
+        let command_name = words.next().unwrap();
+
+        // Get the rest of the words (the command arguments)
+        let command_args: Vec<&str> = words.collect();
+
+        // Bundle all the information that needs to be modifiable by the commands into a Context
+        let context = Context::new(self);
+
+        // Dispatch the command to the CommandManager
+        let exit_code = dispatcher.dispatch(command_name, command_args, context);
+
+        // If the command was not found, print an error message
+        if exit_code.is_none() {
+            println!("{}: command not found", command_name.red());
         }
+    }
+
+    pub fn working_directory(&mut self) -> &mut Path {
+        &mut self.cwd
     }
 }
 
@@ -75,18 +85,4 @@ fn read_line() -> String {
     stdin.read_line(&mut line).expect("Failed to read line");
 
     line
-}
-
-// Defines the commands that are available by default
-// TODO: Refactor this somehow
-fn default_commands() -> CommandManager {
-    let mut commands = CommandManager::new();
-
-    commands.add_command("exit", vec!["quit"]);
-    commands.add_command("test", vec![]);
-    commands.add_command("truncate", vec!["trunc"]);
-    commands.add_command("untruncate", vec!["untrunc"]);
-    commands.add_command("directory", vec!["dir", "pwd", "wd"]);
-
-    commands
 }

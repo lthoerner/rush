@@ -1,10 +1,11 @@
 mod path;
 mod shell;
-mod command;
+mod commands;
+mod builtins;
 
 use shell::Shell;
 
 fn main() {
-    let mut prompt = Shell::new();
-    prompt.run();
+    let mut shell = Shell::new();
+    shell.run();
 }
