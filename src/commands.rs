@@ -110,13 +110,18 @@ impl Default for CommandManager {
             Runnable::internal(builtins::exit),
         );
         manager.add_command(
-            "directory",
-            vec!["dir", "pwd", "wd"],
-            Runnable::internal(builtins::directory),
+            "working-directory",
+            vec!["directory", "dir", "pwd", "wd"],
+            Runnable::internal(builtins::working_directory),
         );
         manager.add_command(
-            "clear",
-            vec!["cls"],
+            "change-directory",
+            vec!["cd"],
+            Runnable::internal(builtins::change_directory),
+        );
+        manager.add_command(
+            "clear-terminal",
+            vec!["clear", "cls"],
             Runnable::internal(builtins::clear_terminal),
         );
         manager.add_command(

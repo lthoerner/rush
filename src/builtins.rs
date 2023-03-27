@@ -19,24 +19,34 @@ pub fn exit(_context: &mut Context, args: Vec<&str>) -> StatusCode {
     }
 }
 
-pub fn directory(context: &mut Context, args: Vec<&str>) -> StatusCode {
+pub fn working_directory(context: &mut Context, args: Vec<&str>) -> StatusCode {
     if args.len() == 0 {
         println!("{}", context.shell.environment().working_directory());
         StatusCode::success()
     } else {
-        println!("Usage: directory");
+        println!("Usage: working-directory");
         StatusCode::new(1)
     }
 }
 
-// ? Should this just be called clear()?
+pub fn change_directory(context: &mut Context, args: Vec<&str>) -> StatusCode {
+    if args.len() == 1 {
+        let path = args[0];
+        context.shell.environment().working_directory_mut().set_path(path);
+        StatusCode::success()
+    } else {
+        println!("Usage: change-directory <path>");
+        StatusCode::new(1)
+    }
+}
+
 pub fn clear_terminal(_context: &mut Context, args: Vec<&str>) -> StatusCode {
     if args.len() == 0 {
         // * "Magic" ANSI escape sequence to clear the terminal
         print!("\x1B[2J\x1B[1;1H");
         StatusCode::success()
     } else {
-        println!("Usage: clear");
+        println!("Usage: clear-terminal");
         StatusCode::new(1)
     }
 }

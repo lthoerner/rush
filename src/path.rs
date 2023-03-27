@@ -81,6 +81,12 @@ impl Path {
 
         self.shortened_path = truncated_directories
     }
+
+    // Updates the Path using a new full path
+    pub fn set_path(&mut self, new_full_path: &str) {
+        self.full_path = new_full_path.to_string();
+        self.update_shortened_path();
+    }
 }
 
 // ? Should this be turned into a method?
