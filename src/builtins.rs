@@ -50,6 +50,33 @@ pub fn change_directory(context: &mut Context, args: Vec<&str>) -> StatusCode {
     }
 }
 
+pub fn list_files_and_directories(context: &mut Context, args: Vec<&str>) -> StatusCode {
+    if args.len() == 0 {
+        let path = context.shell.environment().working_directory().absolute();
+        // This uses expect() because it needs to crash if the current working directory is invalid
+        let files_and_directories = std::fs::read_dir(path).expect("Failed to read directory");
+
+        for fd in files_and_directories {
+            let fd = fd.expect("Failed to read directory");
+            let fd_name = fd.file_name().to_str().expect("Failed to read file name").to_string();
+
+            // Append a '/' to directories
+            let fd = if fd.file_type().expect("Failed to read file type").is_dir() {
+                format!("{}/", fd_name)
+            } else {
+                fd_name
+            };
+
+            println!("{}", fd);
+        }
+
+        StatusCode::success()
+    } else {
+        println!("Usage: list-directories-and-files <directory>");
+        StatusCode::new(1)
+    }
+}
+
 pub fn clear_terminal(_context: &mut Context, args: Vec<&str>) -> StatusCode {
     if args.len() == 0 {
         // * "Magic" ANSI escape sequence to clear the terminal

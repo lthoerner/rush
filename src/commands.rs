@@ -120,6 +120,11 @@ impl Default for CommandManager {
             Runnable::internal(builtins::change_directory),
         );
         manager.add_command(
+            "list-files-and-directories",
+            vec!["list", "ls"],
+            Runnable::internal(builtins::list_files_and_directories),
+        );
+        manager.add_command(
             "clear-terminal",
             vec!["clear", "cls"],
             Runnable::internal(builtins::clear_terminal),
