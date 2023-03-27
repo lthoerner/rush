@@ -92,7 +92,7 @@ impl StatusCode {
         Self::new(0)
     }
 
-    fn is_success(&self) -> bool {
+    pub fn is_success(&self) -> bool {
         self.code == 0
     }
 }

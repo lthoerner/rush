@@ -11,6 +11,7 @@ use crate::commands::{CommandManager, Context};
 pub struct Shell {
     user: String,
     cwd: Path,
+    success: bool,
 }
 
 impl Shell {
@@ -18,6 +19,7 @@ impl Shell {
         Self {
             user: get_env_user(),
             cwd: Path::from_cwd(),
+            success: true,
         }
     }
 
@@ -31,12 +33,18 @@ impl Shell {
     
         loop {
             self.interpret(&dispatcher, self.prompt());
+            // Print an extra line break to prevent malformed output
+            println!();
         }
     }
 
     // Displays the prompt and returns the user input
     fn prompt(&self) -> String {
-        print!("{} on {} {} ", self.user.blue(), self.cwd.short().green(), ">".truecolor(60, 60, 60));
+        print!("{} on {}\n{} ", self.user.blue(), self.cwd.short().green(), match self.success {
+            true => ">>".bright_green().bold(),
+            false => ">>".bright_red().bold(),
+        });
+
         flush();
         read_line()
     }
@@ -59,6 +67,9 @@ impl Shell {
         // If the command was not found, print an error message
         if exit_code.is_none() {
             println!("{}: command not found", command_name.red());
+            self.success = false;
+        } else {
+            self.success = exit_code.unwrap().is_success();
         }
     }
 
