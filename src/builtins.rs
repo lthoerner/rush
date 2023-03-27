@@ -1,14 +1,21 @@
 use crate::commands::{Context, StatusCode};
 
 pub fn truncate(context: &mut Context, args: Vec<&str>) -> StatusCode {
-    if args.len() == 1 {
-        // ! This is copilot code, it is probably extremely unsafe
-        let truncation = args[0].parse::<usize>().unwrap();
-        context.shell.working_directory().set_truncation(truncation);
-        StatusCode::success()
-    } else {
-        println!("Usage: truncate <number of characters>");
-        StatusCode::new(1)
+    match args.len() {
+        0 => {
+            context.shell.working_directory().set_truncation(1);
+            StatusCode::success()
+        },
+        1 => {
+            // ! This is copilot code, it is probably extremely unsafe
+            let truncation = args[0].parse::<usize>().unwrap();
+            context.shell.working_directory().set_truncation(truncation);
+            StatusCode::success()
+        },
+        _ => {
+            println!("Usage: truncate <length (default 1)>");
+            StatusCode::new(1)
+        },
     }
 }
 
