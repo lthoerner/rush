@@ -78,7 +78,6 @@ pub struct StatusCode {
     code: i32,
 }
 
-// TODO: Move this or reorganize blocks here
 impl StatusCode {
     pub fn new(code: i32) -> Self {
         Self { code }
@@ -104,12 +103,17 @@ impl Default for CommandManager {
     fn default() -> Self {
         let mut manager = Self::new();
 
+        manager.add_command("test", vec!["t"], Runnable::internal(builtins::test));
         manager.add_command(
             "exit",
             vec!["quit", "q"],
             Runnable::internal(builtins::exit),
         );
-        manager.add_command("test", vec!["t"], Runnable::internal(builtins::test));
+        manager.add_command(
+            "directory",
+            vec!["dir", "pwd", "wd"],
+            Runnable::internal(builtins::directory),
+        );
         manager.add_command(
             "truncate",
             vec!["trunc"],
@@ -119,11 +123,6 @@ impl Default for CommandManager {
             "untruncate",
             vec!["untrunc"],
             Runnable::internal(builtins::untruncate),
-        );
-        manager.add_command(
-            "directory",
-            vec!["dir", "pwd", "wd"],
-            Runnable::internal(builtins::directory),
         );
 
         manager
