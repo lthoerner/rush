@@ -39,8 +39,8 @@ impl Shell {
             self.environment.user().blue(),
             self.environment.working_directory().short().green(),
             match self.success {
-                true => ">>".bright_green().bold(),
-                false => ">>".bright_red().bold(),
+                true => "❯".bright_green().bold(),
+                false => "❯".bright_red().bold(),
             }
         );
 
@@ -65,7 +65,10 @@ impl Shell {
         // If the command was not found, print an error message
         match exit_code {
             Some(code) => self.success = code.is_success(),
-            None => println!("{}: command not found", command_name.red()),
+            None => {
+                println!("Unknown command: {}", command_name.red());
+                self.success = false;
+            },
         }
     }
 
