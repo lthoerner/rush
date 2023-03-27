@@ -39,7 +39,7 @@ impl Runnable {
     // Constructs an Internal Runnable from a function
     fn internal<F>(function: F) -> Self
     where
-        F: Fn(&mut Context, Vec<&str>) -> StatusCode,
+        F: Fn(&mut Context, Vec<&str>) -> StatusCode + 'static,
     {
         Self::Internal(Box::new(function))
     }
@@ -49,8 +49,13 @@ impl Runnable {
         Self::External(path)
     }
 
-    fn run(&self, context: Context) -> StatusCode {
-        todo!()
+    fn run(&self, context: &mut Context, arguments: Vec<&str>) -> StatusCode {
+        match self {
+            Runnable::Internal(command_function) => command_function(context, arguments),
+            Runnable::External(path) => {
+                todo!()
+            }
+        }
     }
 }
 
@@ -145,8 +150,11 @@ impl CommandManager {
 
     // Resolves and dispatches a command to the appropriate function or external binary
     // If the command does not exist, returns None
-    pub fn dispatch(&self, command_name: &str, command_args: Vec<&str>, context: Context) -> Option<StatusCode> {
-
+    // ? How should I consume the Context to ensure that it is not used after the command is run?
+    pub fn dispatch(&self, command_name: &str, command_args: Vec<&str>, context: &mut Context) -> Option<StatusCode> {
+        if let Some(command) = self.resolve(command_name) {
+            return Some(command.runnable.run(context, command_args))
+        }
 
         None
     }

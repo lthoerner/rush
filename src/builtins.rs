@@ -1,6 +1,6 @@
 use crate::commands::{Context, StatusCode};
 
-pub fn truncate(context: Context, args: Vec<&str>) -> StatusCode {
+pub fn truncate(context: &mut Context, args: Vec<&str>) -> StatusCode {
     if args.len() == 1 {
         // ! This is copilot code, it is probably extremely unsafe
         let truncation = args[0].parse::<usize>().unwrap();
@@ -12,7 +12,7 @@ pub fn truncate(context: Context, args: Vec<&str>) -> StatusCode {
     }
 }
 
-pub fn untruncate(context: Context, args: Vec<&str>) -> StatusCode {
+pub fn untruncate(context: &mut Context, args: Vec<&str>) -> StatusCode {
     if args.len() == 0 {
         context.shell.working_directory().disable_truncation();
         StatusCode::success()
@@ -22,7 +22,7 @@ pub fn untruncate(context: Context, args: Vec<&str>) -> StatusCode {
     }
 }
 
-pub fn directory(context: Context, args: Vec<&str>) -> StatusCode {
+pub fn directory(context: &mut Context, args: Vec<&str>) -> StatusCode {
     if args.len() == 0 {
         println!("{}", context.shell.working_directory());
         StatusCode::success()
@@ -32,7 +32,7 @@ pub fn directory(context: Context, args: Vec<&str>) -> StatusCode {
     }
 }
 
-pub fn exit(context: Context, args: Vec<&str>) -> StatusCode {
+pub fn exit(_context: &mut Context, args: Vec<&str>) -> StatusCode {
     if args.len() == 0 {
         std::process::exit(0);
     } else {
@@ -41,7 +41,7 @@ pub fn exit(context: Context, args: Vec<&str>) -> StatusCode {
     }
 }
 
-pub fn test(context: Context, args: Vec<&str>) -> StatusCode {
+pub fn test(_context: &mut Context, args: Vec<&str>) -> StatusCode {
     if args.len() == 0 {
         println!("Test command!");
         StatusCode::success()

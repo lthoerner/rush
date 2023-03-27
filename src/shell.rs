@@ -51,10 +51,10 @@ impl Shell {
         let command_args: Vec<&str> = words.collect();
 
         // Bundle all the information that needs to be modifiable by the commands into a Context
-        let context = Context::new(self);
+        let mut context = Context::new(self);
 
         // Dispatch the command to the CommandManager
-        let exit_code = dispatcher.dispatch(command_name, command_args, context);
+        let exit_code = dispatcher.dispatch(command_name, command_args, &mut context);
 
         // If the command was not found, print an error message
         if exit_code.is_none() {
