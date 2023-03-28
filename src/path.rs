@@ -7,7 +7,6 @@ use std::path::PathBuf;
 #[derive(Hash, Eq, PartialEq)]
 pub struct Path {
     absolute_path: PathBuf,
-    // TODO: Figure out how this ties into Environment
     home_directory: PathBuf,
     shortened_path: String,
     truncation_factor: Option<usize>,
