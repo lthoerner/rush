@@ -1,3 +1,6 @@
+use std::fs;
+use std::path::PathBuf;
+
 use crate::commands::{Context, StatusCode};
 
 pub fn test(_context: &mut Context, args: Vec<&str>) -> StatusCode {
@@ -51,30 +54,55 @@ pub fn change_directory(context: &mut Context, args: Vec<&str>) -> StatusCode {
 }
 
 pub fn list_files_and_directories(context: &mut Context, args: Vec<&str>) -> StatusCode {
-    if args.len() == 0 {
-        let path = context.shell.environment().working_directory().absolute();
-        // This uses expect() because it needs to crash if the current working directory is invalid
-        let files_and_directories = std::fs::read_dir(path).expect("Failed to read directory");
+    let files_and_directories = match args.len() {
+        // Use the working directory as the default path argument
+        // This uses expect() because it needs to crash if the working directory is invalid
+        0 => fs::read_dir(context.shell.environment().working_directory().absolute())
+            .expect("Failed to read directory"),
+        1 => {
+            let path = PathBuf::from(args[0]);
 
-        for fd in files_and_directories {
-            let fd = fd.expect("Failed to read directory");
-            let fd_name = fd.file_name().to_str().expect("Failed to read file name").to_string();
+            if !path.exists() {
+                println!("Invalid path: {}", path.to_string_lossy().to_string());
+                return StatusCode::new(2);
+            }
 
-            // Append a '/' to directories
-            let fd = if fd.file_type().expect("Failed to read file type").is_dir() {
-                format!("{}/", fd_name)
-            } else {
-                fd_name
-            };
-
-            println!("{}", fd);
+            match fs::read_dir(&path) {
+                Ok(files_and_directories) => files_and_directories,
+                Err(_) => {
+                    println!(
+                        "Failed to read directory: {}",
+                        path.to_string_lossy().to_string()
+                    );
+                    return StatusCode::new(3);
+                }
+            }
         }
+        _ => {
+            println!("Usage: list-files-and-directories");
+            return StatusCode::new(1);
+        }
+    };
 
-        StatusCode::success()
-    } else {
-        println!("Usage: list-directories-and-files <directory>");
-        StatusCode::new(1)
+    for fd in files_and_directories {
+        let fd = fd.expect("Failed to read directory");
+        let fd_name = fd
+            .file_name()
+            .to_str()
+            .expect("Failed to read file name")
+            .to_string();
+
+        // Append a '/' to directories
+        let fd = if fd.file_type().expect("Failed to read file type").is_dir() {
+            format!("{}/", fd_name)
+        } else {
+            fd_name
+        };
+
+        println!("{}", fd);
     }
+
+    StatusCode::success()
 }
 
 pub fn clear_terminal(_context: &mut Context, args: Vec<&str>) -> StatusCode {
