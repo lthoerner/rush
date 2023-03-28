@@ -1,8 +1,9 @@
 use std::fs;
-use std::path::PathBuf;
+use std::env;
 
 use colored::Colorize;
 
+use crate::path::Path;
 use crate::commands::{Context, StatusCode};
 
 pub fn test(_context: &mut Context, args: Vec<&str>) -> StatusCode {
@@ -36,19 +37,18 @@ pub fn working_directory(context: &mut Context, args: Vec<&str>) -> StatusCode {
 
 pub fn change_directory(context: &mut Context, args: Vec<&str>) -> StatusCode {
     if args.len() == 1 {
-        let path = args[0];
         match context
             .shell
             .environment()
             .working_directory_mut()
-            .set_path(path)
+            .set_path(args[0])
         {
             true => {
                 context.shell.environment().update_process_env_vars();
                 StatusCode::success()
             }
             false => {
-                eprintln!("Invalid path: {}", path);
+                eprintln!("Invalid path: '{}'", args[0]);
                 StatusCode::new(1)
             }
         }
@@ -62,45 +62,24 @@ pub fn change_directory(context: &mut Context, args: Vec<&str>) -> StatusCode {
 pub fn list_files_and_directories(context: &mut Context, args: Vec<&str>) -> StatusCode {
     let files_and_directories = match args.len() {
         // Use the working directory as the default path argument
-        // This uses expect() because it needs to crash if the working directory is invalid
-        0 => fs::read_dir(std::env::current_dir().expect("Failed to get working directory"))
+        // This uses expect() because it needs to crash if the working directory is invalid,
+        // though in the future the error should be handled properly
+        0 => fs::read_dir(env::current_dir().expect("Failed to get working directory"))
             .expect("Failed to read directory"),
         1 => {
-            // First, attempt to read the path argument as an absolute path
-            // ? Is there a cleaner way to do this?
-            let absolute_path = context
-                .shell
-                .environment()
-                .working_directory()
-                .expand_home(args[0]);
-            let path = PathBuf::from(absolute_path);
-
-            // If the path argument is not an absolute path, try to read it as a relative path
-            if !path.exists() {
-                // Combine the working directory with the relative path
-                let relative_path = context
-                    .shell
-                    .environment()
-                    .working_directory()
-                    .absolute()
-                    .join(args[0]);
-
-                let path = PathBuf::from(relative_path);
-
-                // The path is invalid if it isn't an absolute path or a relative path
-                if !path.exists() {
+            // Path::from_str_path() will attempt to expand and canonicalize the path, and return None if the path does not exist
+            let absolute_path = match Path::from_str_path(args[0], context.shell.environment().home()) {
+                Some(path) => path,
+                None => {
                     eprintln!("Invalid path: '{}'", args[0]);
                     return StatusCode::new(2);
                 }
-            }
+            };
 
-            match fs::read_dir(&path) {
+            match fs::read_dir(&absolute_path.absolute()) {
                 Ok(files_and_directories) => files_and_directories,
                 Err(_) => {
-                    eprintln!(
-                        "Failed to read directory: '{}'",
-                        path.to_string_lossy().to_string()
-                    );
+                    eprintln!("Failed to read directory: '{}'", absolute_path);
                     return StatusCode::new(3);
                 }
             }
@@ -146,7 +125,7 @@ pub fn clear_terminal(_context: &mut Context, args: Vec<&str>) -> StatusCode {
 pub fn truncate(context: &mut Context, args: Vec<&str>) -> StatusCode {
     let truncation = match args.len() {
         0 => 1,
-        // ! This is copilot code, it is probably extremely unsafe
+        // ! This is copilot code, it is extremely unsafe
         1 => args[0].parse::<usize>().unwrap(),
         _ => {
             eprintln!("Usage: truncate <length (default 1)>");

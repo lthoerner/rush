@@ -46,6 +46,10 @@ impl Environment {
         &mut self.user
     }
 
+    pub fn home(&self) -> &PathBuf {
+        &self.home
+    }
+
     pub fn working_directory(&self) -> &Path {
         &self.working_directory
     }

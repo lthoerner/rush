@@ -2,6 +2,7 @@
 
 use std::fmt::{Display, Formatter};
 use std::path::PathBuf;
+use std::fs::canonicalize;
 
 // Wrapper class for a directory path string
 #[derive(Hash, Eq, PartialEq)]
@@ -34,6 +35,25 @@ impl Path {
         path.update_shortened_path();
 
         path
+    }
+
+    // Attempts to construct a new Path from a given path string by attempting
+    // to convert a relative or shorthand path to an absolute path, or alternatively
+    // simply using the given path as an absolute path
+    pub fn from_str_path(path: &str, home_directory: &PathBuf) -> Option<Self> {
+        let expanded_path = expand_home(path, home_directory);
+        let absolute_path = match std::fs::canonicalize(expanded_path) {
+            Ok(path) => path,
+            Err(_) => return None,
+        };
+
+        // If the file system can canonicalize the path, it most likely exists,
+        // but this is added for extra safety
+        if !absolute_path.exists() {
+            None
+        } else {
+            Some(Self::new(absolute_path, home_directory))
+        }
     }
 
     // Gets the absolute path, with all directory names included
@@ -102,10 +122,13 @@ impl Path {
 
     // Updates the Path using a new absolute path
     // TODO: Result instead of bool for error handling
-    pub fn set_path(&mut self, new_absolute_path: &str) -> bool {
+    pub fn set_path(&mut self, new_path: &str) -> bool {
         // Home directory shorthand must be expanded before setting the path,
         // because PathBuf is not user-specific and only uses absolute paths
-        let new_absolute_path = PathBuf::from(self.expand_home(new_absolute_path));
+        let mut new_absolute_path = PathBuf::from(match canonicalize(expand_home(new_path, &self.home_directory)) {
+            Ok(path) => path,
+            Err(_) => return false,
+        });
 
         if !new_absolute_path.exists() {
             return false;
@@ -116,13 +139,12 @@ impl Path {
 
         true
     }
+}
 
-    // TODO: Move this to a different module
-    pub fn expand_home(&self, path: &str) -> String {
-        if path.starts_with("~") {
-            return path.replace("~", &self.home_directory.to_string_lossy().to_string());
-        }
-
-        path.to_string()
+fn expand_home(path: &str, home_directory: &PathBuf) -> String {
+    if path.starts_with("~") {
+        return path.replace("~", home_directory.to_str().expect("Failed to convert home directory to strings"))
     }
+
+    path.to_string()
 }
