@@ -87,6 +87,7 @@ pub fn list_files_and_directories(context: &mut Context, args: Vec<&str>) -> Sta
 
                 let path = PathBuf::from(relative_path);
 
+                // The path is invalid if it isn't an absolute path or a relative path
                 if !path.exists() {
                     eprintln!("Invalid path: '{}'", args[0]);
                     return StatusCode::new(2);
