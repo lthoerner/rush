@@ -37,22 +37,11 @@ impl Path {
         path
     }
 
-    // Attempts to construct a new Path from a given path string by attempting
-    // to convert a relative or shorthand path to an absolute path, or alternatively
-    // simply using the given path as an absolute path
-    pub fn from_str_path(path: &str, home_directory: &PathBuf) -> Option<Self> {
-        let expanded_path = expand_home(path, home_directory);
-        let absolute_path = match std::fs::canonicalize(expanded_path) {
-            Ok(path) => path,
-            Err(_) => return None,
-        };
-
-        // If the file system can canonicalize the path, it most likely exists,
-        // but this is added for extra safety
-        if !absolute_path.exists() {
-            None
-        } else {
-            Some(Self::new(absolute_path, home_directory))
+    // Attempts to construct a new Path from a given path string by resolving it to an absolute path
+    fn from_str_path(path: &str, home_directory: &PathBuf) -> Option<Self> {
+        match resolve(path, home_directory) {
+            Some(absolute_path) => Some(Self::new(absolute_path, home_directory)),
+            None => None,
         }
     }
 
@@ -125,7 +114,7 @@ impl Path {
     pub fn set_path(&mut self, new_path: &str) -> bool {
         // Home directory shorthand must be expanded before setting the path,
         // because PathBuf is not user-specific and only uses absolute paths
-        let mut new_absolute_path = PathBuf::from(match canonicalize(expand_home(new_path, &self.home_directory)) {
+        let new_absolute_path = PathBuf::from(match canonicalize(expand_home(new_path, &self.home_directory)) {
             Ok(path) => path,
             Err(_) => return false,
         });
@@ -138,6 +127,26 @@ impl Path {
         self.update_shortened_path();
 
         true
+    }
+}
+
+// Attempts to convert a path string into a canonicalized absolute path
+pub fn resolve(path: &str, home_directory: &PathBuf) -> Option<PathBuf> {
+    // The home directory shorthand must be expanded before resolving the path,
+    // because PathBuf is not user-aware and only uses absolute and relative paths
+    let expanded_path = expand_home(path, home_directory);
+    // Canonicalizing a path will resolve any relative or absolute paths
+    let absolute_path = match std::fs::canonicalize(expanded_path) {
+        Ok(path) => path,
+        Err(_) => return None,
+    };
+
+    // If the file system can canonicalize the path, it most likely exists,
+    // but this is added for extra safety
+    if !absolute_path.exists() {
+        None
+    } else {
+        Some(absolute_path)
     }
 }
 

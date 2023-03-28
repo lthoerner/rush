@@ -3,7 +3,7 @@ use std::env;
 
 use colored::Colorize;
 
-use crate::path::Path;
+use crate::path;
 use crate::commands::{Context, StatusCode};
 
 pub fn test(_context: &mut Context, args: Vec<&str>) -> StatusCode {
@@ -68,7 +68,7 @@ pub fn list_files_and_directories(context: &mut Context, args: Vec<&str>) -> Sta
             .expect("Failed to read directory"),
         1 => {
             // Path::from_str_path() will attempt to expand and canonicalize the path, and return None if the path does not exist
-            let absolute_path = match Path::from_str_path(args[0], context.shell.environment().home()) {
+            let absolute_path = match path::resolve(args[0], context.shell.environment().home()) {
                 Some(path) => path,
                 None => {
                     eprintln!("Invalid path: '{}'", args[0]);
@@ -76,10 +76,10 @@ pub fn list_files_and_directories(context: &mut Context, args: Vec<&str>) -> Sta
                 }
             };
 
-            match fs::read_dir(&absolute_path.absolute()) {
+            match fs::read_dir(&absolute_path) {
                 Ok(files_and_directories) => files_and_directories,
                 Err(_) => {
-                    eprintln!("Failed to read directory: '{}'", absolute_path);
+                    eprintln!("Failed to read directory: '{}'", absolute_path.to_string_lossy().to_string());
                     return StatusCode::new(3);
                 }
             }
@@ -97,6 +97,11 @@ pub fn list_files_and_directories(context: &mut Context, args: Vec<&str>) -> Sta
             .to_str()
             .expect("Failed to read file name")
             .to_string();
+
+        // TODO: Add a flag to show hidden files
+        if fd_name.starts_with('.') {
+            continue;
+        }
 
         // Append a '/' to directories
         let fd = if fd.file_type().expect("Failed to read file type").is_dir() {
