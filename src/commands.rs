@@ -74,6 +74,7 @@ impl<'a> Context<'a> {
 }
 
 // Represents the status/exit code of a command
+#[derive(Debug, PartialEq, Eq)]
 pub struct StatusCode {
     code: i32,
 }

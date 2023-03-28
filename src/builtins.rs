@@ -49,7 +49,7 @@ pub fn change_directory(context: &mut Context, args: Vec<&str>) -> StatusCode {
             }
             false => {
                 eprintln!("Invalid path: '{}'", args[0]);
-                StatusCode::new(1)
+                StatusCode::new(2)
             }
         }
     } else {
@@ -157,5 +157,99 @@ pub fn untruncate(context: &mut Context, args: Vec<&str>) -> StatusCode {
     } else {
         eprintln!("Usage: untruncate");
         StatusCode::new(1)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::shell::Shell;
+
+    #[test]
+    fn test_command_test_success() {
+        let mut shell = Shell::new();
+        let mut context = Context::new(&mut shell);
+        let status_code = test(&mut context, Vec::new());
+
+        assert_eq!(status_code, StatusCode::success());
+    }
+
+    #[test]
+    fn test_command_test_fail() {
+        let mut shell = Shell::new();
+        let mut context = Context::new(&mut shell);
+        let status_code = test(&mut context, vec!["arg1", "arg2"]);
+
+        assert_eq!(status_code, StatusCode::new(1));
+    }
+
+    #[test]
+    fn test_command_exit_success() {
+        // * This is a placeholder test because the exit command
+        // * will exit the program, effectively ending the test
+    }
+
+    #[test]
+    fn test_command_exit_fail() {
+        let mut shell = Shell::new();
+        let mut context = Context::new(&mut shell);
+        let status_code = exit(&mut context, vec!["arg1", "arg2"]);
+
+        assert_eq!(status_code, StatusCode::new(1));
+    }
+
+    #[test]
+    fn test_command_working_directory_success() {
+        let mut shell = Shell::new();
+        let mut context = Context::new(&mut shell);
+        let status_code = working_directory(&mut context, Vec::new());
+
+        assert_eq!(status_code, StatusCode::success());
+    }
+
+    #[test]
+    fn test_command_working_directory_fail() {
+        let mut shell = Shell::new();
+        let mut context = Context::new(&mut shell);
+        let status_code = working_directory(&mut context, vec!["arg1", "arg2"]);
+
+        assert_eq!(status_code, StatusCode::new(1));
+    }
+
+    #[test]
+    fn test_command_change_directory_success_1() {
+        let mut shell = Shell::new();
+        let mut context = Context::new(&mut shell);
+        let status_code = change_directory(&mut context, vec!["/"]);
+
+        assert_eq!(status_code, StatusCode::success());
+    }
+
+    #[test]
+    fn test_command_change_directory_success_2() {
+        let mut shell = Shell::new();
+        let mut context = Context::new(&mut shell);
+        let status_code = change_directory(&mut context, vec!["~"]);
+
+        assert_eq!(status_code, StatusCode::success());
+    }
+
+    #[test]
+    fn test_command_change_directory_success_3() {
+        let mut shell = Shell::new();
+        let mut context = Context::new(&mut shell);
+        change_directory(&mut context, vec!["~"]);
+        let status_code = change_directory(&mut context, vec!["Documents"]);
+
+        assert_eq!(status_code, StatusCode::success());
+    }
+
+    #[test]
+    fn test_command_change_directory_fail() {
+        let mut shell = Shell::new();
+        let mut context = Context::new(&mut shell);
+        let status_code = change_directory(&mut context, vec!["/invalid/path"]);
+
+        assert_eq!(status_code, StatusCode::new(2));
     }
 }
