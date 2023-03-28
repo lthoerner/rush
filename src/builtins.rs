@@ -59,15 +59,16 @@ pub fn change_directory(context: &mut Context, args: Vec<&str>) -> StatusCode {
 }
 
 // TODO: Break up some of this code into different functions
-pub fn list_files_and_directories(_context: &mut Context, args: Vec<&str>) -> StatusCode {
+pub fn list_files_and_directories(context: &mut Context, args: Vec<&str>) -> StatusCode {
     let files_and_directories = match args.len() {
         // Use the working directory as the default path argument
         // This uses expect() because it needs to crash if the working directory is invalid
-        // ! This might need to be changed to std::env::current_dir() for safety
-        0 => fs::read_dir("./")
+        0 => fs::read_dir(std::env::current_dir().expect("Failed to get working directory"))
             .expect("Failed to read directory"),
         1 => {
-            let path = PathBuf::from(args[0]);
+            // ? Is there a cleaner way to do this?
+            let absolute_path = context.shell.environment().working_directory().expand_home(args[0]);
+            let path = PathBuf::from(absolute_path);
 
             if !path.exists() {
                 eprintln!("Invalid path: {}", path.to_string_lossy().to_string());

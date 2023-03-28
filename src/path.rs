@@ -118,7 +118,7 @@ impl Path {
     }
 
     // TODO: Move this to a different module
-    fn expand_home(&self, path: &str) -> String {
+    pub fn expand_home(&self, path: &str) -> String {
         if path.starts_with("~") {
             return path.replace("~", &self.home_directory.to_string_lossy().to_string());
         }

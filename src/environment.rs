@@ -36,6 +36,7 @@ impl Environment {
         std::env::set_current_dir(self.working_directory.absolute()).expect("Failed to set working directory");
     }
 
+    // ? Should these just be public fields?
     pub fn user(&self) -> &String {
         &self.user
     }
@@ -59,7 +60,7 @@ fn get_caller_env_var(var_name: &str) -> String {
         Ok(value) => value,
         Err(_) => {
             eprintln!(
-                "[FATAL ERROR] Could not find required environment variable '{}'",
+                "[FATAL ERROR] Could not acquire required environment variable '{}'",
                 var_name
             );
             std::process::exit(1);
