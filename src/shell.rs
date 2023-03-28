@@ -66,7 +66,7 @@ impl Shell {
         match exit_code {
             Some(code) => self.success = code.is_success(),
             None => {
-                println!("Unknown command: {}", command_name.red());
+                eprintln!("Unknown command: {}", command_name.red());
                 self.success = false;
             }
         }

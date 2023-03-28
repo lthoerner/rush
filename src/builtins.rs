@@ -10,7 +10,7 @@ pub fn test(_context: &mut Context, args: Vec<&str>) -> StatusCode {
         println!("Test command!");
         StatusCode::success()
     } else {
-        println!("Usage: test");
+        eprintln!("Usage: test");
         StatusCode::new(1)
     }
 }
@@ -19,7 +19,7 @@ pub fn exit(_context: &mut Context, args: Vec<&str>) -> StatusCode {
     if args.len() == 0 {
         std::process::exit(0);
     } else {
-        println!("Usage: exit");
+        eprintln!("Usage: exit");
         StatusCode::new(1)
     }
 }
@@ -29,7 +29,7 @@ pub fn working_directory(context: &mut Context, args: Vec<&str>) -> StatusCode {
         println!("{}", context.shell.environment().working_directory());
         StatusCode::success()
     } else {
-        println!("Usage: working-directory");
+        eprintln!("Usage: working-directory");
         StatusCode::new(1)
     }
 }
@@ -43,37 +43,41 @@ pub fn change_directory(context: &mut Context, args: Vec<&str>) -> StatusCode {
             .working_directory_mut()
             .set_path(path)
         {
-            true => StatusCode::success(),
+            true => {
+                context.shell.environment().update_process_env_vars();
+                StatusCode::success()
+            },
             false => {
-                println!("Invalid path: {}", path);
+                eprintln!("Invalid path: {}", path);
                 StatusCode::new(1)
-            }
+            },
         }
     } else {
-        println!("Usage: change-directory <path>");
+        eprintln!("Usage: change-directory <path>");
         StatusCode::new(1)
     }
 }
 
 // TODO: Break up some of this code into different functions
-pub fn list_files_and_directories(context: &mut Context, args: Vec<&str>) -> StatusCode {
+pub fn list_files_and_directories(_context: &mut Context, args: Vec<&str>) -> StatusCode {
     let files_and_directories = match args.len() {
         // Use the working directory as the default path argument
         // This uses expect() because it needs to crash if the working directory is invalid
-        0 => fs::read_dir(context.shell.environment().working_directory().absolute())
+        // ! This might need to be changed to std::env::current_dir() for safety
+        0 => fs::read_dir("./")
             .expect("Failed to read directory"),
         1 => {
             let path = PathBuf::from(args[0]);
 
             if !path.exists() {
-                println!("Invalid path: {}", path.to_string_lossy().to_string());
+                eprintln!("Invalid path: {}", path.to_string_lossy().to_string());
                 return StatusCode::new(2);
             }
 
             match fs::read_dir(&path) {
                 Ok(files_and_directories) => files_and_directories,
                 Err(_) => {
-                    println!(
+                    eprintln!(
                         "Failed to read directory: {}",
                         path.to_string_lossy().to_string()
                     );
@@ -82,7 +86,7 @@ pub fn list_files_and_directories(context: &mut Context, args: Vec<&str>) -> Sta
             }
         }
         _ => {
-            println!("Usage: list-files-and-directories <path>");
+            eprintln!("Usage: list-files-and-directories <path>");
             return StatusCode::new(1);
         }
     };
@@ -114,36 +118,28 @@ pub fn clear_terminal(_context: &mut Context, args: Vec<&str>) -> StatusCode {
         print!("\x1B[2J\x1B[1;1H");
         StatusCode::success()
     } else {
-        println!("Usage: clear-terminal");
+        eprintln!("Usage: clear-terminal");
         StatusCode::new(1)
     }
 }
 
 pub fn truncate(context: &mut Context, args: Vec<&str>) -> StatusCode {
-    match args.len() {
-        0 => {
-            context
-                .shell
-                .environment()
-                .working_directory_mut()
-                .set_truncation(1);
-            StatusCode::success()
-        }
-        1 => {
-            // ! This is copilot code, it is probably extremely unsafe
-            let truncation = args[0].parse::<usize>().unwrap();
-            context
-                .shell
-                .environment()
-                .working_directory_mut()
-                .set_truncation(truncation);
-            StatusCode::success()
-        }
+    let truncation = match args.len() {
+        0 => 1,
+        // ! This is copilot code, it is probably extremely unsafe
+        1 => args[0].parse::<usize>().unwrap(),
         _ => {
-            println!("Usage: truncate <length (default 1)>");
-            StatusCode::new(1)
+            eprintln!("Usage: truncate <length (default 1)>");
+            return StatusCode::new(1);
         }
-    }
+    };
+
+    context
+        .shell
+        .environment()
+        .working_directory_mut()
+        .set_truncation(truncation);
+    StatusCode::success()
 }
 
 pub fn untruncate(context: &mut Context, args: Vec<&str>) -> StatusCode {
@@ -155,7 +151,7 @@ pub fn untruncate(context: &mut Context, args: Vec<&str>) -> StatusCode {
             .disable_truncation();
         StatusCode::success()
     } else {
-        println!("Usage: untruncate");
+        eprintln!("Usage: untruncate");
         StatusCode::new(1)
     }
 }

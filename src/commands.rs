@@ -3,7 +3,6 @@
 use std::path::PathBuf;
 
 use crate::builtins;
-use crate::path::Path;
 use crate::shell::Shell;
 
 // Represents a command that can be run by the prompt

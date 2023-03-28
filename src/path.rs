@@ -8,7 +8,7 @@ use std::path::PathBuf;
 pub struct Path {
     absolute_path: PathBuf,
     // TODO: Figure out how this ties into Environment
-    home_directory: String,
+    home_directory: PathBuf,
     shortened_path: String,
     truncation_factor: Option<usize>,
 }
@@ -20,10 +20,10 @@ impl Display for Path {
 }
 
 impl Path {
-    // Constructs a Path from the current working directory
-    pub fn from_cwd() -> Self {
-        let absolute_path = get_caller_cwd();
-        let home_directory = get_caller_home_directory();
+    // Safely constructs a new Path from a given directory, taking into account
+    // the user's home directory so it can be collapsed into a shorthand '~'
+    pub fn new(absolute_path: PathBuf, home_directory: &PathBuf) -> Self {
+        let home_directory = home_directory.clone();
 
         let mut path = Self {
             absolute_path,
@@ -121,17 +121,9 @@ impl Path {
     // TODO: Move this to a different module
     fn expand_home(&self, path: &str) -> String {
         if path.starts_with("~") {
-            return path.replace("~", &self.home_directory);
+            return path.replace("~", &self.home_directory.to_string_lossy().to_string());
         }
 
         path.to_string()
     }
-}
-
-fn get_caller_cwd() -> PathBuf {
-    PathBuf::from(std::env::var("PWD").expect("Failed to get path"))
-}
-
-fn get_caller_home_directory() -> String {
-    std::env::var("HOME").expect("Failed to get home directory")
 }
