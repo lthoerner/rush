@@ -1,5 +1,7 @@
 #![allow(dead_code, unused_variables)]
 
+use std::path::PathBuf;
+
 use crate::builtins;
 use crate::path::Path;
 use crate::shell::Shell;
@@ -31,8 +33,7 @@ impl Command {
 // Represents either an internal command or an external binary that can be invoked by a command
 enum Runnable {
     Internal(Box<dyn Fn(&mut Context, Vec<&str>) -> StatusCode>),
-    // ? Should this be a PathBuf, or should Path have a conversion method?
-    External(Path),
+    External(PathBuf),
 }
 
 impl Runnable {
@@ -45,7 +46,7 @@ impl Runnable {
     }
 
     // Constructs an External Runnable from a path
-    fn external(path: Path) -> Self {
+    fn external(path: PathBuf) -> Self {
         Self::External(path)
     }
 
