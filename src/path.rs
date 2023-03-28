@@ -1,8 +1,8 @@
 #![allow(dead_code)]
 
 use std::fmt::{Display, Formatter};
-use std::path::PathBuf;
 use std::fs::canonicalize;
+use std::path::PathBuf;
 
 // Wrapper class for a directory path string
 pub struct Path {
@@ -113,10 +113,12 @@ impl Path {
     pub fn set_path(&mut self, new_path: &str) -> bool {
         // Home directory shorthand must be expanded before setting the path,
         // because PathBuf is not user-specific and only uses absolute paths
-        let new_absolute_path = PathBuf::from(match canonicalize(expand_home(new_path, &self.home_directory)) {
-            Ok(path) => path,
-            Err(_) => return false,
-        });
+        let new_absolute_path = PathBuf::from(
+            match canonicalize(expand_home(new_path, &self.home_directory)) {
+                Ok(path) => path,
+                Err(_) => return false,
+            },
+        );
 
         if !new_absolute_path.exists() {
             return false;
@@ -151,7 +153,12 @@ pub fn resolve(path: &str, home_directory: &PathBuf) -> Option<PathBuf> {
 
 fn expand_home(path: &str, home_directory: &PathBuf) -> String {
     if path.starts_with("~") {
-        return path.replace("~", home_directory.to_str().expect("Failed to convert home directory to strings"))
+        return path.replace(
+            "~",
+            home_directory
+                .to_str()
+                .expect("Failed to convert home directory to strings"),
+        );
     }
 
     path.to_string()

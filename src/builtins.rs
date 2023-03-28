@@ -1,10 +1,10 @@
-use std::fs;
 use std::env;
+use std::fs;
 
 use colored::Colorize;
 
-use crate::path;
 use crate::commands::{Context, StatusCode};
+use crate::path;
 
 pub fn test(_context: &mut Context, args: Vec<&str>) -> StatusCode {
     if args.len() == 0 {
@@ -27,7 +27,7 @@ pub fn exit(_context: &mut Context, args: Vec<&str>) -> StatusCode {
 
 pub fn working_directory(context: &mut Context, args: Vec<&str>) -> StatusCode {
     if args.len() == 0 {
-        println!("{}", context.shell.environment().working_directory());
+        println!("{}", context.cwd());
         StatusCode::success()
     } else {
         eprintln!("Usage: working-directory");
@@ -37,14 +37,9 @@ pub fn working_directory(context: &mut Context, args: Vec<&str>) -> StatusCode {
 
 pub fn change_directory(context: &mut Context, args: Vec<&str>) -> StatusCode {
     if args.len() == 1 {
-        match context
-            .shell
-            .environment()
-            .working_directory_mut()
-            .set_path(args[0])
-        {
+        match context.cwd_mut().set_path(args[0]) {
             true => {
-                context.shell.environment().update_process_env_vars();
+                context.env_mut().update_process_env_vars();
                 StatusCode::success()
             }
             false => {
@@ -68,7 +63,7 @@ pub fn list_files_and_directories(context: &mut Context, args: Vec<&str>) -> Sta
             .expect("Failed to read directory"),
         1 => {
             // Path::from_str_path() will attempt to expand and canonicalize the path, and return None if the path does not exist
-            let absolute_path = match path::resolve(args[0], context.shell.environment().home()) {
+            let absolute_path = match path::resolve(args[0], context.home()) {
                 Some(path) => path,
                 None => {
                     eprintln!("Invalid path: '{}'", args[0]);
@@ -79,7 +74,10 @@ pub fn list_files_and_directories(context: &mut Context, args: Vec<&str>) -> Sta
             match fs::read_dir(&absolute_path) {
                 Ok(files_and_directories) => files_and_directories,
                 Err(_) => {
-                    eprintln!("Failed to read directory: '{}'", absolute_path.to_string_lossy().to_string());
+                    eprintln!(
+                        "Failed to read directory: '{}'",
+                        absolute_path.to_string_lossy().to_string()
+                    );
                     return StatusCode::new(3);
                 }
             }
@@ -138,21 +136,13 @@ pub fn truncate(context: &mut Context, args: Vec<&str>) -> StatusCode {
         }
     };
 
-    context
-        .shell
-        .environment()
-        .working_directory_mut()
-        .set_truncation(truncation);
+    context.cwd_mut().set_truncation(truncation);
     StatusCode::success()
 }
 
 pub fn untruncate(context: &mut Context, args: Vec<&str>) -> StatusCode {
     if args.len() == 0 {
-        context
-            .shell
-            .environment()
-            .working_directory_mut()
-            .disable_truncation();
+        context.cwd_mut().disable_truncation();
         StatusCode::success()
     } else {
         eprintln!("Usage: untruncate");

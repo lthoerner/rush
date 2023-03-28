@@ -3,6 +3,8 @@
 use std::path::PathBuf;
 
 use crate::builtins;
+use crate::environment::Environment;
+use crate::path::Path;
 use crate::shell::Shell;
 
 // Represents a command that can be run by the prompt
@@ -37,10 +39,7 @@ enum Runnable {
 
 impl Runnable {
     // Constructs an Internal Runnable from a function
-    fn internal<F>(function: F) -> Self
-    where
-        F: Fn(&mut Context, Vec<&str>) -> StatusCode + 'static,
-    {
+    fn internal<F: Fn(&mut Context, Vec<&str>) -> StatusCode + 'static>(function: F) -> Self {
         Self::Internal(Box::new(function))
     }
 
@@ -70,6 +69,26 @@ pub struct Context<'a> {
 impl<'a> Context<'a> {
     pub fn new(shell: &'a mut Shell) -> Self {
         Self { shell }
+    }
+
+    // Shortcut for accessing Context.shell.environment.home
+    pub fn home(&self) -> &PathBuf {
+        &self.shell.environment.home()
+    }
+
+    // Shortcut for accessing Context.shell.environment
+    pub fn env_mut(&mut self) -> &mut Environment {
+        &mut self.shell.environment
+    }
+
+    // Shortcut for accessing Context.shell.environment.working_directory
+    pub fn cwd(&self) -> &Path {
+        &self.shell.environment.working_directory
+    }
+
+    // Mutable variant of Context.cwd()
+    pub fn cwd_mut(&mut self) -> &mut Path {
+        &mut self.shell.environment.working_directory
     }
 }
 

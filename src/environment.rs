@@ -9,7 +9,7 @@ use crate::path::Path;
 pub struct Environment {
     user: String,
     home: PathBuf,
-    working_directory: Path,
+    pub working_directory: Path,
     custom_variables: HashMap<String, String>,
 }
 
@@ -48,14 +48,6 @@ impl Environment {
 
     pub fn home(&self) -> &PathBuf {
         &self.home
-    }
-
-    pub fn working_directory(&self) -> &Path {
-        &self.working_directory
-    }
-
-    pub fn working_directory_mut(&mut self) -> &mut Path {
-        &mut self.working_directory
     }
 }
 

@@ -8,7 +8,7 @@ use crate::commands::{CommandManager, Context};
 use crate::environment::Environment;
 
 pub struct Shell {
-    environment: Environment,
+    pub environment: Environment,
     success: bool,
 }
 
@@ -37,7 +37,7 @@ impl Shell {
         print!(
             "{} on {}\n{} ",
             self.environment.user().blue(),
-            self.environment.working_directory().short().green(),
+            self.environment.working_directory.short().green(),
             match self.success {
                 true => "❯".bright_green().bold(),
                 false => "❯".bright_red().bold(),
@@ -70,10 +70,6 @@ impl Shell {
                 self.success = false;
             }
         }
-    }
-
-    pub fn environment(&mut self) -> &mut Environment {
-        &mut self.environment
     }
 }
 
