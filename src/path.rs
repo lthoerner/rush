@@ -5,7 +5,6 @@ use std::path::PathBuf;
 use std::fs::canonicalize;
 
 // Wrapper class for a directory path string
-#[derive(Hash, Eq, PartialEq)]
 pub struct Path {
     absolute_path: PathBuf,
     home_directory: PathBuf,
