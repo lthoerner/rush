@@ -1,6 +1,8 @@
 use std::fs;
 use std::path::PathBuf;
 
+use colored::Colorize;
+
 use crate::commands::{Context, StatusCode};
 
 pub fn test(_context: &mut Context, args: Vec<&str>) -> StatusCode {
@@ -53,6 +55,7 @@ pub fn change_directory(context: &mut Context, args: Vec<&str>) -> StatusCode {
     }
 }
 
+// TODO: Break up some of this code into different functions
 pub fn list_files_and_directories(context: &mut Context, args: Vec<&str>) -> StatusCode {
     let files_and_directories = match args.len() {
         // Use the working directory as the default path argument
@@ -79,7 +82,7 @@ pub fn list_files_and_directories(context: &mut Context, args: Vec<&str>) -> Sta
             }
         }
         _ => {
-            println!("Usage: list-files-and-directories");
+            println!("Usage: list-files-and-directories <path>");
             return StatusCode::new(1);
         }
     };
@@ -94,7 +97,7 @@ pub fn list_files_and_directories(context: &mut Context, args: Vec<&str>) -> Sta
 
         // Append a '/' to directories
         let fd = if fd.file_type().expect("Failed to read file type").is_dir() {
-            format!("{}/", fd_name)
+            format!("{}/", fd_name).bright_green().to_string()
         } else {
             fd_name
         };
