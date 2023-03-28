@@ -46,11 +46,11 @@ pub fn change_directory(context: &mut Context, args: Vec<&str>) -> StatusCode {
             true => {
                 context.shell.environment().update_process_env_vars();
                 StatusCode::success()
-            },
+            }
             false => {
                 eprintln!("Invalid path: {}", path);
                 StatusCode::new(1)
-            },
+            }
         }
     } else {
         eprintln!("Usage: change-directory <path>");
@@ -66,20 +66,38 @@ pub fn list_files_and_directories(context: &mut Context, args: Vec<&str>) -> Sta
         0 => fs::read_dir(std::env::current_dir().expect("Failed to get working directory"))
             .expect("Failed to read directory"),
         1 => {
+            // First, attempt to read the path argument as an absolute path
             // ? Is there a cleaner way to do this?
-            let absolute_path = context.shell.environment().working_directory().expand_home(args[0]);
+            let absolute_path = context
+                .shell
+                .environment()
+                .working_directory()
+                .expand_home(args[0]);
             let path = PathBuf::from(absolute_path);
 
+            // If the path argument is not an absolute path, try to read it as a relative path
             if !path.exists() {
-                eprintln!("Invalid path: {}", path.to_string_lossy().to_string());
-                return StatusCode::new(2);
+                // Combine the working directory with the relative path
+                let relative_path = context
+                    .shell
+                    .environment()
+                    .working_directory()
+                    .absolute()
+                    .join(args[0]);
+
+                let path = PathBuf::from(relative_path);
+
+                if !path.exists() {
+                    eprintln!("Invalid path: '{}'", args[0]);
+                    return StatusCode::new(2);
+                }
             }
 
             match fs::read_dir(&path) {
                 Ok(files_and_directories) => files_and_directories,
                 Err(_) => {
                     eprintln!(
-                        "Failed to read directory: {}",
+                        "Failed to read directory: '{}'",
                         path.to_string_lossy().to_string()
                     );
                     return StatusCode::new(3);

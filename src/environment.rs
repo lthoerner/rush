@@ -33,7 +33,8 @@ impl Environment {
     pub fn update_process_env_vars(&self) {
         std::env::set_var("USER", &self.user);
         std::env::set_var("HOME", &self.home);
-        std::env::set_current_dir(self.working_directory.absolute()).expect("Failed to set working directory");
+        std::env::set_current_dir(self.working_directory.absolute())
+            .expect("Failed to set working directory");
     }
 
     // ? Should these just be public fields?
