@@ -170,6 +170,11 @@ impl Default for CommandManager {
             Runnable::internal(builtins::create_directory),
         );
         manager.add_command(
+            "delete-file",
+            vec!["delete", "remove", "rm", "del", "rf"],
+            Runnable::internal(builtins::delete_file),
+        );
+        manager.add_command(
             "truncate",
             vec!["trunc"],
             Runnable::internal(builtins::truncate),

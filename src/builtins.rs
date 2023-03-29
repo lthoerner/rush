@@ -184,7 +184,7 @@ pub fn create_file(context: &mut Context, args: Vec<&str>) -> StatusCode {
 
 pub fn create_directory(context: &mut Context, args: Vec<&str>) -> StatusCode {
     if args.len() == 1 {
-        // ! See waring in create_file()
+        // ! See warning in create_file()
         match fs::create_dir(context.cwd().absolute().join(args[0])) {
             Ok(_) => StatusCode::success(),
             Err(_) => {
@@ -194,6 +194,22 @@ pub fn create_directory(context: &mut Context, args: Vec<&str>) -> StatusCode {
         }
     } else {
         eprintln!("Usage: create-directory <path>");
+        StatusCode::new(1)
+    }
+}
+
+pub fn delete_file(context: &mut Context, args: Vec<&str>) -> StatusCode {
+    if args.len() == 1 {
+        // ! See warning in create_file()
+        match fs::remove_file(context.cwd().absolute().join(args[0])) {
+            Ok(_) => StatusCode::success(),
+            Err(_) => {
+                eprintln!("Failed to delete file: '{}'", args[0]);
+                StatusCode::new(2)
+            }
+        }
+    } else {
+        eprintln!("Usage: delete-file <path>");
         StatusCode::new(1)
     }
 }
