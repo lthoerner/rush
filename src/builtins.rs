@@ -1,3 +1,14 @@
+/*
+A quick write-up on rush builtins:
+Builtins are commands that are included with the shell. They are not able to be removed or modified without recompiling the shell.
+Normally, a child process, such as a shell command, does not have direct access to the parent process's environment variables and other state.
+However, the builtins are an exception to this rule. They are able to access the data because they are trusted to safely modify it.
+Users are free to create their own builtins if they wish to modify the source code, but it comes with an inherent risk.
+
+You may notice that builtin commands are referenced in commands::Runnable::Internal. An 'Internal' is essentially a function pointer to a builtin command.
+An 'External' will only have access to its arguments and environment variables, but not the shell's state, mostly for security reasons.
+ */
+
 use std::env;
 use std::fs;
 
