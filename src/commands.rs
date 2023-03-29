@@ -77,6 +77,11 @@ impl<'a> Context<'a> {
     }
 
     // Shortcut for accessing Context.shell.environment
+    pub fn env(&self) -> &Environment {
+        &self.shell.environment
+    }
+
+    // Mutable variant of Context.env()
     pub fn env_mut(&mut self) -> &mut Environment {
         &mut self.shell.environment
     }
@@ -143,6 +148,11 @@ impl Default for CommandManager {
             "list-files-and-directories",
             vec!["directory", "list", "ls", "dir"],
             Runnable::internal(builtins::list_files_and_directories),
+        );
+        manager.add_command(
+            "go-back",
+            vec!["back", "b"],
+            Runnable::internal(builtins::go_back),
         );
         manager.add_command(
             "clear-terminal",

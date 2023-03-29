@@ -10,6 +10,8 @@ pub struct Environment {
     pub user: String,
     home: PathBuf,
     pub working_directory: Path,
+    // ? Should this just be a single path or should it store a history?
+    pub previous_working_directory: Option<PathBuf>,
     custom_variables: HashMap<String, String>,
 }
 
@@ -23,6 +25,7 @@ impl Default for Environment {
             user,
             home,
             working_directory,
+            previous_working_directory: None,
             custom_variables: HashMap::new(),
         }
     }
@@ -39,6 +42,17 @@ impl Environment {
 
     pub fn home(&self) -> &PathBuf {
         &self.home
+    }
+
+    // Sets the current working directory and stores the previous working directory
+    pub fn set_path(&mut self, new_path: &str) -> bool {
+        let previous_path = self.working_directory.absolute().clone();
+        match self.working_directory.set_path(new_path) {
+            true => self.previous_working_directory = Some(previous_path),
+            false => return false,
+        };
+
+        true
     }
 }
 

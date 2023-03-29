@@ -37,8 +37,9 @@ pub fn working_directory(context: &mut Context, args: Vec<&str>) -> StatusCode {
 
 pub fn change_directory(context: &mut Context, args: Vec<&str>) -> StatusCode {
     if args.len() == 1 {
-        match context.cwd_mut().set_path(args[0]) {
+        match context.env_mut().set_path(args[0]) {
             true => {
+                // ! This might be better to have happen automatically
                 context.env_mut().update_process_env_vars();
                 StatusCode::success()
             }
@@ -112,6 +113,35 @@ pub fn list_files_and_directories(context: &mut Context, args: Vec<&str>) -> Sta
     }
 
     StatusCode::success()
+}
+
+// TODO: Find a better name for this
+pub fn go_back(context: &mut Context, args: Vec<&str>) -> StatusCode {
+    if args.len() == 0 {
+        let prev_dir = match context.env().previous_working_directory.clone() {
+            Some(dir) => dir,
+            None => {
+                eprintln!("No previous working directory available");
+                return StatusCode::new(2);
+            }
+        }
+        .to_string_lossy()
+        .to_string();
+
+        match context.env_mut().set_path(prev_dir.as_str()) {
+            true => {
+                context.env_mut().update_process_env_vars();
+                StatusCode::success()
+            }
+            false => {
+                eprintln!("Invalid path: '{}'", prev_dir);
+                StatusCode::new(3)
+            }
+        }
+    } else {
+        eprintln!("Usage: go-back");
+        StatusCode::new(1)
+    }
 }
 
 pub fn clear_terminal(_context: &mut Context, args: Vec<&str>) -> StatusCode {
@@ -229,6 +259,7 @@ mod tests {
         let mut shell = Shell::new();
         let mut context = Context::new(&mut shell);
         change_directory(&mut context, vec!["~"]);
+        // ! This is not guaranteed to exist on the tester's system
         let status_code = change_directory(&mut context, vec!["Documents"]);
 
         assert_eq!(status_code, StatusCode::success());
