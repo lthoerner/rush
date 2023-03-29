@@ -119,12 +119,15 @@ pub fn list_directory(context: &mut Context, args: Vec<&str>) -> StatusCode {
 
         if fd.file_type().expect("Failed to read file type").is_dir() {
             // Append a '/' to directories
-            let fd_name = format!("{}/", fd_name).bright_green();
+            let fd_name = format!("{}/", fd_name).bright_green().to_string();
             directories.push(fd_name)
         } else {
             files.push(fd_name)
         };
     }
+
+    directories.sort();
+    files.sort();
 
     for directory in directories {
         println!("{}", directory);
