@@ -183,7 +183,6 @@ pub fn create_file(_context: &mut Context, args: Vec<&str>) -> StatusCode {
 
 pub fn create_directory(_context: &mut Context, args: Vec<&str>) -> StatusCode {
     if args.len() == 1 {
-        // ! See warning in create_file()
         match fs::create_dir(args[0]) {
             Ok(_) => StatusCode::success(),
             Err(_) => {
@@ -199,7 +198,6 @@ pub fn create_directory(_context: &mut Context, args: Vec<&str>) -> StatusCode {
 
 pub fn delete_file(_context: &mut Context, args: Vec<&str>) -> StatusCode {
     if args.len() == 1 {
-        // ! See warning in create_file()
         match fs::remove_file(args[0]) {
             Ok(_) => StatusCode::success(),
             Err(_) => {
