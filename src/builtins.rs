@@ -66,7 +66,7 @@ pub fn change_directory(context: &mut Context, args: Vec<&str>) -> StatusCode {
 }
 
 // TODO: Break up some of this code into different functions
-pub fn list_files_and_directories(context: &mut Context, args: Vec<&str>) -> StatusCode {
+pub fn list_directory(context: &mut Context, args: Vec<&str>) -> StatusCode {
     let files_and_directories = match args.len() {
         // Use the working directory as the default path argument
         // This uses expect() because it needs to crash if the working directory is invalid,
@@ -95,7 +95,7 @@ pub fn list_files_and_directories(context: &mut Context, args: Vec<&str>) -> Sta
             }
         }
         _ => {
-            eprintln!("Usage: list-files-and-directories <path>");
+            eprintln!("Usage: list-directory <path>");
             return StatusCode::new(1);
         }
     };
@@ -283,5 +283,60 @@ mod tests {
         let status_code = change_directory(&mut context, vec!["/invalid/path"]);
 
         assert_eq!(status_code, StatusCode::new(2));
+    }
+
+    #[test]
+    fn test_command_list_directory_success() {
+        let mut shell = Shell::new();
+        let mut context = Context::new(&mut shell);
+        let status_code = list_directory(&mut context, Vec::new());
+
+        assert_eq!(status_code, StatusCode::success());
+    }
+
+    #[test]
+    fn test_command_list_directory_fail_1() {
+        let mut shell = Shell::new();
+        let mut context = Context::new(&mut shell);
+        let status_code = list_directory(&mut context, vec!["arg1", "arg2"]);
+
+        assert_eq!(status_code, StatusCode::new(1));
+    }
+
+    #[test]
+    fn test_command_list_directory_fail_2() {
+        let mut shell = Shell::new();
+        let mut context = Context::new(&mut shell);
+        let status_code = list_directory(&mut context, vec!["/invalid/path"]);
+
+        assert_eq!(status_code, StatusCode::new(2));
+    }
+
+    #[test]
+    fn test_command_go_back_success() {
+        let mut shell = Shell::new();
+        let mut context = Context::new(&mut shell);
+        context.env_mut().set_path("/");
+        let status_code = go_back(&mut context, Vec::new());
+
+        assert_eq!(status_code, StatusCode::success());
+    }
+
+    #[test]
+    fn test_command_go_back_fail_1() {
+        let mut shell = Shell::new();
+        let mut context = Context::new(&mut shell);
+        let status_code = go_back(&mut context, Vec::new());
+
+        assert_eq!(status_code, StatusCode::new(2));
+    }
+
+    #[test]
+    fn test_command_go_back_fail_2() {
+        let mut shell = Shell::new();
+        let mut context = Context::new(&mut shell);
+        let status_code = go_back(&mut context, vec!["arg1", "arg2"]);
+
+        assert_eq!(status_code, StatusCode::new(1));
     }
 }

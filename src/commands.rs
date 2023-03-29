@@ -145,9 +145,9 @@ impl Default for CommandManager {
             Runnable::internal(builtins::change_directory),
         );
         manager.add_command(
-            "list-files-and-directories",
+            "list-directory",
             vec!["directory", "list", "ls", "dir"],
-            Runnable::internal(builtins::list_files_and_directories),
+            Runnable::internal(builtins::list_directory),
         );
         manager.add_command(
             "go-back",
