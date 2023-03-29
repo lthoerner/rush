@@ -2,7 +2,7 @@
 A shell implemented in Rust. Currently a personal project.
 
 ## Mission
-Rush is a shell designed to be as user-friendly as possible, both for longtime users of other popular shells, as well as complete beginners who are just learning how to interact with their computer through the CLI. It largely aims to accomplish this by either modifying, replacing, or disposing of the largely archaic conventions of the traditionally-popular shells.
+Rush is a shell designed to be as user-friendly as possible, both for longtime users of other popular shells, as well as complete beginners who are just learning how to interact with their computer through the CLI. It largely aims to accomplish this by either modifying, replacing, or disposing of the often-archaic conventions of the traditionally-popular shells.
 
 ## Goals
 - Support for easy coloration of input and output
