@@ -166,10 +166,9 @@ pub fn clear_terminal(_context: &mut Context, args: Vec<&str>) -> StatusCode {
     }
 }
 
-pub fn create_file(context: &mut Context, args: Vec<&str>) -> StatusCode {
+pub fn create_file(_context: &mut Context, args: Vec<&str>) -> StatusCode {
     if args.len() == 1 {
-        // ! It may be somewhat unsafe to simply concatenate the filename and the working directory
-        match fs::File::create(context.cwd().absolute().join(args[0])) {
+        match fs::File::create(args[0]) {
             Ok(_) => StatusCode::success(),
             Err(_) => {
                 eprintln!("Failed to create file: '{}'", args[0]);
@@ -182,10 +181,10 @@ pub fn create_file(context: &mut Context, args: Vec<&str>) -> StatusCode {
     }
 }
 
-pub fn create_directory(context: &mut Context, args: Vec<&str>) -> StatusCode {
+pub fn create_directory(_context: &mut Context, args: Vec<&str>) -> StatusCode {
     if args.len() == 1 {
         // ! See warning in create_file()
-        match fs::create_dir(context.cwd().absolute().join(args[0])) {
+        match fs::create_dir(args[0]) {
             Ok(_) => StatusCode::success(),
             Err(_) => {
                 eprintln!("Failed to create directory: '{}'", args[0]);
@@ -198,10 +197,10 @@ pub fn create_directory(context: &mut Context, args: Vec<&str>) -> StatusCode {
     }
 }
 
-pub fn delete_file(context: &mut Context, args: Vec<&str>) -> StatusCode {
+pub fn delete_file(_context: &mut Context, args: Vec<&str>) -> StatusCode {
     if args.len() == 1 {
         // ! See warning in create_file()
-        match fs::remove_file(context.cwd().absolute().join(args[0])) {
+        match fs::remove_file(args[0]) {
             Ok(_) => StatusCode::success(),
             Err(_) => {
                 eprintln!("Failed to delete file: '{}'", args[0]);
