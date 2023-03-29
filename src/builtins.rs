@@ -166,6 +166,38 @@ pub fn clear_terminal(_context: &mut Context, args: Vec<&str>) -> StatusCode {
     }
 }
 
+pub fn create_file(context: &mut Context, args: Vec<&str>) -> StatusCode {
+    if args.len() == 1 {
+        // ! It may be somewhat unsafe to simply concatenate the filename and the working directory
+        match fs::File::create(context.cwd().absolute().join(args[0])) {
+            Ok(_) => StatusCode::success(),
+            Err(_) => {
+                eprintln!("Failed to create file: '{}'", args[0]);
+                StatusCode::new(2)
+            }
+        }
+    } else {
+        eprintln!("Usage: create-file <path>");
+        StatusCode::new(1)
+    }
+}
+
+pub fn create_directory(context: &mut Context, args: Vec<&str>) -> StatusCode {
+    if args.len() == 1 {
+        // ! See waring in create_file()
+        match fs::create_dir(context.cwd().absolute().join(args[0])) {
+            Ok(_) => StatusCode::success(),
+            Err(_) => {
+                eprintln!("Failed to create directory: '{}'", args[0]);
+                StatusCode::new(2)
+            }
+        }
+    } else {
+        eprintln!("Usage: create-directory <path>");
+        StatusCode::new(1)
+    }
+}
+
 pub fn truncate(context: &mut Context, args: Vec<&str>) -> StatusCode {
     let truncation = match args.len() {
         0 => 1,

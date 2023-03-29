@@ -160,6 +160,16 @@ impl Default for CommandManager {
             Runnable::internal(builtins::clear_terminal),
         );
         manager.add_command(
+            "create-file",
+            vec!["create", "touch", "new", "cf"],
+            Runnable::internal(builtins::create_file),
+        );
+        manager.add_command(
+            "create-directory",
+            vec!["mkdir", "md"],
+            Runnable::internal(builtins::create_directory),
+        );
+        manager.add_command(
             "truncate",
             vec!["trunc"],
             Runnable::internal(builtins::truncate),
