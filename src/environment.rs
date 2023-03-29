@@ -62,7 +62,7 @@ fn get_caller_env_var(var_name: &str) -> String {
         Ok(value) => value,
         Err(_) => {
             eprintln!(
-                "[FATAL ERROR] Could not acquire required environment variable '{}'",
+                "[FATAL ERROR] Could not acquire environment variable '{}'",
                 var_name
             );
             std::process::exit(1);
