@@ -7,7 +7,7 @@ use crate::path::Path;
 
 // Represents the shell environment by encapsulating the environment variables
 pub struct Environment {
-    pub user: String,
+    user: String,
     home: PathBuf,
     pub working_directory: Path,
     // ? Should this just be a single path or should it store a history?
@@ -38,6 +38,10 @@ impl Environment {
         std::env::set_var("HOME", &self.home);
         std::env::set_current_dir(self.working_directory.absolute())
             .expect("Failed to set working directory");
+    }
+
+    pub fn user(&self) -> &String {
+        &self.user
     }
 
     pub fn home(&self) -> &PathBuf {

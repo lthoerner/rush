@@ -36,7 +36,7 @@ impl Shell {
     fn prompt(&self) -> String {
         print!(
             "{} on {}\n{} ",
-            self.environment.user.blue(),
+            self.environment.user().blue(),
             self.environment.working_directory.short().green(),
             match self.success {
                 true => "❯".bright_green().bold(),
