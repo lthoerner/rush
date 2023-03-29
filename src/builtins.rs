@@ -384,4 +384,40 @@ mod tests {
 
         assert_eq!(status_code, StatusCode::new(1));
     }
+
+    #[test]
+    fn test_command_truncate_success_1() {
+        let mut shell = Shell::new();
+        let mut context = Context::new(&mut shell);
+        let status_code = truncate(&mut context, Vec::new());
+
+        assert_eq!(status_code, StatusCode::success());
+    }
+
+    #[test]
+    fn test_command_truncate_success_2() {
+        let mut shell = Shell::new();
+        let mut context = Context::new(&mut shell);
+        let status_code = truncate(&mut context, vec!["10"]);
+
+        assert_eq!(status_code, StatusCode::success());
+    }
+
+    #[test]
+    fn test_command_truncate_fail_1() {
+        let mut shell = Shell::new();
+        let mut context = Context::new(&mut shell);
+        let status_code = truncate(&mut context, vec!["arg1", "arg2"]);
+
+        assert_eq!(status_code, StatusCode::new(1));
+    }
+
+    #[test]
+    fn test_command_truncate_fail_2() {
+        let mut shell = Shell::new();
+        let mut context = Context::new(&mut shell);
+        let status_code = truncate(&mut context, vec!["-10"]);
+
+        assert_eq!(status_code, StatusCode::new(1));
+    }
 }
