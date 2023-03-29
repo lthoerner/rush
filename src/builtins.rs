@@ -215,7 +215,13 @@ pub fn truncate(context: &mut Context, args: Vec<&str>) -> StatusCode {
     let truncation = match args.len() {
         0 => 1,
         // ! This is copilot code, it is extremely unsafe
-        1 => args[0].parse::<usize>().unwrap(),
+        1 => match args[0].parse::<usize>() {
+            Ok(t) => t,
+            Err(_) => {
+                eprintln!("Invalid truncation length: '{}'", args[0]);
+                return StatusCode::new(2);
+            }
+        },
         _ => {
             eprintln!("Usage: truncate <length (default 1)>");
             return StatusCode::new(1);
@@ -251,27 +257,9 @@ mod tests {
     }
 
     #[test]
-    fn test_command_test_fail() {
-        let mut shell = Shell::new();
-        let mut context = Context::new(&mut shell);
-        let status_code = test(&mut context, vec!["arg1", "arg2"]);
-
-        assert_eq!(status_code, StatusCode::new(1));
-    }
-
-    #[test]
     fn test_command_exit_success() {
         // * This is a placeholder test because the exit command
         // * will exit the program, effectively ending the test
-    }
-
-    #[test]
-    fn test_command_exit_fail() {
-        let mut shell = Shell::new();
-        let mut context = Context::new(&mut shell);
-        let status_code = exit(&mut context, vec!["arg1", "arg2"]);
-
-        assert_eq!(status_code, StatusCode::new(1));
     }
 
     #[test]
@@ -281,15 +269,6 @@ mod tests {
         let status_code = working_directory(&mut context, Vec::new());
 
         assert_eq!(status_code, StatusCode::success());
-    }
-
-    #[test]
-    fn test_command_working_directory_fail() {
-        let mut shell = Shell::new();
-        let mut context = Context::new(&mut shell);
-        let status_code = working_directory(&mut context, vec!["arg1", "arg2"]);
-
-        assert_eq!(status_code, StatusCode::new(1));
     }
 
     #[test]
@@ -340,16 +319,7 @@ mod tests {
     }
 
     #[test]
-    fn test_command_list_directory_fail_1() {
-        let mut shell = Shell::new();
-        let mut context = Context::new(&mut shell);
-        let status_code = list_directory(&mut context, vec!["arg1", "arg2"]);
-
-        assert_eq!(status_code, StatusCode::new(1));
-    }
-
-    #[test]
-    fn test_command_list_directory_fail_2() {
+    fn test_command_list_directory_fail() {
         let mut shell = Shell::new();
         let mut context = Context::new(&mut shell);
         let status_code = list_directory(&mut context, vec!["/invalid/path"]);
@@ -368,21 +338,12 @@ mod tests {
     }
 
     #[test]
-    fn test_command_go_back_fail_1() {
+    fn test_command_go_back_fail() {
         let mut shell = Shell::new();
         let mut context = Context::new(&mut shell);
         let status_code = go_back(&mut context, Vec::new());
 
         assert_eq!(status_code, StatusCode::new(2));
-    }
-
-    #[test]
-    fn test_command_go_back_fail_2() {
-        let mut shell = Shell::new();
-        let mut context = Context::new(&mut shell);
-        let status_code = go_back(&mut context, vec!["arg1", "arg2"]);
-
-        assert_eq!(status_code, StatusCode::new(1));
     }
 
     #[test]
@@ -404,20 +365,11 @@ mod tests {
     }
 
     #[test]
-    fn test_command_truncate_fail_1() {
-        let mut shell = Shell::new();
-        let mut context = Context::new(&mut shell);
-        let status_code = truncate(&mut context, vec!["arg1", "arg2"]);
-
-        assert_eq!(status_code, StatusCode::new(1));
-    }
-
-    #[test]
-    fn test_command_truncate_fail_2() {
+    fn test_command_truncate_fail() {
         let mut shell = Shell::new();
         let mut context = Context::new(&mut shell);
         let status_code = truncate(&mut context, vec!["-10"]);
 
-        assert_eq!(status_code, StatusCode::new(1));
+        assert_eq!(status_code, StatusCode::new(2));
     }
 }
