@@ -36,7 +36,7 @@ impl Shell {
     fn prompt(&self) -> String {
         print!(
             "{} on {}\n{} ",
-            self.environment.user().blue(),
+            self.environment.user.blue(),
             self.environment.working_directory.short().green(),
             match self.success {
                 true => "❯".bright_green().bold(),
@@ -76,7 +76,7 @@ impl Shell {
 // Flushes stdout
 fn flush() {
     let mut stdout = stdout();
-    stdout.flush().expect("Failed to flush");
+    stdout.flush().expect("Failed to flush stdout");
 }
 
 // Reads a line of input from stdin

@@ -131,7 +131,7 @@ impl Default for CommandManager {
         );
         manager.add_command(
             "working-directory",
-            vec!["directory", "dir", "pwd", "wd"],
+            vec!["pwd", "wd"],
             Runnable::internal(builtins::working_directory),
         );
         manager.add_command(
@@ -141,7 +141,7 @@ impl Default for CommandManager {
         );
         manager.add_command(
             "list-files-and-directories",
-            vec!["list", "ls"],
+            vec!["directory", "list", "ls", "dir"],
             Runnable::internal(builtins::list_files_and_directories),
         );
         manager.add_command(

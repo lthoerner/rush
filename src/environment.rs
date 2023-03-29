@@ -7,7 +7,7 @@ use crate::path::Path;
 
 // Represents the shell environment by encapsulating the environment variables
 pub struct Environment {
-    user: String,
+    pub user: String,
     home: PathBuf,
     pub working_directory: Path,
     custom_variables: HashMap<String, String>,
@@ -35,15 +35,6 @@ impl Environment {
         std::env::set_var("HOME", &self.home);
         std::env::set_current_dir(self.working_directory.absolute())
             .expect("Failed to set working directory");
-    }
-
-    // ? Should these just be public fields?
-    pub fn user(&self) -> &String {
-        &self.user
-    }
-
-    pub fn user_mut(&mut self) -> &mut String {
-        &mut self.user
     }
 
     pub fn home(&self) -> &PathBuf {
