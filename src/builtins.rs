@@ -19,7 +19,7 @@ use crate::path;
 
 pub fn test(_context: &mut Context, args: Vec<&str>) -> StatusCode {
     if args.len() == 0 {
-        println!("Test command!");
+        println!("{}", "Test command!".yellow());
         StatusCode::success()
     } else {
         eprintln!("Usage: test");
@@ -100,8 +100,12 @@ pub fn list_directory(context: &mut Context, args: Vec<&str>) -> StatusCode {
         }
     };
 
+    let mut directories = Vec::new();
+    let mut files = Vec::new();
+
     for fd in files_and_directories {
         let fd = fd.expect("Failed to read directory");
+
         let fd_name = fd
             .file_name()
             .to_str()
@@ -113,14 +117,21 @@ pub fn list_directory(context: &mut Context, args: Vec<&str>) -> StatusCode {
             continue;
         }
 
-        // Append a '/' to directories
-        let fd = if fd.file_type().expect("Failed to read file type").is_dir() {
-            format!("{}/", fd_name).bright_green().to_string()
+        if fd.file_type().expect("Failed to read file type").is_dir() {
+            // Append a '/' to directories
+            let fd_name = format!("{}/", fd_name).bright_green();
+            directories.push(fd_name)
         } else {
-            fd_name
+            files.push(fd_name)
         };
+    }
 
-        println!("{}", fd);
+    for directory in directories {
+        println!("{}", directory);
+    }
+
+    for file in files {
+        println!("{}", file);
     }
 
     StatusCode::success()
