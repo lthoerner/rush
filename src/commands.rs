@@ -151,7 +151,7 @@ impl Default for CommandManager {
         );
         manager.add_command(
             "go-back",
-            vec!["back", "b"],
+            vec!["back", "b", "prev", "pd"],
             Runnable::internal(builtins::go_back),
         );
         manager.add_command(
