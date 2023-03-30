@@ -3,6 +3,7 @@ mod commands;
 mod environment;
 mod path;
 mod shell;
+mod errors;
 
 use shell::Shell;
 
