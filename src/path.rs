@@ -4,6 +4,10 @@ use std::fmt::{Display, Formatter};
 use std::fs::canonicalize;
 use std::path::PathBuf;
 
+use anyhow::Result;
+
+use crate::errors::ShellError;
+
 // Wrapper class for a directory path string
 pub struct Path {
     absolute_path: PathBuf,
@@ -69,7 +73,7 @@ impl Path {
     }
 
     // Re-generates the shortened path based on the current settings
-    fn update_shortened_path(&mut self) {
+    fn update_shortened_path(&mut self) -> Result<()> {
         // ? Is there a less redundant way to write this?
         let path = match self.absolute_path.strip_prefix(&self.home_directory) {
             Ok(path) => {
@@ -104,46 +108,42 @@ impl Path {
         }
 
         let truncated_directories = truncated_directories.join("/");
-
-        self.shortened_path = truncated_directories
+        Ok(self.shortened_path = truncated_directories)
     }
 
     // Updates the Path using a new absolute path
-    // TODO: Result instead of bool for error handling
-    pub fn set_path(&mut self, new_path: &str) -> bool {
-        // Home directory shorthand must be expanded before setting the path,
-        // because PathBuf is not user-specific and only uses absolute paths
-        let new_absolute_path = PathBuf::from(
-            match canonicalize(expand_home(new_path, &self.home_directory)) {
-                Ok(path) => path,
-                Err(_) => return false,
-            },
-        );
-
-        if !new_absolute_path.exists() {
-            return false;
-        }
+    pub fn set_path(&mut self, new_path: &str) -> Result<()> {
+        let new_absolute_path = match resolve(new_path, &self.home_directory) {
+            Some(path) => path,
+            // ? Should this be a FailedToCanonicalizePath error?
+            None => return Err(ShellError::UnknownDirectory.into()),
+        };
 
         self.absolute_path = new_absolute_path;
         self.update_shortened_path();
 
-        true
+        Ok(())
     }
 }
 
 // Attempts to convert a path string into a canonicalized absolute path
+// ? Should this be a Result instead of an Option?
 pub fn resolve(path: &str, home_directory: &PathBuf) -> Option<PathBuf> {
     // The home directory shorthand must be expanded before resolving the path,
     // because PathBuf is not user-aware and only uses absolute and relative paths
-    let expanded_path = expand_home(path, home_directory);
+    let expanded_path = match expand_home(path, home_directory) {
+        Ok(path) => path,
+        Err(_) => return None,
+    };
+
     // Canonicalizing a path will resolve any relative or absolute paths
-    let absolute_path = match std::fs::canonicalize(expanded_path) {
+    let absolute_path = match canonicalize(expanded_path) {
         Ok(path) => path,
         Err(_) => return None,
     };
 
     // If the file system can canonicalize the path, it most likely exists,
-    // but this is added for extra safety
+    // but this is added just in case
     if !absolute_path.exists() {
         None
     } else {
@@ -151,15 +151,13 @@ pub fn resolve(path: &str, home_directory: &PathBuf) -> Option<PathBuf> {
     }
 }
 
-fn expand_home(path: &str, home_directory: &PathBuf) -> String {
+fn expand_home(path: &str, home_directory: &PathBuf) -> Result<String> {
     if path.starts_with("~") {
-        return path.replace(
-            "~",
-            home_directory
-                .to_str()
-                .expect("Failed to convert home directory to strings"),
-        );
+        Ok(path.replace("~", match home_directory.to_str() {
+            Some(path) => path,
+            None => return Err(ShellError::FailedToConvertPathBufToString.into()),
+        }))
+    } else {
+        Ok(path.to_string())
     }
-
-    path.to_string()
 }

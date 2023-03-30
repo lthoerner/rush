@@ -3,6 +3,9 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 
+use anyhow::Result;
+
+use crate::errors::ShellError;
 use crate::path::Path;
 
 // Represents the shell environment by encapsulating the environment variables
@@ -15,29 +18,28 @@ pub struct Environment {
     custom_variables: HashMap<String, String>,
 }
 
-impl Default for Environment {
-    fn default() -> Self {
-        let user = get_caller_env_var("USER");
-        let home = PathBuf::from(get_caller_env_var("HOME"));
-        let working_directory = Path::new(PathBuf::from(get_caller_env_var("PWD")), &home);
+impl Environment {
+    pub fn new() -> Result<Self> {
+        let user = get_parent_env_var("USER")?;
+        let home = PathBuf::from(get_parent_env_var("HOME")?);
+        let working_directory = Path::new(PathBuf::from(get_parent_env_var("PWD")?), &home);
 
-        Self {
+        Ok(Self {
             user,
             home,
             working_directory,
             previous_working_directory: None,
             custom_variables: HashMap::new(),
-        }
+        })
     }
-}
 
-impl Environment {
     // Updates the shell process's environment variables to match the internal representation
-    pub fn update_process_env_vars(&self) {
+    // ? Should this have options of which variables to update?
+    pub fn update_process_env_vars(&self) -> Result<()> {
         std::env::set_var("USER", &self.user);
         std::env::set_var("HOME", &self.home);
         std::env::set_current_dir(self.working_directory.absolute())
-            .expect("Failed to set working directory");
+            .map_err(|_| ShellError::FailedToUpdateEnvironmentVariables.into())
     }
 
     pub fn user(&self) -> &String {
@@ -49,27 +51,16 @@ impl Environment {
     }
 
     // Sets the current working directory and stores the previous working directory
-    pub fn set_path(&mut self, new_path: &str) -> bool {
+    pub fn set_path(&mut self, new_path: &str) -> Result<()> {
         let previous_path = self.working_directory.absolute().clone();
-        match self.working_directory.set_path(new_path) {
-            true => self.previous_working_directory = Some(previous_path),
-            false => return false,
-        };
+        self.working_directory.set_path(new_path)?;
+        self.previous_working_directory = Some(previous_path);
 
-        true
+        Ok(())
     }
 }
 
-// Gets the name of the current user
-fn get_caller_env_var(var_name: &str) -> String {
-    match std::env::var(var_name) {
-        Ok(value) => value,
-        Err(_) => {
-            eprintln!(
-                "[FATAL ERROR] Could not acquire environment variable '{}'",
-                var_name
-            );
-            std::process::exit(1);
-        }
-    }
+// Gets the name of the user who invoked the shell (to be used when the shell is first initialized)
+fn get_parent_env_var(var_name: &str) -> Result<String> {
+    std::env::var(var_name).map_err(|_| ShellError::MissingExternalEnvironmentVariables.into())
 }

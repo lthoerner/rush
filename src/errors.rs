@@ -12,10 +12,14 @@ pub enum ShellError {
     FailedToUpdateEnvironmentVariables,
     #[error("Failed to convert PathBuf to String")]
     FailedToConvertPathBufToString,
+    #[error("Failed to canonicalize path")]
+    FailedToCanonicalizePath,
     #[error("Failed to flush stdout")]
     FailedToFlushStdout,
     #[error("Failed to read from stdin")]
     FailedToReadStdin,
+    #[error("Directory does not exist")]
+    UnknownDirectory,
     #[error("Unknown error")]
     Uncategorized,
 }

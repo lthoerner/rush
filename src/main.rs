@@ -1,9 +1,9 @@
 mod builtins;
 mod commands;
 mod environment;
+mod errors;
 mod path;
 mod shell;
-mod errors;
 
 use anyhow::Result;
 

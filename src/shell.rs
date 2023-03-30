@@ -2,8 +2,8 @@
 
 use std::io::{stdin, stdout, Write};
 
-use colored::Colorize;
 use anyhow::Result;
+use colored::Colorize;
 
 use crate::commands::{CommandManager, Context};
 use crate::environment::Environment;
@@ -15,11 +15,11 @@ pub struct Shell {
 }
 
 impl Shell {
-    pub fn new() -> Self {
-        Self {
-            environment: Environment::default(),
+    pub fn new() -> Result<Self> {
+        Ok(Self {
+            environment: Environment::new()?,
             success: true,
-        }
+        })
     }
 
     // Repeatedly prompts the user for commands and executes them

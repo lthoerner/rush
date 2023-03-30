@@ -291,7 +291,7 @@ mod tests {
 
     #[test]
     fn test_command_test_success() {
-        let mut shell = Shell::new();
+        let mut shell = Shell::new().unwrap();
         let mut context = Context::new(&mut shell);
         let status_code = test(&mut context, Vec::new());
 
@@ -306,7 +306,7 @@ mod tests {
 
     #[test]
     fn test_command_working_directory_success() {
-        let mut shell = Shell::new();
+        let mut shell = Shell::new().unwrap();
         let mut context = Context::new(&mut shell);
         let status_code = working_directory(&mut context, Vec::new());
 
@@ -315,7 +315,7 @@ mod tests {
 
     #[test]
     fn test_command_change_directory_success_1() {
-        let mut shell = Shell::new();
+        let mut shell = Shell::new().unwrap();
         let mut context = Context::new(&mut shell);
         let status_code = change_directory(&mut context, vec!["/"]);
 
@@ -324,7 +324,7 @@ mod tests {
 
     #[test]
     fn test_command_change_directory_success_2() {
-        let mut shell = Shell::new();
+        let mut shell = Shell::new().unwrap();
         let mut context = Context::new(&mut shell);
         let status_code = change_directory(&mut context, vec!["~"]);
 
@@ -333,7 +333,7 @@ mod tests {
 
     #[test]
     fn test_command_change_directory_success_3() {
-        let mut shell = Shell::new();
+        let mut shell = Shell::new().unwrap();
         let mut context = Context::new(&mut shell);
         change_directory(&mut context, vec!["~"]);
         // ! This is not guaranteed to exist on the tester's system
@@ -344,7 +344,7 @@ mod tests {
 
     #[test]
     fn test_command_change_directory_fail() {
-        let mut shell = Shell::new();
+        let mut shell = Shell::new().unwrap();
         let mut context = Context::new(&mut shell);
         let status_code = change_directory(&mut context, vec!["/invalid/path"]);
 
@@ -353,7 +353,7 @@ mod tests {
 
     #[test]
     fn test_command_list_directory_success() {
-        let mut shell = Shell::new();
+        let mut shell = Shell::new().unwrap();
         let mut context = Context::new(&mut shell);
         let status_code = list_directory(&mut context, Vec::new());
 
@@ -362,7 +362,7 @@ mod tests {
 
     #[test]
     fn test_command_list_directory_fail() {
-        let mut shell = Shell::new();
+        let mut shell = Shell::new().unwrap();
         let mut context = Context::new(&mut shell);
         let status_code = list_directory(&mut context, vec!["/invalid/path"]);
 
@@ -371,7 +371,7 @@ mod tests {
 
     #[test]
     fn test_command_go_back_success() {
-        let mut shell = Shell::new();
+        let mut shell = Shell::new().unwrap();
         let mut context = Context::new(&mut shell);
         context.env_mut().set_path("/");
         let status_code = go_back(&mut context, Vec::new());
@@ -381,7 +381,7 @@ mod tests {
 
     #[test]
     fn test_command_go_back_fail() {
-        let mut shell = Shell::new();
+        let mut shell = Shell::new().unwrap();
         let mut context = Context::new(&mut shell);
         let status_code = go_back(&mut context, Vec::new());
 
@@ -390,7 +390,7 @@ mod tests {
 
     #[test]
     fn test_command_truncate_success_1() {
-        let mut shell = Shell::new();
+        let mut shell = Shell::new().unwrap();
         let mut context = Context::new(&mut shell);
         let status_code = truncate(&mut context, Vec::new());
 
@@ -399,7 +399,7 @@ mod tests {
 
     #[test]
     fn test_command_truncate_success_2() {
-        let mut shell = Shell::new();
+        let mut shell = Shell::new().unwrap();
         let mut context = Context::new(&mut shell);
         let status_code = truncate(&mut context, vec!["10"]);
 
@@ -408,7 +408,7 @@ mod tests {
 
     #[test]
     fn test_command_truncate_fail() {
-        let mut shell = Shell::new();
+        let mut shell = Shell::new().unwrap();
         let mut context = Context::new(&mut shell);
         let status_code = truncate(&mut context, vec!["-10"]);
 
