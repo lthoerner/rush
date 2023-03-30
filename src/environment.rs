@@ -22,7 +22,7 @@ impl Environment {
     pub fn new() -> Result<Self> {
         let user = get_parent_env_var("USER")?;
         let home = PathBuf::from(get_parent_env_var("HOME")?);
-        let working_directory = Path::new(PathBuf::from(get_parent_env_var("PWD")?), &home);
+        let working_directory = Path::new(PathBuf::from(get_parent_env_var("PWD")?), &home)?;
 
         Ok(Self {
             user,

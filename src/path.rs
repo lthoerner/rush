@@ -25,9 +25,8 @@ impl Display for Path {
 impl Path {
     // Safely constructs a new Path from a given directory, taking into account
     // the user's home directory so it can be collapsed into a shorthand '~'
-    pub fn new(absolute_path: PathBuf, home_directory: &PathBuf) -> Self {
+    pub fn new(absolute_path: PathBuf, home_directory: &PathBuf) -> Result<Self> {
         let home_directory = home_directory.clone();
-
         let mut path = Self {
             absolute_path,
             home_directory,
@@ -35,16 +34,15 @@ impl Path {
             truncation_factor: None,
         };
 
-        path.update_shortened_path();
-
-        path
+        path.update_shortened_path()?;
+        Ok(path)
     }
 
     // Attempts to construct a new Path from a given path string by resolving it to an absolute path
-    fn from_str_path(path: &str, home_directory: &PathBuf) -> Option<Self> {
+    fn from_str_path(path: &str, home_directory: &PathBuf) -> Result<Self> {
         match resolve(path, home_directory) {
-            Some(absolute_path) => Some(Self::new(absolute_path, home_directory)),
-            None => None,
+            Some(absolute_path) => Ok(Self::new(absolute_path, home_directory)?),
+            None => Err(ShellError::UnknownDirectory.into()),
         }
     }
 
@@ -61,15 +59,15 @@ impl Path {
     }
 
     // Sets the Path truncation factor
-    pub fn set_truncation(&mut self, factor: usize) {
+    pub fn set_truncation(&mut self, factor: usize) -> Result<()> {
         self.truncation_factor = Some(factor);
-        self.update_shortened_path();
+        self.update_shortened_path()
     }
 
     // Disables Path truncation
-    pub fn disable_truncation(&mut self) {
+    pub fn disable_truncation(&mut self) -> Result<()> {
         self.truncation_factor = None;
-        self.update_shortened_path();
+        self.update_shortened_path()
     }
 
     // Re-generates the shortened path based on the current settings
@@ -120,7 +118,7 @@ impl Path {
         };
 
         self.absolute_path = new_absolute_path;
-        self.update_shortened_path();
+        self.update_shortened_path()?;
 
         Ok(())
     }
