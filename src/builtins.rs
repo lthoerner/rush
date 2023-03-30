@@ -226,7 +226,7 @@ pub fn delete_file(_context: &mut Context, args: Vec<&str>) -> StatusCode {
     }
 }
 
-pub fn read_file(context: &mut Context, args: Vec<&str>) -> StatusCode {
+pub fn read_file(_context: &mut Context, args: Vec<&str>) -> StatusCode {
     let file_name = match args.len() {
         1 => args[0].to_string(),
         _ => {
