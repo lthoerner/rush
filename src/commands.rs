@@ -166,13 +166,19 @@ impl Default for CommandManager {
         );
         manager.add_command(
             "create-directory",
+            // TODO: Figure out 'cd' alias conflict
             vec!["mkdir", "md"],
             Runnable::internal(builtins::create_directory),
         );
         manager.add_command(
             "delete-file",
-            vec!["delete", "remove", "rm", "del", "rf"],
+            vec!["delete", "remove", "rm", "del", "df"],
             Runnable::internal(builtins::delete_file),
+        );
+        manager.add_command(
+            "read-file",
+            vec!["read", "cat", "rf"],
+            Runnable::internal(builtins::read_file),
         );
         manager.add_command(
             "truncate",

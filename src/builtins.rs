@@ -11,6 +11,7 @@ An 'External' will only have access to its arguments and environment variables, 
 
 use std::env;
 use std::fs;
+use std::io::{BufRead, BufReader};
 
 use colored::Colorize;
 
@@ -223,6 +224,33 @@ pub fn delete_file(_context: &mut Context, args: Vec<&str>) -> StatusCode {
         eprintln!("Usage: delete-file <path>");
         StatusCode::new(1)
     }
+}
+
+pub fn read_file(context: &mut Context, args: Vec<&str>) -> StatusCode {
+    let file_name = match args.len() {
+        1 => args[0].to_string(),
+        _ => {
+            eprintln!("Usage: read-file <path>");
+            return StatusCode::new(1);
+        }
+    };
+
+    let file = match fs::File::open(&file_name) {
+        Ok(file) => file,
+        Err(_) => {
+            eprintln!("Failed to open file: '{}'", file_name);
+            return StatusCode::new(2);
+        }
+    };
+
+    let reader = BufReader::new(file);
+
+    for line in reader.lines() {
+        let line = line.expect("Failed to read line");
+        println!("{}", line);
+    }
+
+    StatusCode::success()
 }
 
 pub fn truncate(context: &mut Context, args: Vec<&str>) -> StatusCode {
