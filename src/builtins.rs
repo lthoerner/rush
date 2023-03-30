@@ -50,12 +50,12 @@ pub fn working_directory(context: &mut Context, args: Vec<&str>) -> StatusCode {
 pub fn change_directory(context: &mut Context, args: Vec<&str>) -> StatusCode {
     if args.len() == 1 {
         match context.env_mut().set_path(args[0]) {
-            true => {
+            Ok(_) => {
                 // ! This might be better to have happen automatically
                 context.env_mut().update_process_env_vars();
                 StatusCode::success()
             }
-            false => {
+            Err(_) => {
                 eprintln!("Invalid path: '{}'", args[0]);
                 StatusCode::new(2)
             }
@@ -155,11 +155,11 @@ pub fn go_back(context: &mut Context, args: Vec<&str>) -> StatusCode {
         .to_string();
 
         match context.env_mut().set_path(prev_dir.as_str()) {
-            true => {
+            Ok(_) => {
                 context.env_mut().update_process_env_vars();
                 StatusCode::success()
             }
-            false => {
+            Err(_) => {
                 eprintln!("Invalid path: '{}'", prev_dir);
                 StatusCode::new(3)
             }
