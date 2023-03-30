@@ -151,10 +151,13 @@ pub fn resolve(path: &str, home_directory: &PathBuf) -> Option<PathBuf> {
 
 fn expand_home(path: &str, home_directory: &PathBuf) -> Result<String> {
     if path.starts_with("~") {
-        Ok(path.replace("~", match home_directory.to_str() {
-            Some(path) => path,
-            None => return Err(ShellError::FailedToConvertPathBufToString.into()),
-        }))
+        Ok(path.replace(
+            "~",
+            match home_directory.to_str() {
+                Some(path) => path,
+                None => return Err(ShellError::FailedToConvertPathBufToString.into()),
+            },
+        ))
     } else {
         Ok(path.to_string())
     }
