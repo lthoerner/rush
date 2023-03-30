@@ -13,4 +13,6 @@ Rush is a shell designed to be as user-friendly as possible, both for longtime u
 - Straightforward interface to interact with/modify the PATH variable
 
 ## Development Updates
-*Rush is currently looking for contributors!*
+Rush is currently looking for contributors!
+
+**Join the Discord: https://discord.gg/KphQhFeKqv**
