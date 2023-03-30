@@ -5,9 +5,12 @@ mod path;
 mod shell;
 mod errors;
 
+use anyhow::Result;
+
 use shell::Shell;
 
-fn main() {
+// TODO: Add upstream error handling here
+fn main() -> Result<()> {
     let mut shell = Shell::new();
-    shell.run();
+    shell.run()
 }
