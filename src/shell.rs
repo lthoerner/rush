@@ -3,9 +3,11 @@
 use std::io::{stdin, stdout, Write};
 
 use colored::Colorize;
+use anyhow::Result;
 
 use crate::commands::{CommandManager, Context};
 use crate::environment::Environment;
+use crate::errors::ShellError;
 
 pub struct Shell {
     pub environment: Environment,
@@ -21,19 +23,19 @@ impl Shell {
     }
 
     // Repeatedly prompts the user for commands and executes them
-    pub fn run(&mut self) {
+    pub fn run(&mut self) -> Result<()> {
         // ? What should this name be?
         let dispatcher = CommandManager::default();
 
         loop {
-            self.interpret(&dispatcher, self.prompt());
+            self.interpret(&dispatcher, self.prompt()?);
             // Print an extra line break to prevent malformed output
             println!();
         }
     }
 
     // Displays the prompt and returns the user input
-    fn prompt(&self) -> String {
+    fn prompt(&self) -> Result<String> {
         print!(
             "{} on {}\n{} ",
             self.environment.user().blue(),
@@ -44,7 +46,7 @@ impl Shell {
             }
         );
 
-        flush();
+        flush()?;
         read_line()
     }
 
@@ -74,16 +76,22 @@ impl Shell {
 }
 
 // Flushes stdout
-fn flush() {
+fn flush() -> Result<()> {
     let mut stdout = stdout();
-    stdout.flush().expect("Failed to flush stdout");
+    match stdout.flush() {
+        Ok(_) => Ok(()),
+        Err(_) => Err(ShellError::FailedToFlushStdout.into()),
+    }
 }
 
 // Reads a line of input from stdin
-fn read_line() -> String {
+fn read_line() -> Result<String> {
     let mut line = String::new();
     let stdin = stdin();
-    stdin.read_line(&mut line).expect("Failed to read line");
+    match stdin.read_line(&mut line) {
+        Ok(_) => (),
+        Err(_) => return Err(ShellError::FailedToReadStdin.into()),
+    }
 
-    line
+    Ok(line)
 }

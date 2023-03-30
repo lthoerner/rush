@@ -16,4 +16,6 @@ pub enum ShellError {
     FailedToFlushStdout,
     #[error("Failed to read from stdin")]
     FailedToReadStdin,
+    #[error("Unknown error")]
+    Uncategorized,
 }
