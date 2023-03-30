@@ -11,6 +11,6 @@ use shell::Shell;
 
 // TODO: Add upstream error handling here
 fn main() -> Result<()> {
-    let mut shell = Shell::new();
+    let mut shell = Shell::new()?;
     shell.run()
 }
