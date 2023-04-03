@@ -1,6 +1,7 @@
 #![allow(dead_code, unused_variables)]
 
-use std::path::PathBuf;
+use std::path::{self, PathBuf};
+use std::process::Command as StdCommand;
 
 use crate::builtins;
 use crate::environment::Environment;
@@ -52,7 +53,27 @@ impl Runnable {
         match self {
             Runnable::Internal(command_function) => command_function(context, arguments),
             Runnable::External(path) => {
-                todo!()
+                let output = StdCommand::new(path).args(arguments).output();
+
+                match output {
+                    Err(err) => {
+                        let kind = err.kind();
+
+                        if let Some(err_code) = err.raw_os_error() {
+                            StatusCode::new(err_code)
+                        } else {
+                            StatusCode::new(-1)
+                        }
+                    }
+                    Ok(output) => {
+                        let stdout = output.stdout;
+                        let string = String::from_utf8_lossy(stdout.as_slice());
+
+                        eprintln!("{}", string);
+
+                        StatusCode::success()
+                    }
+                }
             }
         }
     }
@@ -237,6 +258,14 @@ impl CommandManager {
     ) -> Option<StatusCode> {
         if let Some(command) = self.resolve(command_name) {
             return Some(command.runnable.run(context, command_args));
+        } else {
+            let path = path::Path::new(command_name).exists();
+
+            if path {
+                let runnable = Runnable::external(command_name.into());
+
+                return Some(runnable.run(context, command_args));
+            }
         }
 
         None
