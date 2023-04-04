@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{VecDeque, HashMap};
 use std::path::PathBuf;
 
 use anyhow::Result;
@@ -12,8 +12,8 @@ pub struct Environment {
     user: String,
     home: PathBuf,
     pub working_directory: Path,
-    // ? Should this just be a single path or should it store a history?
-    pub previous_working_directory: Option<PathBuf>,
+    backward_directories: VecDeque<PathBuf>,
+    forward_directories: VecDeque<PathBuf>,
     custom_variables: HashMap<String, String>,
 }
 
@@ -28,7 +28,8 @@ impl Environment {
             user,
             home,
             working_directory,
-            previous_working_directory: None,
+            backward_directories: VecDeque::new(),
+            forward_directories: VecDeque::new(),
             custom_variables: HashMap::new(),
         })
     }
@@ -68,8 +69,33 @@ impl Environment {
     pub fn set_path(&mut self, new_path: &str) -> Result<()> {
         let previous_path = self.working_directory.absolute().clone();
         self.working_directory.set_path(new_path)?;
-        self.previous_working_directory = Some(previous_path);
+        self.backward_directories.push_back(previous_path);
         self.update_process_env_vars(false, false, true)
+    }
+
+    // Sets the current working directory to the previous working directory
+    pub fn go_back(&mut self) -> Result<()> {
+        let starting_directory = self.working_directory.absolute().clone();
+        if let Some(previous_path) = self.backward_directories.pop_back() {
+            // ? Should there be PathBuf variants of .set_path()?
+            self.working_directory.set_path(previous_path.to_str().expect("PLACEHOLDER ERROR"))?;
+            self.forward_directories.push_front(starting_directory);
+            self.update_process_env_vars(false, false, true)
+        } else {
+            Err(ShellError::NoPreviousDirectory.into())
+        }
+    }
+
+    // Sets the current working directory to the next working directory
+    pub fn go_forward(&mut self) -> Result<()> {
+        let starting_directory = self.working_directory.absolute().clone();
+        if let Some(next_path) = self.forward_directories.pop_front() {
+            self.working_directory.set_path(next_path.to_str().expect("PLACEHOLDER ERROR"))?;
+            self.backward_directories.push_back(starting_directory);
+            self.update_process_env_vars(false, false, true)
+        } else {
+            Err(ShellError::NoNextDirectory.into())
+        }
     }
 }
 

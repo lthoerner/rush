@@ -97,6 +97,7 @@ impl<'a> Context<'a> {
     }
 
     // Shortcut for accessing Context.shell.environment
+    #[allow(dead_code)]
     pub fn env(&self) -> &Environment {
         &self.shell.environment
     }
@@ -153,6 +154,11 @@ impl Default for CommandManager {
             "go-back",
             vec!["back", "b", "prev", "pd"],
             Runnable::internal(builtins::go_back),
+        );
+        manager.add_command(
+            "go-forward",
+            vec!["forward", "f", "next", "nd"],
+            Runnable::internal(builtins::go_forward),
         );
         manager.add_command(
             "clear-terminal",

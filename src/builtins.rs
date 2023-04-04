@@ -133,23 +133,24 @@ pub fn list_directory(context: &mut Context, args: Vec<&str>) -> Result<()> {
 // TODO: Find a better name for this
 pub fn go_back(context: &mut Context, args: Vec<&str>) -> Result<()> {
     if args.len() == 0 {
-        let prev_dir = context
-            .env()
-            .previous_working_directory
-            .clone()
-            .ok_or_else(|| {
-                eprintln!("No previous working directory available");
-                InternalCommandError::FailedToRun
-            })?
-            .to_string_lossy()
-            .to_string();
-
-        context.env_mut().set_path(prev_dir.as_str()).map_err(|_| {
-            eprintln!("Invalid path: '{}'", prev_dir);
+        context.env_mut().go_back().map_err(|_| {
+            eprintln!("Previous directory does not exist or is invalid");
             InternalCommandError::FailedToRun.into()
         })
     } else {
         eprintln!("Usage: go-back");
+        Err(InternalCommandError::InvalidArgumentCount.into())
+    }
+}
+
+pub fn go_forward(context: &mut Context, args: Vec<&str>) -> Result<()> {
+    if args.len() == 0 {
+        context.env_mut().go_forward().map_err(|_| {
+            eprintln!("Next directory does not exist or is invalid");
+            InternalCommandError::FailedToRun.into()
+        })
+    } else {
+        eprintln!("Usage: go-forward");
         Err(InternalCommandError::InvalidArgumentCount.into())
     }
 }

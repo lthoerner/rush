@@ -14,6 +14,10 @@ pub enum ShellError {
     FailedToConvertPathBufToString,
     #[error("Failed to canonicalize path")]
     FailedToCanonicalizePath,
+    #[error("Previous directory does not exist")]
+    NoPreviousDirectory,
+    #[error("Next directory does not exist")]
+    NoNextDirectory,
     #[error("Failed to flush stdout")]
     FailedToFlushStdout,
     #[error("Failed to read from stdin")]
