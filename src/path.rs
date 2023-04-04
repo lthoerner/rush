@@ -147,6 +147,20 @@ pub fn resolve(path: &str, home_directory: &PathBuf) -> Option<PathBuf> {
     }
 }
 
+// ! This is a temporary function whose functionality should potentially be shared with resolve()
+pub fn resolve_executable(name: &str, path: &Vec<PathBuf>) -> Option<PathBuf> {
+    for dir in path {
+        let mut path = dir.clone();
+        path.push(name);
+
+        if path.exists() {
+            return Some(path);
+        }
+    }
+
+    None
+}
+
 fn expand_home(path: &str, home_directory: &PathBuf) -> Result<String> {
     if path.starts_with("~") {
         Ok(path.replace(

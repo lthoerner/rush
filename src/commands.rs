@@ -47,6 +47,7 @@ impl Runnable {
     }
 
     // Constructs an External Runnable from a path
+    // ? Do validation checks here?
     fn external(path: PathBuf) -> Self {
         Self::External(path)
     }
@@ -245,7 +246,14 @@ impl CommandManager {
             return Some(command.runnable.run(context, command_args));
         } else {
             // ? Should the path be canonicalized in the Runnable::External constructor or here?
-            let path = path::resolve(command_name, context.home());
+            let mut path = path::resolve_executable(command_name, context.env().path());
+            // If the executable is not found within any of the PATH directories,
+            // try to find it by canonicalizing the provided path to executable/command name
+            // ! This will need to moved to a 'run' builtin
+            if let None = path {
+                path = path::resolve(command_name, context.home());
+            }
+
             if let Some(path) = path {
                 // ? Should we check if the file is an executable first?
                 let runnable = Runnable::external(path);
