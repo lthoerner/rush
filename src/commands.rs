@@ -265,10 +265,10 @@ impl CommandManager {
             if let Some(path) = path {
                 // ? Should we check if the file is an executable first?
                 let runnable = Runnable::external(path);
-                return Some(runnable.run(context, command_args));
+                Some(runnable.run(context, command_args))
+            } else {
+                None
             }
         }
-
-        None
     }
 }
