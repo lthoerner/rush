@@ -1,5 +1,3 @@
-#![allow(dead_code, unused_variables)]
-
 use std::path::PathBuf;
 use std::process::Command as StdCommand;
 
@@ -30,6 +28,7 @@ impl Command {
         }
     }
 
+    #[allow(dead_code)]
     pub fn true_name(&self) -> &String {
         &self.true_name
     }

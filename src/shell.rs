@@ -1,5 +1,3 @@
-#![allow(dead_code, unused_variables)]
-
 use std::io::{stdin, stdout, Write};
 
 use anyhow::Result;

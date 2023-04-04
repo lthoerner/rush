@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use std::fmt::{Display, Formatter};
 use std::fs::canonicalize;
 use std::path::PathBuf;
@@ -39,7 +37,7 @@ impl Path {
     }
 
     // Attempts to construct a new Path from a given path string by resolving it to an absolute path
-    fn from_str_path(path: &str, home_directory: &PathBuf) -> Result<Self> {
+    pub fn from_str_path(path: &str, home_directory: &PathBuf) -> Result<Self> {
         match resolve(path, home_directory) {
             Some(absolute_path) => Ok(Self::new(absolute_path, home_directory)?),
             None => Err(ShellError::UnknownDirectory.into()),

@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -9,6 +7,7 @@ use crate::errors::ShellError;
 use crate::path::Path;
 
 // Represents the shell environment by encapsulating the environment variables
+#[allow(dead_code)]
 pub struct Environment {
     user: String,
     home: PathBuf,
@@ -22,7 +21,8 @@ impl Environment {
     pub fn new() -> Result<Self> {
         let user = get_parent_env_var("USER")?;
         let home = PathBuf::from(get_parent_env_var("HOME")?);
-        let working_directory = Path::new(PathBuf::from(get_parent_env_var("PWD")?), &home)?;
+        // ? Why was this using Path::new() instead of Path::from_str_path()?
+        let working_directory = Path::from_str_path(get_parent_env_var("PWD")?.as_str(), &home)?;
 
         Ok(Self {
             user,
