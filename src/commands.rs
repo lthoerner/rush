@@ -1,11 +1,11 @@
 #![allow(dead_code, unused_variables)]
 
-use std::path::{self, PathBuf};
+use std::path::PathBuf;
 use std::process::Command as StdCommand;
 
 use crate::builtins;
 use crate::environment::Environment;
-use crate::path::Path;
+use crate::path::{self, Path};
 use crate::shell::Shell;
 
 // Represents a command that can be run by the prompt
@@ -49,6 +49,7 @@ impl Runnable {
         Self::External(path)
     }
 
+    // Executes either a builtin or a binary
     fn run(&self, context: &mut Context, arguments: Vec<&str>) -> StatusCode {
         match self {
             Runnable::Internal(command_function) => command_function(context, arguments),
@@ -259,11 +260,11 @@ impl CommandManager {
         if let Some(command) = self.resolve(command_name) {
             return Some(command.runnable.run(context, command_args));
         } else {
-            let path = path::Path::new(command_name).exists();
-
-            if path {
-                let runnable = Runnable::external(command_name.into());
-
+            // ? Should the path be canonicalized in the Runnable::External constructor or here?
+            let path = path::resolve(command_name, context.home());
+            if let Some(path) = path {
+                // ? Should we check if the file is an executable first?
+                let runnable = Runnable::external(path);
                 return Some(runnable.run(context, command_args));
             }
         }
