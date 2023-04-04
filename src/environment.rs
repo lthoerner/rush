@@ -34,12 +34,26 @@ impl Environment {
     }
 
     // Updates the shell process's environment variables to match the internal representation
-    // ? Should this have options of which variables to update?
-    pub fn update_process_env_vars(&self) -> Result<()> {
-        std::env::set_var("USER", &self.user);
-        std::env::set_var("HOME", &self.home);
-        std::env::set_current_dir(self.working_directory.absolute())
-            .map_err(|_| ShellError::FailedToUpdateEnvironmentVariables.into())
+    pub fn update_process_env_vars(
+        &self,
+        set_user: bool,
+        set_home: bool,
+        set_working_directory: bool,
+    ) -> Result<()> {
+        if set_user {
+            std::env::set_var("USER", &self.user);
+        }
+
+        if set_home {
+            std::env::set_var("HOME", &self.home);
+        }
+
+        if set_working_directory {
+            std::env::set_current_dir(self.working_directory.absolute())
+                .map_err(|_| ShellError::FailedToUpdateEnvironmentVariables)?;
+        }
+
+        Ok(())
     }
 
     pub fn user(&self) -> &String {

@@ -51,16 +51,14 @@ pub fn working_directory(context: &mut Context, args: Vec<&str>) -> Result<()> {
 
 pub fn change_directory(context: &mut Context, args: Vec<&str>) -> Result<()> {
     if args.len() == 1 {
-        match context.env_mut().set_path(args[0]) {
-            Ok(_) => {
-                // ! This might be better to have happen automatically
-                context.env_mut().update_process_env_vars()
-            }
-            Err(_) => {
-                eprintln!("Invalid path: '{}'", args[0]);
-                Err(InternalCommandError::FailedToRun.into())
-            }
-        }
+        context.env_mut().set_path(args[0]).map_err(|_| {
+            eprintln!("Invalid path: '{}'", args[0]);
+            InternalCommandError::FailedToRun
+        })?;
+        // ! This might be better to have happen automatically
+        context
+            .env_mut()
+            .update_process_env_vars(false, false, true)
     } else {
         eprintln!("Usage: change-directory <path>");
         Err(InternalCommandError::InvalidArgumentCount.into())
@@ -77,24 +75,18 @@ pub fn list_directory(context: &mut Context, args: Vec<&str>) -> Result<()> {
             .expect("Failed to read directory"),
         1 => {
             // Path::from_str_path() will attempt to expand and canonicalize the path, and return None if the path does not exist
-            let absolute_path = match path::resolve(args[0], context.home()) {
-                Some(path) => path,
-                None => {
-                    eprintln!("Invalid path: '{}'", args[0]);
-                    return Err(InternalCommandError::FailedToRun.into());
-                }
-            };
+            let absolute_path = path::resolve(args[0], context.home()).ok_or_else(|| {
+                eprintln!("Invalid path: '{}'", args[0]);
+                InternalCommandError::FailedToRun
+            })?;
 
-            match fs::read_dir(&absolute_path) {
-                Ok(files_and_directories) => files_and_directories,
-                Err(_) => {
-                    eprintln!(
-                        "Failed to read directory: '{}'",
-                        absolute_path.to_string_lossy().to_string()
-                    );
-                    return Err(InternalCommandError::FailedToRun.into());
-                }
-            }
+            fs::read_dir(&absolute_path).map_err(|_| {
+                eprintln!(
+                    "Failed to read directory: '{}'",
+                    absolute_path.to_string_lossy().to_string()
+                );
+                InternalCommandError::FailedToRun
+            })?
         }
         _ => {
             eprintln!("Usage: list-directory <path>");
@@ -145,25 +137,25 @@ pub fn list_directory(context: &mut Context, args: Vec<&str>) -> Result<()> {
 // TODO: Find a better name for this
 pub fn go_back(context: &mut Context, args: Vec<&str>) -> Result<()> {
     if args.len() == 0 {
-        let prev_dir = match context.env().previous_working_directory.clone() {
-            Some(dir) => dir,
-            None => {
+        let prev_dir = context
+            .env()
+            .previous_working_directory
+            .clone()
+            .ok_or_else(|| {
                 eprintln!("No previous working directory available");
-                return Err(InternalCommandError::FailedToRun.into());
-            }
-        }
-        .to_string_lossy()
-        .to_string();
+                InternalCommandError::FailedToRun
+            })?
+            .to_string_lossy()
+            .to_string();
 
-        match context.env_mut().set_path(prev_dir.as_str()) {
-            Ok(_) => {
-                context.env_mut().update_process_env_vars()
-            }
-            Err(_) => {
-                eprintln!("Invalid path: '{}'", prev_dir);
-                Err(InternalCommandError::FailedToRun.into())
-            }
-        }
+        context.env_mut().set_path(prev_dir.as_str()).map_err(|_| {
+            eprintln!("Invalid path: '{}'", prev_dir);
+            InternalCommandError::FailedToRun
+        })?;
+
+        context
+            .env_mut()
+            .update_process_env_vars(false, false, true)
     } else {
         eprintln!("Usage: go-back");
         Err(InternalCommandError::InvalidArgumentCount.into())
@@ -181,15 +173,14 @@ pub fn clear_terminal(_context: &mut Context, args: Vec<&str>) -> Result<()> {
     }
 }
 
+// TODO: Add prompt to confirm file overwrite
 pub fn create_file(_context: &mut Context, args: Vec<&str>) -> Result<()> {
     if args.len() == 1 {
-        match fs::File::create(args[0]) {
-            Ok(_) => Ok(()),
-            Err(_) => {
-                eprintln!("Failed to create file: '{}'", args[0]);
-                Err(InternalCommandError::FailedToRun.into())
-            }
-        }
+        fs::File::create(args[0]).map_err(|_| {
+            eprintln!("Failed to create file: '{}'", args[0]);
+            InternalCommandError::FailedToRun
+        })?;
+        Ok(())
     } else {
         eprintln!("Usage: create-file <path>");
         Err(InternalCommandError::InvalidArgumentCount.into())
@@ -198,13 +189,11 @@ pub fn create_file(_context: &mut Context, args: Vec<&str>) -> Result<()> {
 
 pub fn create_directory(_context: &mut Context, args: Vec<&str>) -> Result<()> {
     if args.len() == 1 {
-        match fs::create_dir(args[0]) {
-            Ok(_) => Ok(()),
-            Err(_) => {
-                eprintln!("Failed to create directory: '{}'", args[0]);
-                Err(InternalCommandError::FailedToRun.into())
-            }
-        }
+        fs::create_dir(args[0]).map_err(|_| {
+            eprintln!("Failed to create directory: '{}'", args[0]);
+            InternalCommandError::FailedToRun
+        })?;
+        Ok(())
     } else {
         eprintln!("Usage: create-directory <path>");
         Err(InternalCommandError::InvalidArgumentCount.into())
@@ -213,13 +202,11 @@ pub fn create_directory(_context: &mut Context, args: Vec<&str>) -> Result<()> {
 
 pub fn delete_file(_context: &mut Context, args: Vec<&str>) -> Result<()> {
     if args.len() == 1 {
-        match fs::remove_file(args[0]) {
-            Ok(_) => Ok(()),
-            Err(_) => {
-                eprintln!("Failed to delete file: '{}'", args[0]);
-                Err(InternalCommandError::FailedToRun.into())
-            }
-        }
+        fs::remove_file(args[0]).map_err(|_| {
+            eprintln!("Failed to delete file: '{}'", args[0]);
+            InternalCommandError::FailedToRun
+        })?;
+        Ok(())
     } else {
         eprintln!("Usage: delete-file <path>");
         Err(InternalCommandError::InvalidArgumentCount.into())
@@ -235,16 +222,12 @@ pub fn read_file(_context: &mut Context, args: Vec<&str>) -> Result<()> {
         }
     };
 
-    let file = match fs::File::open(&file_name) {
-        Ok(file) => file,
-        Err(_) => {
-            eprintln!("Failed to open file: '{}'", file_name);
-            return Err(InternalCommandError::FailedToRun.into());
-        }
-    };
+    let file = fs::File::open(&file_name).map_err(|_| {
+        eprintln!("Failed to open file: '{}'", file_name);
+        InternalCommandError::FailedToRun
+    })?;
 
     let reader = BufReader::new(file);
-
     for line in reader.lines() {
         let line = line.expect("Failed to read line");
         println!("{}", line);
@@ -256,14 +239,10 @@ pub fn read_file(_context: &mut Context, args: Vec<&str>) -> Result<()> {
 pub fn truncate(context: &mut Context, args: Vec<&str>) -> Result<()> {
     let truncation = match args.len() {
         0 => 1,
-        // ! This code is extremely unsafe, fix it
-        1 => match args[0].parse::<usize>() {
-            Ok(t) => t,
-            Err(_) => {
-                eprintln!("Invalid truncation length: '{}'", args[0]);
-                return Err(InternalCommandError::InvalidValue.into());
-            }
-        },
+        1 => args[0].parse::<usize>().map_err(|_| {
+            eprintln!("Invalid truncation length: '{}'", args[0]);
+            InternalCommandError::InvalidValue
+        })?,
         _ => {
             eprintln!("Usage: truncate <length (default 1)>");
             return Err(InternalCommandError::InvalidArgumentCount.into());
