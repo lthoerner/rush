@@ -14,6 +14,9 @@ pub struct Environment {
     pub working_directory: Path,
     backward_directories: VecDeque<PathBuf>,
     forward_directories: VecDeque<PathBuf>,
+    // * 'path' is not to be confused with the 'working_directory.' 'path' is a list of directories which
+    // * the shell will search for executables in. 'Working_directory' is the current directory the user is in.
+    path: Vec<PathBuf>,
     custom_variables: HashMap<String, String>,
 }
 
