@@ -25,7 +25,10 @@ impl Environment {
         let user = get_parent_env_var("USER")?;
         let home = PathBuf::from(get_parent_env_var("HOME")?);
         // ? Why was this using Path::new() instead of Path::from_str_path()?
+        // * Seems to work fine, but this line might be suspect if any bugs crop up
         let working_directory = Path::from_str_path(get_parent_env_var("PWD")?.as_str(), &home)?;
+        // ? Should this be put into a function?
+        let path = get_parent_env_var("PATH")?.split(':').map(PathBuf::from).collect();
 
         Ok(Self {
             user,
@@ -33,6 +36,7 @@ impl Environment {
             working_directory,
             backward_directories: VecDeque::new(),
             forward_directories: VecDeque::new(),
+            path,
             custom_variables: HashMap::new(),
         })
     }
@@ -68,6 +72,10 @@ impl Environment {
         &self.home
     }
 
+    pub fn path(&self) -> &Vec<PathBuf> {
+        &self.path
+    }
+
     // Sets the current working directory and stores the previous working directory
     pub fn set_path(&mut self, new_path: &str) -> Result<()> {
         let previous_path = self.working_directory.absolute().clone();
@@ -82,6 +90,7 @@ impl Environment {
         let starting_directory = self.working_directory.absolute().clone();
         if let Some(previous_path) = self.backward_directories.pop_back() {
             // ? Should there be PathBuf variants of .set_path()?
+            // TODO: There needs to be a proper error message here
             self.working_directory.set_path(previous_path.to_str().expect("PLACEHOLDER ERROR"))?;
             self.forward_directories.push_front(starting_directory);
             self.update_process_env_vars(false, false, true)
