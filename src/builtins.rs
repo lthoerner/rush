@@ -13,61 +13,63 @@ use std::env;
 use std::fs;
 use std::io::{BufRead, BufReader};
 
+use anyhow::Result;
 use colored::Colorize;
 
-use crate::commands::{Context, StatusCode};
+use crate::commands::Context;
+use crate::errors::InternalCommandError;
 use crate::path;
 
-pub fn test(_context: &mut Context, args: Vec<&str>) -> StatusCode {
+pub fn test(_context: &mut Context, args: Vec<&str>) -> Result<()> {
     if args.len() == 0 {
         println!("{}", "Test command!".yellow());
-        StatusCode::success()
+        Ok(())
     } else {
         eprintln!("Usage: test");
-        StatusCode::new(1)
+        Err(InternalCommandError::InvalidArgumentCount.into())
     }
 }
 
-pub fn exit(_context: &mut Context, args: Vec<&str>) -> StatusCode {
+pub fn exit(_context: &mut Context, args: Vec<&str>) -> Result<()> {
     if args.len() == 0 {
         std::process::exit(0);
     } else {
         eprintln!("Usage: exit");
-        StatusCode::new(1)
+        Err(InternalCommandError::InvalidArgumentCount.into())
     }
 }
 
-pub fn working_directory(context: &mut Context, args: Vec<&str>) -> StatusCode {
+pub fn working_directory(context: &mut Context, args: Vec<&str>) -> Result<()> {
     if args.len() == 0 {
         println!("{}", context.cwd());
-        StatusCode::success()
+        Ok(())
     } else {
         eprintln!("Usage: working-directory");
-        StatusCode::new(1)
+        Err(InternalCommandError::InvalidArgumentCount.into())
     }
 }
 
-pub fn change_directory(context: &mut Context, args: Vec<&str>) -> StatusCode {
+pub fn change_directory(context: &mut Context, args: Vec<&str>) -> Result<()> {
     if args.len() == 1 {
         match context.env_mut().set_path(args[0]) {
             Ok(_) => {
                 // ! This might be better to have happen automatically
                 context.env_mut().update_process_env_vars();
-                StatusCode::success()
+                Ok(())
             }
             Err(_) => {
                 eprintln!("Invalid path: '{}'", args[0]);
-                StatusCode::new(2)
+                Err(InternalCommandError::FailedToRun.into())
             }
         }
     } else {
         eprintln!("Usage: change-directory <path>");
-        StatusCode::new(1)
+        Err(InternalCommandError::InvalidArgumentCount.into())
     }
 }
 
 // TODO: Break up some of this code into different functions
-pub fn list_directory(context: &mut Context, args: Vec<&str>) -> StatusCode {
+pub fn list_directory(context: &mut Context, args: Vec<&str>) -> Result<()> {
     let files_and_directories = match args.len() {
         // Use the working directory as the default path argument
         // This uses expect() because it needs to crash if the working directory is invalid,
@@ -80,7 +82,7 @@ pub fn list_directory(context: &mut Context, args: Vec<&str>) -> StatusCode {
                 Some(path) => path,
                 None => {
                     eprintln!("Invalid path: '{}'", args[0]);
-                    return StatusCode::new(2);
+                    return Err(InternalCommandError::FailedToRun.into());
                 }
             };
 
@@ -91,13 +93,13 @@ pub fn list_directory(context: &mut Context, args: Vec<&str>) -> StatusCode {
                         "Failed to read directory: '{}'",
                         absolute_path.to_string_lossy().to_string()
                     );
-                    return StatusCode::new(3);
+                    return Err(InternalCommandError::FailedToRun.into());
                 }
             }
         }
         _ => {
             eprintln!("Usage: list-directory <path>");
-            return StatusCode::new(1);
+            return Err(InternalCommandError::InvalidArgumentCount.into());
         }
     };
 
@@ -138,17 +140,17 @@ pub fn list_directory(context: &mut Context, args: Vec<&str>) -> StatusCode {
         println!("{}", file);
     }
 
-    StatusCode::success()
+    Ok(())
 }
 
 // TODO: Find a better name for this
-pub fn go_back(context: &mut Context, args: Vec<&str>) -> StatusCode {
+pub fn go_back(context: &mut Context, args: Vec<&str>) -> Result<()> {
     if args.len() == 0 {
         let prev_dir = match context.env().previous_working_directory.clone() {
             Some(dir) => dir,
             None => {
                 eprintln!("No previous working directory available");
-                return StatusCode::new(2);
+                return Err(InternalCommandError::FailedToRun.into());
             }
         }
         .to_string_lossy()
@@ -157,81 +159,81 @@ pub fn go_back(context: &mut Context, args: Vec<&str>) -> StatusCode {
         match context.env_mut().set_path(prev_dir.as_str()) {
             Ok(_) => {
                 context.env_mut().update_process_env_vars();
-                StatusCode::success()
+                Ok(())
             }
             Err(_) => {
                 eprintln!("Invalid path: '{}'", prev_dir);
-                StatusCode::new(3)
+                Err(InternalCommandError::FailedToRun.into())
             }
         }
     } else {
         eprintln!("Usage: go-back");
-        StatusCode::new(1)
+        Err(InternalCommandError::InvalidArgumentCount.into())
     }
 }
 
-pub fn clear_terminal(_context: &mut Context, args: Vec<&str>) -> StatusCode {
+pub fn clear_terminal(_context: &mut Context, args: Vec<&str>) -> Result<()> {
     if args.len() == 0 {
         // * "Magic" ANSI escape sequence to clear the terminal
         print!("\x1B[2J\x1B[1;1H");
-        StatusCode::success()
+        Ok(())
     } else {
         eprintln!("Usage: clear-terminal");
-        StatusCode::new(1)
+        Err(InternalCommandError::InvalidArgumentCount.into())
     }
 }
 
-pub fn create_file(_context: &mut Context, args: Vec<&str>) -> StatusCode {
+pub fn create_file(_context: &mut Context, args: Vec<&str>) -> Result<()> {
     if args.len() == 1 {
         match fs::File::create(args[0]) {
-            Ok(_) => StatusCode::success(),
+            Ok(_) => Ok(()),
             Err(_) => {
                 eprintln!("Failed to create file: '{}'", args[0]);
-                StatusCode::new(2)
+                Err(InternalCommandError::FailedToRun.into())
             }
         }
     } else {
         eprintln!("Usage: create-file <path>");
-        StatusCode::new(1)
+        Err(InternalCommandError::InvalidArgumentCount.into())
     }
 }
 
-pub fn create_directory(_context: &mut Context, args: Vec<&str>) -> StatusCode {
+pub fn create_directory(_context: &mut Context, args: Vec<&str>) -> Result<()> {
     if args.len() == 1 {
         match fs::create_dir(args[0]) {
-            Ok(_) => StatusCode::success(),
+            Ok(_) => Ok(()),
             Err(_) => {
                 eprintln!("Failed to create directory: '{}'", args[0]);
-                StatusCode::new(2)
+                Err(InternalCommandError::FailedToRun.into())
             }
         }
     } else {
         eprintln!("Usage: create-directory <path>");
-        StatusCode::new(1)
+        Err(InternalCommandError::InvalidArgumentCount.into())
     }
 }
 
-pub fn delete_file(_context: &mut Context, args: Vec<&str>) -> StatusCode {
+pub fn delete_file(_context: &mut Context, args: Vec<&str>) -> Result<()> {
     if args.len() == 1 {
         match fs::remove_file(args[0]) {
-            Ok(_) => StatusCode::success(),
+            Ok(_) => Ok(()),
             Err(_) => {
                 eprintln!("Failed to delete file: '{}'", args[0]);
-                StatusCode::new(2)
+                Err(InternalCommandError::FailedToRun.into())
             }
         }
     } else {
         eprintln!("Usage: delete-file <path>");
-        StatusCode::new(1)
+        Err(InternalCommandError::InvalidArgumentCount.into())
     }
 }
 
-pub fn read_file(_context: &mut Context, args: Vec<&str>) -> StatusCode {
+pub fn read_file(_context: &mut Context, args: Vec<&str>) -> Result<()> {
     let file_name = match args.len() {
         1 => args[0].to_string(),
         _ => {
             eprintln!("Usage: read-file <path>");
-            return StatusCode::new(1);
+            return Err(InternalCommandError::InvalidArgumentCount.into());
         }
     };
 
@@ -239,7 +241,7 @@ pub fn read_file(_context: &mut Context, args: Vec<&str>) -> StatusCode {
         Ok(file) => file,
         Err(_) => {
             eprintln!("Failed to open file: '{}'", file_name);
-            return StatusCode::new(2);
+            return Err(InternalCommandError::FailedToRun.into());
         }
     };
 
@@ -250,37 +252,35 @@ pub fn read_file(_context: &mut Context, args: Vec<&str>) -> StatusCode {
         println!("{}", line);
     }
 
-    StatusCode::success()
+    Ok(())
 }
 
-pub fn truncate(context: &mut Context, args: Vec<&str>) -> StatusCode {
+pub fn truncate(context: &mut Context, args: Vec<&str>) -> Result<()> {
     let truncation = match args.len() {
         0 => 1,
-        // ! This is copilot code, it is extremely unsafe
+        // ! This code is extremely unsafe, fix it
         1 => match args[0].parse::<usize>() {
             Ok(t) => t,
             Err(_) => {
                 eprintln!("Invalid truncation length: '{}'", args[0]);
-                return StatusCode::new(2);
+                return Err(InternalCommandError::InvalidValue.into());
             }
         },
         _ => {
             eprintln!("Usage: truncate <length (default 1)>");
-            return StatusCode::new(1);
+            return Err(InternalCommandError::InvalidArgumentCount.into());
         }
     };
 
-    context.cwd_mut().set_truncation(truncation);
-    StatusCode::success()
+    context.cwd_mut().set_truncation(truncation)
 }
 
-pub fn untruncate(context: &mut Context, args: Vec<&str>) -> StatusCode {
+pub fn untruncate(context: &mut Context, args: Vec<&str>) -> Result<()> {
     if args.len() == 0 {
-        context.cwd_mut().disable_truncation();
-        StatusCode::success()
+        context.cwd_mut().disable_truncation()
     } else {
         eprintln!("Usage: untruncate");
-        StatusCode::new(1)
+        Err(InternalCommandError::InvalidArgumentCount.into())
     }
 }
 
@@ -293,9 +293,8 @@ mod tests {
     fn test_command_test_success() {
         let mut shell = Shell::new().unwrap();
         let mut context = Context::new(&mut shell);
-        let status_code = test(&mut context, Vec::new());
-
-        assert_eq!(status_code, StatusCode::success());
+        let status = test(&mut context, Vec::new());
+        assert!(status.is_ok());
     }
 
     #[test]
@@ -308,27 +307,24 @@ mod tests {
     fn test_command_working_directory_success() {
         let mut shell = Shell::new().unwrap();
         let mut context = Context::new(&mut shell);
-        let status_code = working_directory(&mut context, Vec::new());
-
-        assert_eq!(status_code, StatusCode::success());
+        let status = working_directory(&mut context, Vec::new());
+        assert!(status.is_ok());
     }
 
     #[test]
     fn test_command_change_directory_success_1() {
         let mut shell = Shell::new().unwrap();
         let mut context = Context::new(&mut shell);
-        let status_code = change_directory(&mut context, vec!["/"]);
-
-        assert_eq!(status_code, StatusCode::success());
+        let status = change_directory(&mut context, vec!["/"]);
+        assert!(status.is_ok());
     }
 
     #[test]
     fn test_command_change_directory_success_2() {
         let mut shell = Shell::new().unwrap();
         let mut context = Context::new(&mut shell);
-        let status_code = change_directory(&mut context, vec!["~"]);
-
-        assert_eq!(status_code, StatusCode::success());
+        let status = change_directory(&mut context, vec!["~"]);
+        assert!(status.is_ok());
     }
 
     #[test]
@@ -337,36 +333,32 @@ mod tests {
         let mut context = Context::new(&mut shell);
         change_directory(&mut context, vec!["~"]);
         // ! This is not guaranteed to exist on the tester's system
-        let status_code = change_directory(&mut context, vec!["Documents"]);
-
-        assert_eq!(status_code, StatusCode::success());
+        let status = change_directory(&mut context, vec!["Documents"]);
+        assert!(status.is_ok());
     }
 
     #[test]
     fn test_command_change_directory_fail() {
         let mut shell = Shell::new().unwrap();
         let mut context = Context::new(&mut shell);
-        let status_code = change_directory(&mut context, vec!["/invalid/path"]);
-
-        assert_eq!(status_code, StatusCode::new(2));
+        let status = change_directory(&mut context, vec!["/invalid/path"]);
+        assert!(status.is_ok());
     }
 
     #[test]
     fn test_command_list_directory_success() {
         let mut shell = Shell::new().unwrap();
         let mut context = Context::new(&mut shell);
-        let status_code = list_directory(&mut context, Vec::new());
-
-        assert_eq!(status_code, StatusCode::success());
+        let status = list_directory(&mut context, Vec::new());
+        assert!(status.is_ok());
     }
 
     #[test]
     fn test_command_list_directory_fail() {
         let mut shell = Shell::new().unwrap();
         let mut context = Context::new(&mut shell);
-        let status_code = list_directory(&mut context, vec!["/invalid/path"]);
-
-        assert_eq!(status_code, StatusCode::new(2));
+        let status = list_directory(&mut context, vec!["/invalid/path"]);
+        assert!(status.is_ok());
     }
 
     #[test]
@@ -374,44 +366,39 @@ mod tests {
         let mut shell = Shell::new().unwrap();
         let mut context = Context::new(&mut shell);
         context.env_mut().set_path("/");
-        let status_code = go_back(&mut context, Vec::new());
-
-        assert_eq!(status_code, StatusCode::success());
+        let status = go_back(&mut context, Vec::new());
+        assert!(status.is_ok());
     }
 
     #[test]
     fn test_command_go_back_fail() {
         let mut shell = Shell::new().unwrap();
         let mut context = Context::new(&mut shell);
-        let status_code = go_back(&mut context, Vec::new());
-
-        assert_eq!(status_code, StatusCode::new(2));
+        let status = go_back(&mut context, Vec::new());
+        assert!(status.is_ok());
     }
 
     #[test]
     fn test_command_truncate_success_1() {
         let mut shell = Shell::new().unwrap();
         let mut context = Context::new(&mut shell);
-        let status_code = truncate(&mut context, Vec::new());
-
-        assert_eq!(status_code, StatusCode::success());
+        let status = truncate(&mut context, Vec::new());
+        assert!(status.is_ok());
     }
 
     #[test]
     fn test_command_truncate_success_2() {
         let mut shell = Shell::new().unwrap();
         let mut context = Context::new(&mut shell);
-        let status_code = truncate(&mut context, vec!["10"]);
-
-        assert_eq!(status_code, StatusCode::success());
+        let status = truncate(&mut context, vec!["10"]);
+        assert!(status.is_ok());
     }
 
     #[test]
     fn test_command_truncate_fail() {
         let mut shell = Shell::new().unwrap();
         let mut context = Context::new(&mut shell);
-        let status_code = truncate(&mut context, vec!["-10"]);
-
-        assert_eq!(status_code, StatusCode::new(2));
+        let status = truncate(&mut context, vec!["-10"]);
+        assert!(status.is_ok());
     }
 }

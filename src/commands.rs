@@ -3,8 +3,11 @@
 use std::path::PathBuf;
 use std::process::Command as StdCommand;
 
+use anyhow::Result;
+
 use crate::builtins;
 use crate::environment::Environment;
+use crate::errors::ExternalCommandError;
 use crate::path::{self, Path};
 use crate::shell::Shell;
 
@@ -34,13 +37,13 @@ impl Command {
 
 // Represents either an internal command or an external binary that can be invoked by a command
 enum Runnable {
-    Internal(Box<dyn Fn(&mut Context, Vec<&str>) -> StatusCode>),
+    Internal(Box<dyn Fn(&mut Context, Vec<&str>) -> Result<()>>),
     External(PathBuf),
 }
 
 impl Runnable {
     // Constructs an Internal Runnable from a function
-    fn internal<F: Fn(&mut Context, Vec<&str>) -> StatusCode + 'static>(function: F) -> Self {
+    fn internal<F: Fn(&mut Context, Vec<&str>) -> Result<()> + 'static>(function: F) -> Self {
         Self::Internal(Box::new(function))
     }
 
@@ -50,29 +53,25 @@ impl Runnable {
     }
 
     // Executes either a builtin or a binary
-    fn run(&self, context: &mut Context, arguments: Vec<&str>) -> StatusCode {
+    fn run(&self, context: &mut Context, arguments: Vec<&str>) -> Result<()> {
         match self {
             Runnable::Internal(command_function) => command_function(context, arguments),
             Runnable::External(path) => {
                 let output = StdCommand::new(path).args(arguments).output();
-
                 match output {
                     Err(err) => {
-                        let kind = err.kind();
-
                         if let Some(err_code) = err.raw_os_error() {
-                            StatusCode::new(err_code)
+                            Err(ExternalCommandError::FailedToExecute(err_code as isize).into())
                         } else {
-                            StatusCode::new(-1)
+                            // ? What does this error mean? What should the error code be? Should it use a different variant like UnknownError?
+                            Err(ExternalCommandError::FailedToExecute(-1).into())
                         }
                     }
                     Ok(output) => {
                         let stdout = output.stdout;
                         let string = String::from_utf8_lossy(stdout.as_slice());
-
-                        eprintln!("{}", string);
-
-                        StatusCode::success()
+                        eprint!("{}", string);
+                        Ok(())
                     }
                 }
             }
@@ -116,26 +115,6 @@ impl<'a> Context<'a> {
     // Mutable variant of Context.cwd()
     pub fn cwd_mut(&mut self) -> &mut Path {
         &mut self.shell.environment.working_directory
-    }
-}
-
-// Represents the status/exit code of a command
-#[derive(Debug, PartialEq, Eq)]
-pub struct StatusCode {
-    code: i32,
-}
-
-impl StatusCode {
-    pub fn new(code: i32) -> Self {
-        Self { code }
-    }
-
-    pub fn success() -> Self {
-        Self::new(0)
-    }
-
-    pub fn is_success(&self) -> bool {
-        self.code == 0
     }
 }
 
@@ -256,7 +235,7 @@ impl CommandManager {
         command_name: &str,
         command_args: Vec<&str>,
         context: &mut Context,
-    ) -> Option<StatusCode> {
+    ) -> Option<Result<()>> {
         if let Some(command) = self.resolve(command_name) {
             return Some(command.runnable.run(context, command_args));
         } else {

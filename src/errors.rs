@@ -23,3 +23,26 @@ pub enum ShellError {
     #[error("Unknown error")]
     Uncategorized,
 }
+
+#[derive(Error, Debug)]
+pub enum InternalCommandError {
+    #[error("Wrong number of arguments")]
+    InvalidArgumentCount,
+    #[error("Invalid argument")]
+    InvalidArgument,
+    #[error("Invalid value for argument")]
+    InvalidValue,
+    // * This might be too general, might be better to do error variants like "FailedToOpenFile" etc
+    #[error("Runtime error")]
+    FailedToRun,
+}
+
+#[derive(Error, Debug)]
+pub enum ExternalCommandError {
+    #[error("Failed to execute external command")]
+    FailedToExecute(isize),
+    #[error("Failed to read from stdout")]
+    FailedToReadStdout,
+    #[error("Failed to read from stderr")]
+    FailedToReadStderr,
+}

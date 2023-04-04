@@ -66,7 +66,7 @@ impl Shell {
 
         // If the command was not found, print an error message
         match exit_code {
-            Some(code) => self.success = code.is_success(),
+            Some(code) => self.success = code.is_ok(),
             None => {
                 eprintln!("Unknown command: {}", command_name.red());
                 self.success = false;
