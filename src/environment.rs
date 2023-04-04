@@ -70,6 +70,7 @@ impl Environment {
         let previous_path = self.working_directory.absolute().clone();
         self.working_directory.set_path(new_path)?;
         self.backward_directories.push_back(previous_path);
+        self.forward_directories.clear();
         self.update_process_env_vars(false, false, true)
     }
 
