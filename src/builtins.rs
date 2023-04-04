@@ -54,8 +54,7 @@ pub fn change_directory(context: &mut Context, args: Vec<&str>) -> Result<()> {
         match context.env_mut().set_path(args[0]) {
             Ok(_) => {
                 // ! This might be better to have happen automatically
-                context.env_mut().update_process_env_vars();
-                Ok(())
+                context.env_mut().update_process_env_vars()
             }
             Err(_) => {
                 eprintln!("Invalid path: '{}'", args[0]);
@@ -158,8 +157,7 @@ pub fn go_back(context: &mut Context, args: Vec<&str>) -> Result<()> {
 
         match context.env_mut().set_path(prev_dir.as_str()) {
             Ok(_) => {
-                context.env_mut().update_process_env_vars();
-                Ok(())
+                context.env_mut().update_process_env_vars()
             }
             Err(_) => {
                 eprintln!("Invalid path: '{}'", prev_dir);
@@ -331,7 +329,7 @@ mod tests {
     fn test_command_change_directory_success_3() {
         let mut shell = Shell::new().unwrap();
         let mut context = Context::new(&mut shell);
-        change_directory(&mut context, vec!["~"]);
+        change_directory(&mut context, vec!["~"]).unwrap();
         // ! This is not guaranteed to exist on the tester's system
         let status = change_directory(&mut context, vec!["Documents"]);
         assert!(status.is_ok());
@@ -365,7 +363,7 @@ mod tests {
     fn test_command_go_back_success() {
         let mut shell = Shell::new().unwrap();
         let mut context = Context::new(&mut shell);
-        context.env_mut().set_path("/");
+        context.env_mut().set_path("/").unwrap();
         let status = go_back(&mut context, Vec::new());
         assert!(status.is_ok());
     }
