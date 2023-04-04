@@ -34,7 +34,7 @@ impl Environment {
     }
 
     // Updates the shell process's environment variables to match the internal representation
-    pub fn update_process_env_vars(
+    fn update_process_env_vars(
         &self,
         set_user: bool,
         set_home: bool,
@@ -69,8 +69,7 @@ impl Environment {
         let previous_path = self.working_directory.absolute().clone();
         self.working_directory.set_path(new_path)?;
         self.previous_working_directory = Some(previous_path);
-
-        Ok(())
+        self.update_process_env_vars(false, false, true)
     }
 }
 

@@ -53,12 +53,8 @@ pub fn change_directory(context: &mut Context, args: Vec<&str>) -> Result<()> {
     if args.len() == 1 {
         context.env_mut().set_path(args[0]).map_err(|_| {
             eprintln!("Invalid path: '{}'", args[0]);
-            InternalCommandError::FailedToRun
-        })?;
-        // ! This might be better to have happen automatically
-        context
-            .env_mut()
-            .update_process_env_vars(false, false, true)
+            InternalCommandError::FailedToRun.into()
+        })
     } else {
         eprintln!("Usage: change-directory <path>");
         Err(InternalCommandError::InvalidArgumentCount.into())
@@ -150,12 +146,8 @@ pub fn go_back(context: &mut Context, args: Vec<&str>) -> Result<()> {
 
         context.env_mut().set_path(prev_dir.as_str()).map_err(|_| {
             eprintln!("Invalid path: '{}'", prev_dir);
-            InternalCommandError::FailedToRun
-        })?;
-
-        context
-            .env_mut()
-            .update_process_env_vars(false, false, true)
+            InternalCommandError::FailedToRun.into()
+        })
     } else {
         eprintln!("Usage: go-back");
         Err(InternalCommandError::InvalidArgumentCount.into())
