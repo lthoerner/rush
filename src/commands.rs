@@ -72,7 +72,8 @@ impl Runnable {
                     Ok(())
                 } else {
                     // * 126 is a special exit code that means that the command was found but could not be executed
-                    // * It can be assumed that the command was found here because the path was validated before it was passed to the constructor
+                    // * as per https://tldp.org/LDP/abs/html/exitcodes.html
+                    // * It can be assumed that the command was found here because the External path must have been validated already
                     // * Otherwise it could be a 127 for "command not found"
                     Err(ExternalCommandError::FailedToExecute(status.code().unwrap_or(126) as isize).into())
                 }
