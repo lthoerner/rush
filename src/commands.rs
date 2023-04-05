@@ -60,22 +60,21 @@ impl Runnable {
         match self {
             Runnable::Internal(command_function) => command_function(context, arguments),
             Runnable::External(path) => {
-                let output = StdCommand::new(path).args(arguments).output();
-                match output {
-                    Err(err) => {
-                        if let Some(err_code) = err.raw_os_error() {
-                            Err(ExternalCommandError::FailedToExecute(err_code as isize).into())
-                        } else {
-                            // ? What does this error mean? What should the error code be? Should it use a different variant like UnknownError?
-                            Err(ExternalCommandError::FailedToExecute(-1).into())
-                        }
-                    }
-                    Ok(output) => {
-                        let stdout = output.stdout;
-                        let string = String::from_utf8_lossy(stdout.as_slice());
-                        eprint!("{}", string);
-                        Ok(())
-                    }
+                // Create the process to be executed
+                let mut executable = StdCommand::new(path);
+                executable.args(arguments);
+
+                // Execute the process and wait for it to finish
+                let mut handle = executable.spawn()?;
+                let status = handle.wait()?;
+
+                if status.success() {
+                    Ok(())
+                } else {
+                    // * 126 is a special exit code that means that the command was found but could not be executed
+                    // * It can be assumed that the command was found here because the path was validated before it was passed to the constructor
+                    // * Otherwise it could be a 127 for "command not found"
+                    Err(ExternalCommandError::FailedToExecute(status.code().unwrap_or(126) as isize).into())
                 }
             }
         }
