@@ -22,7 +22,6 @@ impl Shell {
 
     // Repeatedly prompts the user for commands and executes them
     pub fn run(&mut self) -> Result<()> {
-        // ? What should this name be?
         let dispatcher = Dispatcher::default();
 
         loop {
