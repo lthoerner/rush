@@ -136,7 +136,7 @@ pub struct Dispatcher {
 }
 
 impl Default for Dispatcher {
-    // Initializes the command manager with the default shell commands and aliases
+    // Initializes the Dispatcher with the default shell commands and aliases
     #[rustfmt::skip]
     fn default() -> Self {
         let mut dispatcher = Self::new();

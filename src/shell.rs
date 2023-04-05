@@ -59,7 +59,7 @@ impl Shell {
         // Bundle all the information that needs to be modifiable by the commands into a Context
         let mut context = Context::new(self);
 
-        // Dispatch the command to the CommandManager
+        // Dispatch the command to the Dispatcher
         let exit_code = dispatcher.dispatch(command_name, command_args, &mut context);
 
         // If the command was not found, print an error message
