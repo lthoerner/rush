@@ -1,4 +1,4 @@
-use std::collections::{VecDeque, HashMap};
+use std::collections::{HashMap, VecDeque};
 use std::path::PathBuf;
 
 use anyhow::Result;
@@ -28,7 +28,10 @@ impl Environment {
         // * Seems to work fine, but this line might be suspect if any bugs crop up
         let working_directory = Path::from_str_path(get_parent_env_var("PWD")?.as_str(), &home)?;
         // ? Should this be put into a function?
-        let path = get_parent_env_var("PATH")?.split(':').map(PathBuf::from).collect();
+        let path = get_parent_env_var("PATH")?
+            .split(':')
+            .map(PathBuf::from)
+            .collect();
 
         Ok(Self {
             user,
@@ -91,7 +94,8 @@ impl Environment {
         if let Some(previous_path) = self.backward_directories.pop_back() {
             // ? Should there be PathBuf variants of .set_path()?
             // TODO: There needs to be a proper error message here
-            self.working_directory.set_path(previous_path.to_str().expect("PLACEHOLDER ERROR"))?;
+            self.working_directory
+                .set_path(previous_path.to_str().expect("PLACEHOLDER ERROR"))?;
             self.forward_directories.push_front(starting_directory);
             self.update_process_env_vars(false, false, true)
         } else {
@@ -103,7 +107,8 @@ impl Environment {
     pub fn go_forward(&mut self) -> Result<()> {
         let starting_directory = self.working_directory.absolute().clone();
         if let Some(next_path) = self.forward_directories.pop_front() {
-            self.working_directory.set_path(next_path.to_str().expect("PLACEHOLDER ERROR"))?;
+            self.working_directory
+                .set_path(next_path.to_str().expect("PLACEHOLDER ERROR"))?;
             self.backward_directories.push_back(starting_directory);
             self.update_process_env_vars(false, false, true)
         } else {

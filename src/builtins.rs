@@ -16,7 +16,7 @@ use std::io::{BufRead, BufReader};
 use anyhow::Result;
 use colored::Colorize;
 
-use crate::commands::Context;
+use crate::commands::{Context, Runnable};
 use crate::errors::InternalCommandError;
 use crate::path;
 
@@ -229,6 +229,25 @@ pub fn read_file(_context: &mut Context, args: Vec<&str>) -> Result<()> {
     Ok(())
 }
 
+pub fn run_executable(context: &mut Context, args: Vec<&str>) -> Result<()> {
+    let executable_name = match args.len() {
+        1 => args[0].to_string(),
+        _ => {
+            eprintln!("Usage: run-executable <path>");
+            return Err(InternalCommandError::InvalidArgumentCount.into());
+        }
+    };
+
+    let executable_path = path::resolve(&executable_name, context.home()).ok_or_else(|| {
+        eprintln!("Failed to resolve executable path: '{}'", executable_name);
+        InternalCommandError::FailedToRun
+    })?;
+
+    let executable = Runnable::external(executable_path);
+    executable.run(context, args)
+}
+
+// TODO: Move truncate() and untruncate() to a general shell configuration command
 pub fn truncate(context: &mut Context, args: Vec<&str>) -> Result<()> {
     let truncation = match args.len() {
         0 => 1,

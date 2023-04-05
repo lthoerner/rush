@@ -35,7 +35,7 @@ impl Command {
 }
 
 // Represents either an internal command or an external binary that can be invoked by a command
-enum Runnable {
+pub enum Runnable {
     Internal(Box<dyn Fn(&mut Context, Vec<&str>) -> Result<()>>),
     External(PathBuf),
 }
@@ -47,13 +47,16 @@ impl Runnable {
     }
 
     // Constructs an External Runnable from a path
-    // ? Do validation checks here?
-    fn external(path: PathBuf) -> Self {
+    // * This constructor is used in two cases:
+    // * 1. When the user invokes an external binary using the run-executable builtin (explicit invocation)
+    // * 2. When the user invokes an external binary that is in the PATH without using the run-executable builtin (implicit invocation)
+    // * The path must be validated before it is passed to the constructor
+    pub fn external(path: PathBuf) -> Self {
         Self::External(path)
     }
 
     // Executes either a builtin or a binary
-    fn run(&self, context: &mut Context, arguments: Vec<&str>) -> Result<()> {
+    pub fn run(&self, context: &mut Context, arguments: Vec<&str>) -> Result<()> {
         match self {
             Runnable::Internal(command_function) => command_function(context, arguments),
             Runnable::External(path) => {
@@ -188,6 +191,11 @@ impl Default for CommandManager {
             Runnable::internal(builtins::read_file),
         );
         manager.add_command(
+            "run-executable",
+            vec!["run", "exec", "re"],
+            Runnable::internal(builtins::run_executable),
+        );
+        manager.add_command(
             "truncate",
             vec!["trunc"],
             Runnable::internal(builtins::truncate),
@@ -245,17 +253,9 @@ impl CommandManager {
         if let Some(command) = self.resolve(command_name) {
             return Some(command.runnable.run(context, command_args));
         } else {
-            // ? Should the path be canonicalized in the Runnable::External constructor or here?
-            let mut path = path::resolve_executable(command_name, context.env().path());
-            // If the executable is not found within any of the PATH directories,
-            // try to find it by canonicalizing the provided path to executable/command name
-            // ! This will need to moved to a 'run' builtin
-            if let None = path {
-                path = path::resolve(command_name, context.home());
-            }
-
+            let path = path::resolve_executable(command_name, context.env().path());
             if let Some(path) = path {
-                // ? Should we check if the file is an executable first?
+                // ? Should this check if the file is an executable first?
                 let runnable = Runnable::external(path);
                 Some(runnable.run(context, command_args))
             } else {

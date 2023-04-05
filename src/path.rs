@@ -109,16 +109,11 @@ impl Path {
 
     // Updates the Path using a new absolute path
     pub fn set_path(&mut self, new_path: &str) -> Result<()> {
-        let new_absolute_path = match resolve(new_path, &self.home_directory) {
-            Some(path) => path,
-            // ? Should this be a FailedToCanonicalizePath error?
-            None => return Err(ShellError::UnknownDirectory.into()),
-        };
-
+        // ? Should this be a FailedToCanonicalizePath error?
+        let new_absolute_path =
+            resolve(new_path, &self.home_directory).ok_or_else(|| ShellError::UnknownDirectory)?;
         self.absolute_path = new_absolute_path;
-        self.update_shortened_path()?;
-
-        Ok(())
+        self.update_shortened_path()
     }
 }
 
@@ -127,19 +122,12 @@ impl Path {
 pub fn resolve(path: &str, home_directory: &PathBuf) -> Option<PathBuf> {
     // The home directory shorthand must be expanded before resolving the path,
     // because PathBuf is not user-aware and only uses absolute and relative paths
-    let expanded_path = match expand_home(path, home_directory) {
-        Ok(path) => path,
-        Err(_) => return None,
-    };
-
+    let expanded_path = expand_home(path, home_directory).ok()?;
     // Canonicalizing a path will resolve any relative or absolute paths
-    let absolute_path = match canonicalize(expanded_path) {
-        Ok(path) => path,
-        Err(_) => return None,
-    };
+    let absolute_path = canonicalize(expanded_path).ok()?;
 
-    // If the file system can canonicalize the path, it most likely exists,
-    // but this is added just in case
+    // If the file system can canonicalize the path, it should exist,
+    // but this is added for extra precaution
     if !absolute_path.exists() {
         None
     } else {
@@ -165,10 +153,9 @@ fn expand_home(path: &str, home_directory: &PathBuf) -> Result<String> {
     if path.starts_with("~") {
         Ok(path.replace(
             "~",
-            match home_directory.to_str() {
-                Some(path) => path,
-                None => return Err(ShellError::FailedToConvertPathBufToString.into()),
-            },
+            home_directory
+                .to_str()
+                .ok_or(ShellError::FailedToConvertPathBufToString)?,
         ))
     } else {
         Ok(path.to_string())
