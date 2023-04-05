@@ -109,16 +109,11 @@ impl Path {
 
     // Updates the Path using a new absolute path
     pub fn set_path(&mut self, new_path: &str) -> Result<()> {
-        let new_absolute_path = match resolve(new_path, &self.home_directory) {
-            Some(path) => path,
-            // ? Should this be a FailedToCanonicalizePath error?
-            None => return Err(ShellError::UnknownDirectory.into()),
-        };
-
+        // ? Should this be a FailedToCanonicalizePath error?
+        let new_absolute_path =
+            resolve(new_path, &self.home_directory).ok_or_else(|| ShellError::UnknownDirectory)?;
         self.absolute_path = new_absolute_path;
-        self.update_shortened_path()?;
-
-        Ok(())
+        self.update_shortened_path()
     }
 }
 
