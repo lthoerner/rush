@@ -243,7 +243,7 @@ pub fn run_executable(context: &mut Context, args: Vec<&str>) -> Result<()> {
         InternalCommandError::FailedToRun
     })?;
 
-    let executable = Runnable::external(executable_path);
+    let executable = Runnable::external(executable_path)?;
     executable.run(context, args)
 }
 
