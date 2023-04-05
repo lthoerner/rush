@@ -3,7 +3,7 @@ use std::io::{stdin, stdout, Write};
 use anyhow::Result;
 use colored::Colorize;
 
-use crate::commands::{CommandManager, Context};
+use crate::commands::{Context, Dispatcher};
 use crate::environment::Environment;
 use crate::errors::ShellError;
 
@@ -23,7 +23,7 @@ impl Shell {
     // Repeatedly prompts the user for commands and executes them
     pub fn run(&mut self) -> Result<()> {
         // ? What should this name be?
-        let dispatcher = CommandManager::default();
+        let dispatcher = Dispatcher::default();
 
         loop {
             self.interpret(&dispatcher, self.prompt()?);
@@ -49,7 +49,7 @@ impl Shell {
     }
 
     // Interprets a command from a string
-    fn interpret(&mut self, dispatcher: &CommandManager, line: String) {
+    fn interpret(&mut self, dispatcher: &Dispatcher, line: String) {
         let mut words = line.split_whitespace();
         // Get the first word (the command name)
         let command_name = words.next().unwrap();

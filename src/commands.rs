@@ -1,30 +1,35 @@
 use std::path::PathBuf;
-use std::process::Command as StdCommand;
+use std::process::Command;
 
 use anyhow::Result;
 
 use crate::builtins;
 use crate::environment::Environment;
-use crate::errors::ExternalCommandError;
+use crate::errors::{ExternalCommandError, ShellError};
 use crate::path::{self, Path};
 use crate::shell::Shell;
 
-// Represents a command that can be run by the prompt
-pub struct Command {
+// Represents a builtin function, its name and its aliases
+pub struct Builtin {
     true_name: String,
     aliases: Vec<String>,
-    runnable: Runnable,
+    function: Box<dyn Fn(&mut Context, Vec<&str>) -> Result<()>>,
 }
 
-impl Command {
-    fn new(true_name: &str, aliases: Vec<&str>, runnable: Runnable) -> Self {
+impl Builtin {
+    fn new<F: Fn(&mut Context, Vec<&str>) -> Result<()> + 'static>(
+        true_name: &str,
+        aliases: Vec<&str>,
+        function: F,
+    ) -> Self {
         let true_name = true_name.to_string();
         let aliases = aliases.iter().map(|a| a.to_string()).collect();
+        let function = Box::new(function);
 
         Self {
             true_name,
             aliases,
-            runnable,
+            function,
         }
     }
 
@@ -34,36 +39,35 @@ impl Command {
     }
 }
 
-// Represents either an internal command or an external binary that can be invoked by a command
+// Represents either a builtin (internal command) or an executable (external command)
+// A Runnable may be executed by calling its .run() method
 pub enum Runnable {
-    Internal(Box<dyn Fn(&mut Context, Vec<&str>) -> Result<()>>),
+    Internal(Builtin),
     External(PathBuf),
 }
 
 impl Runnable {
-    // Constructs an Internal Runnable from a function
-    fn internal<F: Fn(&mut Context, Vec<&str>) -> Result<()> + 'static>(function: F) -> Self {
-        Self::Internal(Box::new(function))
-    }
-
     // Constructs an External Runnable from a path
     // * This constructor is used in two cases:
     // * 1. When the user invokes an external binary using the run-executable builtin (explicit invocation)
     // * 2. When the user invokes an external binary that is in the PATH without using the run-executable builtin (implicit invocation)
-    // * The path must be validated before it is passed to the constructor
-    pub fn external(path: PathBuf) -> Self {
-        Self::External(path)
+    // * The path must be canonicalized before it is passed to the constructor, bit it does not necessarily have to be validated
+    pub fn external(path: PathBuf) -> Result<Self> {
+        if path.exists() {
+            Ok(Self::External(path))
+        } else {
+            Err(ShellError::UnknownDirectory.into())
+        }
     }
 
     // Executes either a builtin or a binary
     pub fn run(&self, context: &mut Context, arguments: Vec<&str>) -> Result<()> {
         match self {
-            Runnable::Internal(command_function) => command_function(context, arguments),
+            Runnable::Internal(builtin) => (builtin.function)(context, arguments),
             Runnable::External(path) => {
-                // Create the process to be executed
-                let mut executable = StdCommand::new(path);
+                // Create the process and pass the provided arguments to it
+                let mut executable = Command::new(path);
                 executable.args(arguments);
-
                 // Execute the process and wait for it to finish
                 let mut handle = executable.spawn()?;
                 let status = handle.wait()?;
@@ -123,117 +127,74 @@ impl<'a> Context<'a> {
 }
 
 // Represents a collection of commands
-// Allows for command resolution through aliases
-pub struct CommandManager {
-    commands: Vec<Command>,
+// Allows for command resolution and execution through aliases
+// * The Dispatcher generally only stores builtins, but it is also capable of
+// * storing external Runnables, also known as executables or binaries
+// * However, because they do not have any aliases, they would not be resolved
+pub struct Dispatcher {
+    commands: Vec<Runnable>,
 }
 
-impl Default for CommandManager {
+impl Default for Dispatcher {
     // Initializes the command manager with the default shell commands and aliases
+    #[rustfmt::skip]
     fn default() -> Self {
-        let mut manager = Self::new();
+        let mut dispatcher = Self::new();
 
-        manager.add_command("test", vec!["t"], Runnable::internal(builtins::test));
-        manager.add_command(
-            "exit",
-            vec!["quit", "q"],
-            Runnable::internal(builtins::exit),
-        );
-        manager.add_command(
-            "working-directory",
-            vec!["pwd", "wd"],
-            Runnable::internal(builtins::working_directory),
-        );
-        manager.add_command(
-            "change-directory",
-            vec!["cd"],
-            Runnable::internal(builtins::change_directory),
-        );
-        manager.add_command(
-            "list-directory",
-            vec!["directory", "list", "ls", "dir"],
-            Runnable::internal(builtins::list_directory),
-        );
-        manager.add_command(
-            "go-back",
-            vec!["back", "b", "prev", "pd"],
-            Runnable::internal(builtins::go_back),
-        );
-        manager.add_command(
-            "go-forward",
-            vec!["forward", "f", "next", "nd"],
-            Runnable::internal(builtins::go_forward),
-        );
-        manager.add_command(
-            "clear-terminal",
-            vec!["clear", "cls"],
-            Runnable::internal(builtins::clear_terminal),
-        );
-        manager.add_command(
-            "create-file",
-            vec!["create", "touch", "new", "cf"],
-            Runnable::internal(builtins::create_file),
-        );
-        manager.add_command(
-            "create-directory",
-            // TODO: Figure out 'cd' alias conflict
-            vec!["mkdir", "md"],
-            Runnable::internal(builtins::create_directory),
-        );
-        manager.add_command(
-            "delete-file",
-            vec!["delete", "remove", "rm", "del", "df"],
-            Runnable::internal(builtins::delete_file),
-        );
-        manager.add_command(
-            "read-file",
-            vec!["read", "cat", "rf"],
-            Runnable::internal(builtins::read_file),
-        );
-        manager.add_command(
-            "run-executable",
-            vec!["run", "exec", "re"],
-            Runnable::internal(builtins::run_executable),
-        );
-        manager.add_command(
-            "truncate",
-            vec!["trunc"],
-            Runnable::internal(builtins::truncate),
-        );
-        manager.add_command(
-            "untruncate",
-            vec!["untrunc"],
-            Runnable::internal(builtins::untruncate),
-        );
+        dispatcher.add_builtin("test", vec!["t"], builtins::test);
+        dispatcher.add_builtin("exit", vec!["quit", "q"], builtins::exit);
+        dispatcher.add_builtin("working-directory", vec!["pwd", "wd"], builtins::working_directory);
+        dispatcher.add_builtin("change-directory", vec!["cd"], builtins::change_directory);
+        dispatcher.add_builtin("list-directory", vec!["directory", "list", "ls", "dir"], builtins::list_directory);
+        dispatcher.add_builtin("go-back", vec!["back", "b", "prev", "pd"], builtins::go_back);
+        dispatcher.add_builtin("go-forward", vec!["forward", "f", "next", "nd"], builtins::go_forward);
+        dispatcher.add_builtin("clear-terminal", vec!["clear", "cls"], builtins::clear_terminal);
+        dispatcher.add_builtin("create-file", vec!["create", "touch", "new", "cf"], builtins::create_file);
+        // TODO: Figure out 'cd' alias conflict
+        dispatcher.add_builtin("create-directory", vec!["mkdir", "md"], builtins::create_directory);
+        dispatcher.add_builtin("delete-file", vec!["delete", "remove", "rm", "del", "df"], builtins::delete_file);
+        dispatcher.add_builtin("read-file", vec!["read", "cat", "rf"], builtins::read_file);
+        dispatcher.add_builtin("run-executable", vec!["run", "exec", "re"], builtins::run_executable);
+        dispatcher.add_builtin("truncate", vec!["trunc"], builtins::truncate);
+        dispatcher.add_builtin("untruncate", vec!["untrunc"], builtins::untruncate);
 
-        manager
+        dispatcher
     }
 }
 
-impl CommandManager {
+impl Dispatcher {
     pub fn new() -> Self {
         Self {
             commands: Vec::new(),
         }
     }
 
-    // Adds a command to the manager
-    fn add_command(&mut self, true_name: &str, aliases: Vec<&str>, runnable: Runnable) {
-        self.commands
-            .push(Command::new(true_name, aliases, runnable));
+    // Adds a builtin to the Dispatcher
+    fn add_builtin<F: Fn(&mut Context, Vec<&str>) -> Result<()> + 'static>(
+        &mut self,
+        true_name: &str,
+        aliases: Vec<&str>,
+        function: F,
+    ) {
+        self.commands.push(Runnable::Internal(Builtin::new(
+            true_name, aliases, function,
+        )))
     }
 
     // Resolves a command name to a command
     // Returns None if the command is not found
-    fn resolve(&self, command_name: &str) -> Option<&Command> {
+    // TODO: Figure out nomenclature on commands vs runnables
+    fn resolve(&self, command_name: &str) -> Option<&Runnable> {
         for command in &self.commands {
-            if command.true_name == command_name {
-                return Some(command);
-            }
-
-            for alias in &command.aliases {
-                if alias == command_name {
+            if let Runnable::Internal(builtin) = command {
+                if builtin.true_name == command_name {
                     return Some(command);
+                }
+
+                for alias in &builtin.aliases {
+                    if alias == command_name {
+                        return Some(command);
+                    }
                 }
             }
         }
@@ -250,13 +211,20 @@ impl CommandManager {
         command_args: Vec<&str>,
         context: &mut Context,
     ) -> Option<Result<()>> {
+        // If the command resides in the Dispatcher (generally means it is a builtin) run it
         if let Some(command) = self.resolve(command_name) {
-            return Some(command.runnable.run(context, command_args));
+            let exit_status = command.run(context, command_args);
+            return Some(exit_status);
         } else {
+            // If the command is not in the Dispatcher, try to run it as an executable from the PATH
             let path = path::resolve_executable(command_name, context.env().path());
             if let Some(path) = path {
                 // ? Should this check if the file is an executable first?
-                let runnable = Runnable::external(path);
+                let runnable = match Runnable::external(path) {
+                    Ok(runnable) => runnable,
+                    Err(e) => return Some(Err(e)),
+                };
+
                 Some(runnable.run(context, command_args))
             } else {
                 None
