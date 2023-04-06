@@ -11,12 +11,15 @@ use crate::errors::ShellError;
 pub struct Configuration {
     // The truncation length for the prompt
     truncation_factor: Option<usize>,
+    // Whether or not to print out full error messages and status codes when a command fails
+    show_errors: bool,
 }
 
 impl Default for Configuration {
     fn default() -> Self {
         Self {
             truncation_factor: None,
+            show_errors: true,
         }
     }
 }
@@ -96,7 +99,14 @@ impl Shell {
 
         // If the command was not found, print an error message
         match exit_code {
-            Some(code) => self.success = code.is_ok(),
+            Some(code) => {
+                self.success = code.is_ok();
+                if let Err(e) = code {
+                    if self.config.show_errors {
+                        eprintln!("Error: {}", format!("{:#?}: {}", e, e).red());
+                    }
+                }
+            },
             None => {
                 eprintln!("Unknown command: {}", command_name.red());
                 self.success = false;
