@@ -7,7 +7,7 @@ use crate::builtins;
 use crate::environment::Environment;
 use crate::errors::ExternalCommandError;
 use crate::path::Path;
-use crate::shell::Shell;
+use crate::shell::{Configuration, Shell};
 
 // Represents a builtin function, its name and its aliases
 pub struct Builtin {
@@ -107,6 +107,11 @@ impl<'a> Context<'a> {
         &mut self.shell.environment
     }
 
+    // Shortcut for accessing Context.shell.config
+    pub fn shell_config(&mut self) -> &mut Configuration {
+        &mut self.shell.config
+    }
+
     // Shortcut for accessing Context.shell.environment.working_directory
     pub fn cwd(&self) -> &Path {
         &self.shell.environment.WORKING_DIRECTORY
@@ -147,8 +152,7 @@ impl Default for Dispatcher {
         dispatcher.add_builtin("delete-file", vec!["delete", "remove", "rm", "del", "df"], builtins::delete_file);
         dispatcher.add_builtin("read-file", vec!["read", "cat", "rf"], builtins::read_file);
         dispatcher.add_builtin("run-executable", vec!["run", "exec", "re"], builtins::run_executable);
-        dispatcher.add_builtin("truncate", vec!["trunc"], builtins::truncate);
-        dispatcher.add_builtin("untruncate", vec!["untrunc"], builtins::untruncate);
+        dispatcher.add_builtin("configure", vec!["config", "conf"], builtins::configure);
 
         dispatcher
     }

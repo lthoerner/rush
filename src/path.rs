@@ -107,7 +107,9 @@ impl Path {
 }
 
 fn expand_home(path: &PathBuf, home_directory: &PathBuf) -> Result<String> {
-    let path = path.to_str().ok_or(ShellError::FailedToConvertPathBufToString)?;
+    let path = path
+        .to_str()
+        .ok_or(ShellError::FailedToConvertPathBufToString)?;
     if path.starts_with("~") {
         Ok(path.replace(
             "~",

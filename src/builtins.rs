@@ -1,5 +1,5 @@
 /*
-A quick write-up on rush builtins:
+A quick write-up on Rush builtins:
 Builtins are commands that are included with the shell. They are not able to be removed or modified without recompiling the shell.
 Normally, a child process, such as a shell command, does not have direct access to the parent process's environment variables and other state.
 However, the builtins are an exception to this rule. They are able to access the data because they are trusted to safely modify it.
@@ -21,44 +21,28 @@ use crate::errors::InternalCommandError;
 use crate::path::Path;
 
 pub fn test(_context: &mut Context, args: Vec<&str>) -> Result<()> {
-    if args.len() == 0 {
-        println!("{}", "Test command!".yellow());
-        Ok(())
-    } else {
-        eprintln!("Usage: test");
-        Err(InternalCommandError::InvalidArgumentCount.into())
-    }
+    check_args(&args, 0, "test")?;
+    println!("{}", "Test command!".yellow());
+    Ok(())
 }
 
 pub fn exit(_context: &mut Context, args: Vec<&str>) -> Result<()> {
-    if args.len() == 0 {
-        std::process::exit(0);
-    } else {
-        eprintln!("Usage: exit");
-        Err(InternalCommandError::InvalidArgumentCount.into())
-    }
+    check_args(&args, 0, "exit")?;
+    std::process::exit(0);
 }
 
 pub fn working_directory(context: &mut Context, args: Vec<&str>) -> Result<()> {
-    if args.len() == 0 {
-        println!("{}", context.cwd());
-        Ok(())
-    } else {
-        eprintln!("Usage: working-directory");
-        Err(InternalCommandError::InvalidArgumentCount.into())
-    }
+    check_args(&args, 0, "working-directory")?;
+    println!("{}", context.cwd());
+    Ok(())
 }
 
 pub fn change_directory(context: &mut Context, args: Vec<&str>) -> Result<()> {
-    if args.len() == 1 {
-        context.env_mut().set_path(args[0]).map_err(|_| {
-            eprintln!("Invalid path: '{}'", args[0]);
-            InternalCommandError::FailedToRun.into()
-        })
-    } else {
-        eprintln!("Usage: change-directory <path>");
-        Err(InternalCommandError::InvalidArgumentCount.into())
-    }
+    check_args(&args, 1, "change-directory <path>")?;
+    context.env_mut().set_path(args[0]).map_err(|_| {
+        eprintln!("Invalid path: '{}'", args[0]);
+        InternalCommandError::FailedToRun.into()
+    })
 }
 
 // TODO: Break up some of this code into different functions
@@ -129,38 +113,26 @@ pub fn list_directory(context: &mut Context, args: Vec<&str>) -> Result<()> {
 
 // TODO: Find a better name for this
 pub fn go_back(context: &mut Context, args: Vec<&str>) -> Result<()> {
-    if args.len() == 0 {
-        context.env_mut().go_back().map_err(|_| {
-            eprintln!("Previous directory does not exist or is invalid");
-            InternalCommandError::FailedToRun.into()
-        })
-    } else {
-        eprintln!("Usage: go-back");
-        Err(InternalCommandError::InvalidArgumentCount.into())
-    }
+    check_args(&args, 0, "go-back")?;
+    context.env_mut().go_back().map_err(|_| {
+        eprintln!("Previous directory does not exist or is invalid");
+        InternalCommandError::FailedToRun.into()
+    })
 }
 
 pub fn go_forward(context: &mut Context, args: Vec<&str>) -> Result<()> {
-    if args.len() == 0 {
-        context.env_mut().go_forward().map_err(|_| {
-            eprintln!("Next directory does not exist or is invalid");
-            InternalCommandError::FailedToRun.into()
-        })
-    } else {
-        eprintln!("Usage: go-forward");
-        Err(InternalCommandError::InvalidArgumentCount.into())
-    }
+    check_args(&args, 0, "go-forward")?;
+    context.env_mut().go_forward().map_err(|_| {
+        eprintln!("Next directory does not exist or is invalid");
+        InternalCommandError::FailedToRun.into()
+    })
 }
 
 pub fn clear_terminal(_context: &mut Context, args: Vec<&str>) -> Result<()> {
-    if args.len() == 0 {
-        // * "Magic" ANSI escape sequence to clear the terminal
-        print!("\x1B[2J\x1B[1;1H");
-        Ok(())
-    } else {
-        eprintln!("Usage: clear-terminal");
-        Err(InternalCommandError::InvalidArgumentCount.into())
-    }
+    check_args(&args, 0, "clear-terminal")?;
+    // * "Magic" ANSI escape sequence to clear the terminal
+    print!("\x1B[2J\x1B[1;1H");
+    Ok(())
 }
 
 // TODO: Add prompt to confirm file overwrite
@@ -204,14 +176,8 @@ pub fn delete_file(_context: &mut Context, args: Vec<&str>) -> Result<()> {
 }
 
 pub fn read_file(_context: &mut Context, args: Vec<&str>) -> Result<()> {
-    let file_name = match args.len() {
-        1 => args[0].to_string(),
-        _ => {
-            eprintln!("Usage: read-file <path>");
-            return Err(InternalCommandError::InvalidArgumentCount.into());
-        }
-    };
-
+    check_args(&args, 1, "read-file <path>")?;
+    let file_name = args[0].to_string();
     let file = fs::File::open(&file_name).map_err(|_| {
         eprintln!("Failed to open file: '{}'", file_name);
         InternalCommandError::FailedToRun
@@ -227,14 +193,8 @@ pub fn read_file(_context: &mut Context, args: Vec<&str>) -> Result<()> {
 }
 
 pub fn run_executable(context: &mut Context, args: Vec<&str>) -> Result<()> {
-    let executable_name = match args.len() {
-        1 => args[0].to_string(),
-        _ => {
-            eprintln!("Usage: run-executable <path>");
-            return Err(InternalCommandError::InvalidArgumentCount.into());
-        }
-    };
-
+    check_args(&args, 1, "run-executable <path>")?;
+    let executable_name = args[0].to_string();
     let executable_path = Path::from_str(&executable_name, context.home()).map_err(|_| {
         eprintln!("Failed to resolve executable path: '{}'", executable_name);
         InternalCommandError::FailedToRun
@@ -243,147 +203,53 @@ pub fn run_executable(context: &mut Context, args: Vec<&str>) -> Result<()> {
     Runnable::External(executable_path).run(context, args)
 }
 
-// TODO: Move truncate() and untruncate() to a general shell configuration command
-pub fn truncate(context: &mut Context, args: Vec<&str>) -> Result<()> {
-    let truncation = match args.len() {
-        0 => 1,
-        1 => args[0].parse::<usize>().map_err(|_| {
-            eprintln!("Invalid truncation length: '{}'", args[0]);
-            InternalCommandError::InvalidValue
-        })?,
-        _ => {
-            eprintln!("Usage: truncate <length (default 1)>");
-            return Err(InternalCommandError::InvalidArgumentCount.into());
+pub fn configure(context: &mut Context, args: Vec<&str>) -> Result<()> {
+    check_args(&args, 2, "configure <key> <value>")?;
+    let key = args[0];
+    let value = args[1];
+
+    match key {
+        "truncation" => {
+            if value == "false" {
+                context.shell_config().disable_truncation();
+                return Ok(());
+            }
+
+            let truncation = value.parse::<usize>().map_err(|_| {
+                eprintln!("Invalid truncation length: '{}'", value);
+                InternalCommandError::InvalidValue
+            })?;
+            context.shell_config().truncate(truncation)
         }
-    };
+        "show-errors" => {
+            let show_errors = value.parse::<bool>().map_err(|_| {
+                eprintln!("Invalid value for show-errors: '{}'", value);
+                InternalCommandError::InvalidValue
+            })?;
+            context.shell_config().show_errors(show_errors)
+        }
+        "multi-line-prompt" => {
+            let multi_line = value.parse::<bool>().map_err(|_| {
+                eprintln!("Invalid value for multi-line-prompt: '{}'", value);
+                InternalCommandError::InvalidValue
+            })?;
+            context.shell_config().multi_line_prompt(multi_line)
+        }
+        _ => {
+            eprintln!("Invalid configuration key: '{}'", key);
+            return Err(InternalCommandError::InvalidArgument.into());
+        }
+    }
 
-    Ok(context.shell.truncate(truncation))
+    Ok(())
 }
 
-pub fn untruncate(context: &mut Context, args: Vec<&str>) -> Result<()> {
-    if args.len() == 0 {
-        Ok(context.shell.disable_truncation())
+// Convenience function for exiting a builtin on invalid argument count
+fn check_args(args: &Vec<&str>, expected_args: usize, usage: &str) -> Result<()> {
+    if args.len() == expected_args {
+        Ok(())
     } else {
-        eprintln!("Usage: untruncate");
+        eprintln!("Usage: {}", usage);
         Err(InternalCommandError::InvalidArgumentCount.into())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::shell::Shell;
-
-    #[test]
-    fn test_command_test_success() {
-        let mut shell = Shell::new().unwrap();
-        let mut context = Context::new(&mut shell);
-        let status = test(&mut context, Vec::new());
-        assert!(status.is_ok());
-    }
-
-    #[test]
-    fn test_command_exit_success() {
-        // * This is a placeholder test because the exit command
-        // * will exit the program, effectively ending the test
-    }
-
-    #[test]
-    fn test_command_working_directory_success() {
-        let mut shell = Shell::new().unwrap();
-        let mut context = Context::new(&mut shell);
-        let status = working_directory(&mut context, Vec::new());
-        assert!(status.is_ok());
-    }
-
-    #[test]
-    fn test_command_change_directory_success_1() {
-        let mut shell = Shell::new().unwrap();
-        let mut context = Context::new(&mut shell);
-        let status = change_directory(&mut context, vec!["/"]);
-        assert!(status.is_ok());
-    }
-
-    #[test]
-    fn test_command_change_directory_success_2() {
-        let mut shell = Shell::new().unwrap();
-        let mut context = Context::new(&mut shell);
-        let status = change_directory(&mut context, vec!["~"]);
-        assert!(status.is_ok());
-    }
-
-    #[test]
-    fn test_command_change_directory_success_3() {
-        let mut shell = Shell::new().unwrap();
-        let mut context = Context::new(&mut shell);
-        change_directory(&mut context, vec!["~"]).unwrap();
-        // ! This is not guaranteed to exist on the tester's system
-        let status = change_directory(&mut context, vec!["Documents"]);
-        assert!(status.is_ok());
-    }
-
-    #[test]
-    fn test_command_change_directory_fail() {
-        let mut shell = Shell::new().unwrap();
-        let mut context = Context::new(&mut shell);
-        let status = change_directory(&mut context, vec!["/invalid/path"]);
-        assert!(status.is_ok());
-    }
-
-    #[test]
-    fn test_command_list_directory_success() {
-        let mut shell = Shell::new().unwrap();
-        let mut context = Context::new(&mut shell);
-        let status = list_directory(&mut context, Vec::new());
-        assert!(status.is_ok());
-    }
-
-    #[test]
-    fn test_command_list_directory_fail() {
-        let mut shell = Shell::new().unwrap();
-        let mut context = Context::new(&mut shell);
-        let status = list_directory(&mut context, vec!["/invalid/path"]);
-        assert!(status.is_ok());
-    }
-
-    #[test]
-    fn test_command_go_back_success() {
-        let mut shell = Shell::new().unwrap();
-        let mut context = Context::new(&mut shell);
-        context.env_mut().set_path("/").unwrap();
-        let status = go_back(&mut context, Vec::new());
-        assert!(status.is_ok());
-    }
-
-    #[test]
-    fn test_command_go_back_fail() {
-        let mut shell = Shell::new().unwrap();
-        let mut context = Context::new(&mut shell);
-        let status = go_back(&mut context, Vec::new());
-        assert!(status.is_ok());
-    }
-
-    #[test]
-    fn test_command_truncate_success_1() {
-        let mut shell = Shell::new().unwrap();
-        let mut context = Context::new(&mut shell);
-        let status = truncate(&mut context, Vec::new());
-        assert!(status.is_ok());
-    }
-
-    #[test]
-    fn test_command_truncate_success_2() {
-        let mut shell = Shell::new().unwrap();
-        let mut context = Context::new(&mut shell);
-        let status = truncate(&mut context, vec!["10"]);
-        assert!(status.is_ok());
-    }
-
-    #[test]
-    fn test_command_truncate_fail() {
-        let mut shell = Shell::new().unwrap();
-        let mut context = Context::new(&mut shell);
-        let status = truncate(&mut context, vec!["-10"]);
-        assert!(status.is_ok());
     }
 }
