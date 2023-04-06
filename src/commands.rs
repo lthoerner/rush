@@ -86,14 +86,15 @@ pub struct Context<'a> {
     pub shell: &'a mut Shell,
 }
 
+#[allow(non_snake_case)]
 impl<'a> Context<'a> {
     pub fn new(shell: &'a mut Shell) -> Self {
         Self { shell }
     }
 
     // Shortcut for accessing Context.shell.environment.home
-    pub fn home(&self) -> &PathBuf {
-        &self.shell.environment.home()
+    pub fn HOME(&self) -> &PathBuf {
+        &self.shell.environment.HOME()
     }
 
     // Shortcut for accessing Context.shell.environment
@@ -113,13 +114,13 @@ impl<'a> Context<'a> {
     }
 
     // Shortcut for accessing Context.shell.environment.working_directory
-    pub fn cwd(&self) -> &Path {
+    pub fn CWD(&self) -> &Path {
         &self.shell.environment.WORKING_DIRECTORY
     }
 
     // Mutable variant of Context.cwd()
     #[allow(dead_code)]
-    pub fn cwd_mut(&mut self) -> &mut Path {
+    pub fn CWD_mut(&mut self) -> &mut Path {
         &mut self.shell.environment.WORKING_DIRECTORY
     }
 }
@@ -153,6 +154,7 @@ impl Default for Dispatcher {
         dispatcher.add_builtin("read-file", vec!["read", "cat", "rf"], builtins::read_file);
         dispatcher.add_builtin("run-executable", vec!["run", "exec", "re"], builtins::run_executable);
         dispatcher.add_builtin("configure", vec!["config", "conf"], builtins::configure);
+        dispatcher.add_builtin("edit-path", vec!["path", "ep"], builtins::edit_path);
 
         dispatcher
     }
@@ -213,7 +215,7 @@ impl Dispatcher {
             return Some(exit_status);
         } else {
             // If the command is not in the Dispatcher, try to run it as an executable from the PATH
-            let path = Path::from_path_var(command_name, context.env().path());
+            let path = Path::from_path_var(command_name, context.env().PATH());
             if let Ok(path) = path {
                 // ? Should this check if the file is an executable first?
                 Some(Runnable::External(path).run(context, command_args))

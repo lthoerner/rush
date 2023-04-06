@@ -78,10 +78,10 @@ impl Shell {
 
     // Displays the prompt and returns the user input
     fn prompt(&self) -> Result<String> {
-        let home = self.environment.home();
+        let home = self.environment.HOME();
         print!(
             "{} on {}{}{} ",
-            self.environment.user().blue(),
+            self.environment.USER().blue(),
             self.environment
                 .WORKING_DIRECTORY
                 .collapse(home, self.config.truncation_factor)
