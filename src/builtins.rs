@@ -21,44 +21,28 @@ use crate::errors::InternalCommandError;
 use crate::path::Path;
 
 pub fn test(_context: &mut Context, args: Vec<&str>) -> Result<()> {
-    if args.len() == 0 {
-        println!("{}", "Test command!".yellow());
-        Ok(())
-    } else {
-        eprintln!("Usage: test");
-        Err(InternalCommandError::InvalidArgumentCount.into())
-    }
+    check_args(&args, 0, "test")?;
+    println!("{}", "Test command!".yellow());
+    Ok(())
 }
 
 pub fn exit(_context: &mut Context, args: Vec<&str>) -> Result<()> {
-    if args.len() == 0 {
-        std::process::exit(0);
-    } else {
-        eprintln!("Usage: exit");
-        Err(InternalCommandError::InvalidArgumentCount.into())
-    }
+    check_args(&args, 0, "exit")?;
+    std::process::exit(0);
 }
 
 pub fn working_directory(context: &mut Context, args: Vec<&str>) -> Result<()> {
-    if args.len() == 0 {
-        println!("{}", context.cwd());
-        Ok(())
-    } else {
-        eprintln!("Usage: working-directory");
-        Err(InternalCommandError::InvalidArgumentCount.into())
-    }
+    check_args(&args, 0, "working-directory")?;
+    println!("{}", context.cwd());
+    Ok(())
 }
 
 pub fn change_directory(context: &mut Context, args: Vec<&str>) -> Result<()> {
-    if args.len() == 1 {
-        context.env_mut().set_path(args[0]).map_err(|_| {
-            eprintln!("Invalid path: '{}'", args[0]);
-            InternalCommandError::FailedToRun.into()
-        })
-    } else {
-        eprintln!("Usage: change-directory <path>");
-        Err(InternalCommandError::InvalidArgumentCount.into())
-    }
+    check_args(&args, 1, "change-directory <path>")?;
+    context.env_mut().set_path(args[0]).map_err(|_| {
+        eprintln!("Invalid path: '{}'", args[0]);
+        InternalCommandError::FailedToRun.into()
+    })
 }
 
 // TODO: Break up some of this code into different functions
@@ -129,38 +113,26 @@ pub fn list_directory(context: &mut Context, args: Vec<&str>) -> Result<()> {
 
 // TODO: Find a better name for this
 pub fn go_back(context: &mut Context, args: Vec<&str>) -> Result<()> {
-    if args.len() == 0 {
-        context.env_mut().go_back().map_err(|_| {
-            eprintln!("Previous directory does not exist or is invalid");
-            InternalCommandError::FailedToRun.into()
-        })
-    } else {
-        eprintln!("Usage: go-back");
-        Err(InternalCommandError::InvalidArgumentCount.into())
-    }
+    check_args(&args, 0, "go-back")?;
+    context.env_mut().go_back().map_err(|_| {
+        eprintln!("Previous directory does not exist or is invalid");
+        InternalCommandError::FailedToRun.into()
+    })
 }
 
 pub fn go_forward(context: &mut Context, args: Vec<&str>) -> Result<()> {
-    if args.len() == 0 {
-        context.env_mut().go_forward().map_err(|_| {
-            eprintln!("Next directory does not exist or is invalid");
-            InternalCommandError::FailedToRun.into()
-        })
-    } else {
-        eprintln!("Usage: go-forward");
-        Err(InternalCommandError::InvalidArgumentCount.into())
-    }
+    check_args(&args, 0, "go-forward")?;
+    context.env_mut().go_forward().map_err(|_| {
+        eprintln!("Next directory does not exist or is invalid");
+        InternalCommandError::FailedToRun.into()
+    })
 }
 
 pub fn clear_terminal(_context: &mut Context, args: Vec<&str>) -> Result<()> {
-    if args.len() == 0 {
-        // * "Magic" ANSI escape sequence to clear the terminal
-        print!("\x1B[2J\x1B[1;1H");
-        Ok(())
-    } else {
-        eprintln!("Usage: clear-terminal");
-        Err(InternalCommandError::InvalidArgumentCount.into())
-    }
+    check_args(&args, 0, "clear-terminal")?;
+    // * "Magic" ANSI escape sequence to clear the terminal
+    print!("\x1B[2J\x1B[1;1H");
+    Ok(())
 }
 
 // TODO: Add prompt to confirm file overwrite
@@ -204,14 +176,8 @@ pub fn delete_file(_context: &mut Context, args: Vec<&str>) -> Result<()> {
 }
 
 pub fn read_file(_context: &mut Context, args: Vec<&str>) -> Result<()> {
-    let file_name = match args.len() {
-        1 => args[0].to_string(),
-        _ => {
-            eprintln!("Usage: read-file <path>");
-            return Err(InternalCommandError::InvalidArgumentCount.into());
-        }
-    };
-
+    check_args(&args, 1, "read-file <path>")?;
+    let file_name = args[0].to_string();
     let file = fs::File::open(&file_name).map_err(|_| {
         eprintln!("Failed to open file: '{}'", file_name);
         InternalCommandError::FailedToRun
@@ -227,14 +193,8 @@ pub fn read_file(_context: &mut Context, args: Vec<&str>) -> Result<()> {
 }
 
 pub fn run_executable(context: &mut Context, args: Vec<&str>) -> Result<()> {
-    let executable_name = match args.len() {
-        1 => args[0].to_string(),
-        _ => {
-            eprintln!("Usage: run-executable <path>");
-            return Err(InternalCommandError::InvalidArgumentCount.into());
-        }
-    };
-
+    check_args(&args, 1, "run-executable <path>")?;
+    let executable_name = args[0].to_string();
     let executable_path = Path::from_str(&executable_name, context.home()).map_err(|_| {
         eprintln!("Failed to resolve executable path: '{}'", executable_name);
         InternalCommandError::FailedToRun
@@ -261,10 +221,16 @@ pub fn truncate(context: &mut Context, args: Vec<&str>) -> Result<()> {
 }
 
 pub fn untruncate(context: &mut Context, args: Vec<&str>) -> Result<()> {
-    if args.len() == 0 {
-        Ok(context.shell_config().disable_truncation())
+    check_args(&args, 0, "untruncate")?;
+    Ok(context.shell_config().disable_truncation())
+}
+
+// Convenience function for exiting a builtin on invalid argument count
+fn check_args(args: &Vec<&str>, expected_args: usize, usage: &str) -> Result<()> {
+    if args.len() == expected_args {
+        Ok(())
     } else {
-        eprintln!("Usage: untruncate");
+        eprintln!("Usage: {}", usage);
         Err(InternalCommandError::InvalidArgumentCount.into())
     }
 }
