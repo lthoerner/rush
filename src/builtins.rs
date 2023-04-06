@@ -203,26 +203,38 @@ pub fn run_executable(context: &mut Context, args: Vec<&str>) -> Result<()> {
     Runnable::External(executable_path).run(context, args)
 }
 
-// TODO: Move truncate() and untruncate() to a general shell configuration command
-pub fn truncate(context: &mut Context, args: Vec<&str>) -> Result<()> {
-    let truncation = match args.len() {
-        0 => 1,
-        1 => args[0].parse::<usize>().map_err(|_| {
-            eprintln!("Invalid truncation length: '{}'", args[0]);
-            InternalCommandError::InvalidValue
-        })?,
+pub fn configure(context: &mut Context, args: Vec<&str>) -> Result<()> {
+    check_args(&args, 2, "configure <key> <value>")?;
+    let key = args[0];
+    let value = args[1];
+
+    match key {
+        "truncation" => {
+            if value == "false" {
+                context.shell_config().disable_truncation();
+                return Ok(())
+            }
+
+            let truncation = value.parse::<usize>().map_err(|_| {
+                eprintln!("Invalid truncation length: '{}'", value);
+                InternalCommandError::InvalidValue
+            })?;
+            context.shell_config().truncate(truncation)
+        },
+        "show-errors" => {
+            let show_errors = value.parse::<bool>().map_err(|_| {
+                eprintln!("Invalid value for show-errors: '{}'", value);
+                InternalCommandError::InvalidValue
+            })?;
+            context.shell_config().show_errors(show_errors)
+        },
         _ => {
-            eprintln!("Usage: truncate <length (default 1)>");
-            return Err(InternalCommandError::InvalidArgumentCount.into());
+            eprintln!("Invalid configuration key: '{}'", key);
+            return Err(InternalCommandError::InvalidArgument.into())
         }
-    };
+    }
 
-    Ok(context.shell_config().truncate(truncation))
-}
-
-pub fn untruncate(context: &mut Context, args: Vec<&str>) -> Result<()> {
-    check_args(&args, 0, "untruncate")?;
-    Ok(context.shell_config().disable_truncation())
+    Ok(())
 }
 
 // Convenience function for exiting a builtin on invalid argument count

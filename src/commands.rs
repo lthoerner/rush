@@ -152,8 +152,7 @@ impl Default for Dispatcher {
         dispatcher.add_builtin("delete-file", vec!["delete", "remove", "rm", "del", "df"], builtins::delete_file);
         dispatcher.add_builtin("read-file", vec!["read", "cat", "rf"], builtins::read_file);
         dispatcher.add_builtin("run-executable", vec!["run", "exec", "re"], builtins::run_executable);
-        dispatcher.add_builtin("truncate", vec!["trunc"], builtins::truncate);
-        dispatcher.add_builtin("untruncate", vec!["untrunc"], builtins::untruncate);
+        dispatcher.add_builtin("configure", vec!["config", "conf"], builtins::configure);
 
         dispatcher
     }

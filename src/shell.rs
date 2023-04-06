@@ -34,6 +34,11 @@ impl Configuration {
     pub fn disable_truncation(&mut self) {
         self.truncation_factor = None;
     }
+
+    // Enables or disables error messages
+    pub fn show_errors(&mut self, show: bool) {
+        self.show_errors = show;
+    }
 }
 
 // Represents the shell, its state, and provides methods for interacting with it
