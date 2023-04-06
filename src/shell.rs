@@ -7,11 +7,24 @@ use crate::commands::{Context, Dispatcher};
 use crate::environment::Environment;
 use crate::errors::ShellError;
 
+// Represents any settings for the shell, most of which can be configured by the user
+struct Configuration {
+    // The truncation length for the prompt
+    truncation_factor: Option<usize>,
+}
+
+impl Default for Configuration {
+    fn default() -> Self {
+        Self {
+            truncation_factor: None,
+        }
+    }
+}
+
 // Represents the shell, its state, and provides methods for interacting with it
 pub struct Shell {
     pub environment: Environment,
-    // ! This is here temporarily, it will be moved to a Configuration struct soon
-    truncation_factor: Option<usize>,
+    config: Configuration,
     success: bool,
 }
 
@@ -19,7 +32,7 @@ impl Shell {
     pub fn new() -> Result<Self> {
         Ok(Self {
             environment: Environment::new()?,
-            truncation_factor: None,
+            config: Configuration::default(),
             success: true,
         })
     }
@@ -43,7 +56,7 @@ impl Shell {
             self.environment.user().blue(),
             self.environment
                 .WORKING_DIRECTORY
-                .collapse(home, self.truncation_factor)
+                .collapse(home, self.config.truncation_factor)
                 .green(),
             match self.success {
                 true => "❯".bright_green().bold(),
@@ -81,12 +94,12 @@ impl Shell {
 
     // Sets the truncation factor for the prompt
     pub fn truncate(&mut self, factor: usize) {
-        self.truncation_factor = Some(factor);
+        self.config.truncation_factor = Some(factor);
     }
 
     // Disables prompt truncation
     pub fn disable_truncation(&mut self) {
-        self.truncation_factor = None;
+        self.config.truncation_factor = None;
     }
 }
 
