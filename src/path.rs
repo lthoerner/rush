@@ -7,7 +7,8 @@ use anyhow::Result;
 use crate::errors::ShellError;
 
 // Wrapper class for a directory path string
-// Adds convenience methods for displaying the path in a user-friendly way
+// Adds convenience methods for displaying the path in a user-friendly way,
+// and adds guarantees about path validity that are not provided by PathBuf
 #[derive(Clone)]
 pub struct Path {
     absolute_path: PathBuf,
