@@ -212,7 +212,7 @@ pub fn configure(context: &mut Context, args: Vec<&str>) -> Result<()> {
         "truncation" => {
             if value == "false" {
                 context.shell_config().disable_truncation();
-                return Ok(())
+                return Ok(());
             }
 
             let truncation = value.parse::<usize>().map_err(|_| {
@@ -220,17 +220,24 @@ pub fn configure(context: &mut Context, args: Vec<&str>) -> Result<()> {
                 InternalCommandError::InvalidValue
             })?;
             context.shell_config().truncate(truncation)
-        },
+        }
         "show-errors" => {
             let show_errors = value.parse::<bool>().map_err(|_| {
                 eprintln!("Invalid value for show-errors: '{}'", value);
                 InternalCommandError::InvalidValue
             })?;
             context.shell_config().show_errors(show_errors)
-        },
+        }
+        "multi-line-prompt" => {
+            let multi_line = value.parse::<bool>().map_err(|_| {
+                eprintln!("Invalid value for multi-line-prompt: '{}'", value);
+                InternalCommandError::InvalidValue
+            })?;
+            context.shell_config().multi_line_prompt(multi_line)
+        }
         _ => {
             eprintln!("Invalid configuration key: '{}'", key);
-            return Err(InternalCommandError::InvalidArgument.into())
+            return Err(InternalCommandError::InvalidArgument.into());
         }
     }
 

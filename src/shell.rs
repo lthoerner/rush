@@ -13,6 +13,8 @@ pub struct Configuration {
     truncation_factor: Option<usize>,
     // Whether or not to print out full error messages and status codes when a command fails
     show_errors: bool,
+    // Whether the prompt should be displayed in a single line or multiple lines
+    multi_line_prompt: bool,
 }
 
 impl Default for Configuration {
@@ -20,6 +22,7 @@ impl Default for Configuration {
         Self {
             truncation_factor: None,
             show_errors: true,
+            multi_line_prompt: false,
         }
     }
 }
@@ -38,6 +41,11 @@ impl Configuration {
     // Enables or disables error messages
     pub fn show_errors(&mut self, show: bool) {
         self.show_errors = show;
+    }
+
+    // Enables or disables multi-line prompts
+    pub fn multi_line_prompt(&mut self, multi_line: bool) {
+        self.multi_line_prompt = multi_line;
     }
 }
 
@@ -72,12 +80,16 @@ impl Shell {
     fn prompt(&self) -> Result<String> {
         let home = self.environment.home();
         print!(
-            "{} on {}\n{} ",
+            "{} on {}{}{} ",
             self.environment.user().blue(),
             self.environment
                 .WORKING_DIRECTORY
                 .collapse(home, self.config.truncation_factor)
                 .green(),
+            match self.config.multi_line_prompt {
+                true => "\n",
+                false => " ",
+            },
             match self.success {
                 true => "❯".bright_green().bold(),
                 false => "❯".bright_red().bold(),
@@ -111,7 +123,7 @@ impl Shell {
                         eprintln!("Error: {}", format!("{:#?}: {}", e, e).red());
                     }
                 }
-            },
+            }
             None => {
                 eprintln!("Unknown command: {}", command_name.red());
                 self.success = false;

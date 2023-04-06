@@ -7,7 +7,7 @@ use crate::builtins;
 use crate::environment::Environment;
 use crate::errors::ExternalCommandError;
 use crate::path::Path;
-use crate::shell::{Shell, Configuration};
+use crate::shell::{Configuration, Shell};
 
 // Represents a builtin function, its name and its aliases
 pub struct Builtin {
