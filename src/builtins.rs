@@ -1,5 +1,5 @@
 /*
-A quick write-up on rush builtins:
+A quick write-up on Rush builtins:
 Builtins are commands that are included with the shell. They are not able to be removed or modified without recompiling the shell.
 Normally, a child process, such as a shell command, does not have direct access to the parent process's environment variables and other state.
 However, the builtins are an exception to this rule. They are able to access the data because they are trusted to safely modify it.
