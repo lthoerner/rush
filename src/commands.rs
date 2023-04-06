@@ -7,7 +7,7 @@ use crate::builtins;
 use crate::environment::Environment;
 use crate::errors::ExternalCommandError;
 use crate::path::Path;
-use crate::shell::Shell;
+use crate::shell::{Shell, Configuration};
 
 // Represents a builtin function, its name and its aliases
 pub struct Builtin {
@@ -105,6 +105,11 @@ impl<'a> Context<'a> {
     // Mutable variant of Context.env()
     pub fn env_mut(&mut self) -> &mut Environment {
         &mut self.shell.environment
+    }
+
+    // Shortcut for accessing Context.shell.config
+    pub fn shell_config(&mut self) -> &mut Configuration {
+        &mut self.shell.config
     }
 
     // Shortcut for accessing Context.shell.environment.working_directory

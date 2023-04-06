@@ -257,12 +257,12 @@ pub fn truncate(context: &mut Context, args: Vec<&str>) -> Result<()> {
         }
     };
 
-    Ok(context.shell.truncate(truncation))
+    Ok(context.shell_config().truncate(truncation))
 }
 
 pub fn untruncate(context: &mut Context, args: Vec<&str>) -> Result<()> {
     if args.len() == 0 {
-        Ok(context.shell.disable_truncation())
+        Ok(context.shell_config().disable_truncation())
     } else {
         eprintln!("Usage: untruncate");
         Err(InternalCommandError::InvalidArgumentCount.into())
