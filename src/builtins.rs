@@ -244,6 +244,26 @@ pub fn configure(context: &mut Context, args: Vec<&str>) -> Result<()> {
     Ok(())
 }
 
+pub fn environment_variable(context: &mut Context, args: Vec<&str>) -> Result<()> {
+    check_args(&args, 1, "environment-variable <var>")?;
+    match args[0].to_uppercase().as_str() {
+        "PATH" => {
+            for (i, path) in context.env().PATH().iter().enumerate() {
+                println!("[{i}]: {path}");
+            }
+        }
+        "USER" => println!("{}", context.env().USER()),
+        "HOME" => println!("{}", context.env().HOME().display()),
+        "CWD" | "WORKING-DIRECTORY" => println!("{}", context.CWD()),
+        _ => {
+            eprintln!("Invalid environment variable: '{}'", args[0]);
+            return Err(InternalCommandError::InvalidArgument.into())
+        }
+    }
+
+    Ok(())
+}
+
 pub fn edit_path(context: &mut Context, args: Vec<&str>) -> Result<()> {
     check_args(&args, 2, "edit-path <append | prepend> <path>")?;
     let action = args[0];

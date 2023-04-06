@@ -154,6 +154,7 @@ impl Default for Dispatcher {
         dispatcher.add_builtin("read-file", vec!["read", "cat", "rf"], builtins::read_file);
         dispatcher.add_builtin("run-executable", vec!["run", "exec", "re"], builtins::run_executable);
         dispatcher.add_builtin("configure", vec!["config", "conf"], builtins::configure);
+        dispatcher.add_builtin("environment-variable", vec!["environment", "env", "ev"], builtins::environment_variable);
         dispatcher.add_builtin("edit-path", vec!["path", "ep"], builtins::edit_path);
 
         dispatcher
