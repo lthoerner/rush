@@ -7,8 +7,11 @@ use crate::commands::{Context, Dispatcher};
 use crate::environment::Environment;
 use crate::errors::ShellError;
 
+// Represents the shell, its state, and provides methods for interacting with it
 pub struct Shell {
     pub environment: Environment,
+    // ! This is here temporarily, it will be moved to a Configuration struct soon
+    truncation_factor: Option<usize>,
     success: bool,
 }
 
@@ -16,13 +19,13 @@ impl Shell {
     pub fn new() -> Result<Self> {
         Ok(Self {
             environment: Environment::new()?,
+            truncation_factor: None,
             success: true,
         })
     }
 
     // Repeatedly prompts the user for commands and executes them
     pub fn run(&mut self) -> Result<()> {
-        // ? What should this name be?
         let dispatcher = Dispatcher::default();
 
         loop {
@@ -34,10 +37,14 @@ impl Shell {
 
     // Displays the prompt and returns the user input
     fn prompt(&self) -> Result<String> {
+        let home = self.environment.home();
         print!(
             "{} on {}\n{} ",
             self.environment.user().blue(),
-            self.environment.working_directory.short().green(),
+            self.environment
+                .WORKING_DIRECTORY
+                .collapse(home, self.truncation_factor)
+                .green(),
             match self.success {
                 true => "❯".bright_green().bold(),
                 false => "❯".bright_red().bold(),
@@ -70,6 +77,16 @@ impl Shell {
                 self.success = false;
             }
         }
+    }
+
+    // Sets the truncation factor for the prompt
+    pub fn truncate(&mut self, factor: usize) {
+        self.truncation_factor = Some(factor);
+    }
+
+    // Disables prompt truncation
+    pub fn disable_truncation(&mut self) {
+        self.truncation_factor = None;
     }
 }
 

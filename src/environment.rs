@@ -7,39 +7,36 @@ use crate::errors::ShellError;
 use crate::path::Path;
 
 // Represents the shell environment by encapsulating the environment variables
-#[allow(dead_code)]
+// * Environment variables are represented in all caps by convention,
+// * any fields that are not actual environment variables are represented in the usual snake_case
+#[allow(dead_code, non_snake_case)]
 pub struct Environment {
-    user: String,
-    home: PathBuf,
-    pub working_directory: Path,
-    backward_directories: VecDeque<PathBuf>,
-    forward_directories: VecDeque<PathBuf>,
-    // * 'path' is not to be confused with the 'working_directory.' 'path' is a list of directories which
-    // * the shell will search for executables in. 'Working_directory' is the current directory the user is in.
-    path: Vec<PathBuf>,
+    USER: String,
+    HOME: PathBuf,
+    pub WORKING_DIRECTORY: Path,
+    backward_directories: VecDeque<Path>,
+    forward_directories: VecDeque<Path>,
+    // * PATH is not to be confused with the WORKING_DIRECTORY. PATH is a list of directories which
+    // * the shell will search for executables in. WORKING_DIRECTORY is the current directory the user is in.
+    PATH: Vec<Path>,
     custom_variables: HashMap<String, String>,
 }
 
 impl Environment {
+    #[allow(non_snake_case)]
     pub fn new() -> Result<Self> {
-        let user = get_parent_env_var("USER")?;
-        let home = PathBuf::from(get_parent_env_var("HOME")?);
-        // ? Why was this using Path::new() instead of Path::from_str_path()?
-        // * Seems to work fine, but this line might be suspect if any bugs crop up
-        let working_directory = Path::from_str_path(get_parent_env_var("PWD")?.as_str(), &home)?;
-        // ? Should this be put into a function?
-        let path = get_parent_env_var("PATH")?
-            .split(':')
-            .map(PathBuf::from)
-            .collect();
+        let USER = get_parent_env_var("USER")?;
+        let HOME = PathBuf::from(get_parent_env_var("HOME")?);
+        let WORKING_DIRECTORY = Path::from_str(get_parent_env_var("PWD")?.as_str(), &HOME)?;
+        let PATH = convert_path(get_parent_env_var("PATH")?.as_str(), &HOME)?;
 
         Ok(Self {
-            user,
-            home,
-            working_directory,
+            USER,
+            HOME,
+            WORKING_DIRECTORY,
             backward_directories: VecDeque::new(),
             forward_directories: VecDeque::new(),
-            path,
+            PATH,
             custom_variables: HashMap::new(),
         })
     }
@@ -52,15 +49,15 @@ impl Environment {
         set_working_directory: bool,
     ) -> Result<()> {
         if set_user {
-            std::env::set_var("USER", &self.user);
+            std::env::set_var("USER", &self.USER);
         }
 
         if set_home {
-            std::env::set_var("HOME", &self.home);
+            std::env::set_var("HOME", &self.HOME);
         }
 
         if set_working_directory {
-            std::env::set_current_dir(self.working_directory.absolute())
+            std::env::set_current_dir(self.WORKING_DIRECTORY.path())
                 .map_err(|_| ShellError::FailedToUpdateEnvironmentVariables)?;
         }
 
@@ -68,21 +65,21 @@ impl Environment {
     }
 
     pub fn user(&self) -> &String {
-        &self.user
+        &self.USER
     }
 
     pub fn home(&self) -> &PathBuf {
-        &self.home
+        &self.HOME
     }
 
-    pub fn path(&self) -> &Vec<PathBuf> {
-        &self.path
+    pub fn path(&self) -> &Vec<Path> {
+        &self.PATH
     }
 
     // Sets the current working directory and stores the previous working directory
     pub fn set_path(&mut self, new_path: &str) -> Result<()> {
-        let previous_path = self.working_directory.absolute().clone();
-        self.working_directory.set_path(new_path)?;
+        let previous_path = self.WORKING_DIRECTORY.clone();
+        self.WORKING_DIRECTORY = Path::from_str(new_path, &self.HOME)?;
         self.backward_directories.push_back(previous_path);
         self.forward_directories.clear();
         self.update_process_env_vars(false, false, true)
@@ -90,12 +87,9 @@ impl Environment {
 
     // Sets the current working directory to the previous working directory
     pub fn go_back(&mut self) -> Result<()> {
-        let starting_directory = self.working_directory.absolute().clone();
+        let starting_directory = self.WORKING_DIRECTORY.clone();
         if let Some(previous_path) = self.backward_directories.pop_back() {
-            // ? Should there be PathBuf variants of .set_path()?
-            // TODO: There needs to be a proper error message here
-            self.working_directory
-                .set_path(previous_path.to_str().expect("PLACEHOLDER ERROR"))?;
+            self.WORKING_DIRECTORY = previous_path;
             self.forward_directories.push_front(starting_directory);
             self.update_process_env_vars(false, false, true)
         } else {
@@ -105,10 +99,9 @@ impl Environment {
 
     // Sets the current working directory to the next working directory
     pub fn go_forward(&mut self) -> Result<()> {
-        let starting_directory = self.working_directory.absolute().clone();
+        let starting_directory = self.WORKING_DIRECTORY.clone();
         if let Some(next_path) = self.forward_directories.pop_front() {
-            self.working_directory
-                .set_path(next_path.to_str().expect("PLACEHOLDER ERROR"))?;
+            self.WORKING_DIRECTORY = next_path;
             self.backward_directories.push_back(starting_directory);
             self.update_process_env_vars(false, false, true)
         } else {
@@ -120,4 +113,11 @@ impl Environment {
 // Gets the name of the user who invoked the shell (to be used when the shell is first initialized)
 fn get_parent_env_var(var_name: &str) -> Result<String> {
     std::env::var(var_name).map_err(|_| ShellError::MissingExternalEnvironmentVariables.into())
+}
+
+// Converts the PATH environment variable from a string to a vector of Paths
+fn convert_path(path: &str, home: &PathBuf) -> Result<Vec<Path>> {
+    path.split(':')
+        .map(|p| -> Result<Path> { Path::from_str(p, home) })
+        .collect()
 }
