@@ -29,12 +29,7 @@ impl Path {
     pub fn from_pathbuf(path: &PathBuf, home_directory: &PathBuf) -> Result<Self> {
         // The home directory shorthand must be expanded before resolving the path,
         // because PathBuf is not user-aware and only uses absolute and relative paths
-        // * This is kind of dumb as the path has usually been converted to a PathBuf from a string already,
-        // * but because of the way this constructor is supposed to work, it's just going to need to be converted right back again
-        let path_str = path
-            .to_str()
-            .ok_or(ShellError::FailedToConvertPathBufToString)?;
-        let expanded_path = expand_home(path_str, home_directory)?;
+        let expanded_path = expand_home(path, home_directory)?;
         // Canonicalizing a path will resolve any relative or absolute paths
         let absolute_path = canonicalize(expanded_path)?;
 
@@ -110,7 +105,8 @@ impl Path {
     }
 }
 
-fn expand_home(path: &str, home_directory: &PathBuf) -> Result<String> {
+fn expand_home(path: &PathBuf, home_directory: &PathBuf) -> Result<String> {
+    let path = path.to_str().ok_or(ShellError::FailedToConvertPathBufToString)?;
     if path.starts_with("~") {
         Ok(path.replace(
             "~",
