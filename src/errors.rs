@@ -24,6 +24,8 @@ pub enum ShellError {
     FailedToReadStdin,
     #[error("Directory does not exist")]
     UnknownDirectory,
+    #[error("Executable could not be found in PATH")]
+    UnknownExecutable,
     #[error("Unknown error")]
     Uncategorized,
 }

@@ -18,7 +18,7 @@ use colored::Colorize;
 
 use crate::commands::{Context, Runnable};
 use crate::errors::InternalCommandError;
-use crate::path;
+use crate::path::Path;
 
 pub fn test(_context: &mut Context, args: Vec<&str>) -> Result<()> {
     if args.len() == 0 {
@@ -70,17 +70,14 @@ pub fn list_directory(context: &mut Context, args: Vec<&str>) -> Result<()> {
         0 => fs::read_dir(env::current_dir().expect("Failed to get working directory"))
             .expect("Failed to read directory"),
         1 => {
-            // Path::from_str_path() will attempt to expand and canonicalize the path, and return None if the path does not exist
-            let absolute_path = path::resolve(args[0], context.home()).ok_or_else(|| {
+            // Path::from_str() will attempt to expand and canonicalize the path, and return None if the path does not exist
+            let absolute_path = Path::from_str(args[0], context.home()).map_err(|_| {
                 eprintln!("Invalid path: '{}'", args[0]);
                 InternalCommandError::FailedToRun
             })?;
 
-            fs::read_dir(&absolute_path).map_err(|_| {
-                eprintln!(
-                    "Failed to read directory: '{}'",
-                    absolute_path.to_string_lossy().to_string()
-                );
+            fs::read_dir(&absolute_path.path()).map_err(|_| {
+                eprintln!("Failed to read directory: '{}'", absolute_path.to_string());
                 InternalCommandError::FailedToRun
             })?
         }
@@ -238,13 +235,12 @@ pub fn run_executable(context: &mut Context, args: Vec<&str>) -> Result<()> {
         }
     };
 
-    let executable_path = path::resolve(&executable_name, context.home()).ok_or_else(|| {
+    let executable_path = Path::from_str(&executable_name, context.home()).map_err(|_| {
         eprintln!("Failed to resolve executable path: '{}'", executable_name);
         InternalCommandError::FailedToRun
     })?;
 
-    let executable = Runnable::external(executable_path)?;
-    executable.run(context, args)
+    Runnable::External(executable_path).run(context, args)
 }
 
 // TODO: Move truncate() and untruncate() to a general shell configuration command
@@ -261,12 +257,12 @@ pub fn truncate(context: &mut Context, args: Vec<&str>) -> Result<()> {
         }
     };
 
-    context.cwd_mut().set_truncation(truncation)
+    Ok(context.shell.truncate(truncation))
 }
 
 pub fn untruncate(context: &mut Context, args: Vec<&str>) -> Result<()> {
     if args.len() == 0 {
-        context.cwd_mut().disable_truncation()
+        Ok(context.shell.disable_truncation())
     } else {
         eprintln!("Usage: untruncate");
         Err(InternalCommandError::InvalidArgumentCount.into())

@@ -5,8 +5,8 @@ use anyhow::Result;
 
 use crate::builtins;
 use crate::environment::Environment;
-use crate::errors::{ExternalCommandError, ShellError};
-use crate::path::{self, Path};
+use crate::errors::ExternalCommandError;
+use crate::path::Path;
 use crate::shell::Shell;
 
 // Represents a builtin function, its name and its aliases
@@ -42,31 +42,23 @@ impl Builtin {
 // Represents either a builtin (internal command) or an executable (external command)
 // A Runnable may be executed by calling its .run() method
 pub enum Runnable {
+    // * This variant is only used for shell builtins, as defined in Dispatcher::default()
     Internal(Builtin),
-    External(PathBuf),
+    // * This variant is used in two cases:
+    // * 1. When the user invokes an external binary using the run-executable builtin (explicit invocation)
+    // * 2. When the user invokes an external binary that is in the PATH without using the run-executable builtin (implicit invocation)
+    // * A Path (from the path module) must be validated before construction, so it is safe to simply place it in an External
+    External(Path),
 }
 
 impl Runnable {
-    // Constructs an External Runnable from a path
-    // * This constructor is used in two cases:
-    // * 1. When the user invokes an external binary using the run-executable builtin (explicit invocation)
-    // * 2. When the user invokes an external binary that is in the PATH without using the run-executable builtin (implicit invocation)
-    // * The path must be canonicalized before it is passed to the constructor, bit it does not necessarily have to be validated
-    pub fn external(path: PathBuf) -> Result<Self> {
-        if path.exists() {
-            Ok(Self::External(path))
-        } else {
-            Err(ShellError::UnknownDirectory.into())
-        }
-    }
-
     // Executes either a builtin or a binary
     pub fn run(&self, context: &mut Context, arguments: Vec<&str>) -> Result<()> {
         match self {
             Runnable::Internal(builtin) => (builtin.function)(context, arguments),
             Runnable::External(path) => {
                 // Create the process and pass the provided arguments to it
-                let mut executable = Command::new(path);
+                let mut executable = Command::new(path.path());
                 executable.args(arguments);
                 // Execute the process and wait for it to finish
                 let mut handle = executable.spawn()?;
@@ -117,20 +109,20 @@ impl<'a> Context<'a> {
 
     // Shortcut for accessing Context.shell.environment.working_directory
     pub fn cwd(&self) -> &Path {
-        &self.shell.environment.working_directory
+        &self.shell.environment.WORKING_DIRECTORY
     }
 
     // Mutable variant of Context.cwd()
+    #[allow(dead_code)]
     pub fn cwd_mut(&mut self) -> &mut Path {
-        &mut self.shell.environment.working_directory
+        &mut self.shell.environment.WORKING_DIRECTORY
     }
 }
 
 // Represents a collection of commands
 // Allows for command resolution and execution through aliases
-// * The Dispatcher generally only stores builtins, but it is also capable of
-// * storing external Runnables, also known as executables or binaries
-// * However, because they do not have any aliases, they would not be resolved
+// * The Dispatcher generally only stores builtins, but it is capable of storing external Runnables, also known as executables or binaries
+// * However, because they do not have any aliases, they would not be able to be resolved
 pub struct Dispatcher {
     commands: Vec<Runnable>,
 }
@@ -217,15 +209,10 @@ impl Dispatcher {
             return Some(exit_status);
         } else {
             // If the command is not in the Dispatcher, try to run it as an executable from the PATH
-            let path = path::resolve_executable(command_name, context.env().path());
-            if let Some(path) = path {
+            let path = Path::from_path_var(command_name, context.env().path());
+            if let Ok(path) = path {
                 // ? Should this check if the file is an executable first?
-                let runnable = match Runnable::external(path) {
-                    Ok(runnable) => runnable,
-                    Err(e) => return Some(Err(e)),
-                };
-
-                Some(runnable.run(context, command_args))
+                Some(Runnable::External(path).run(context, command_args))
             } else {
                 None
             }
