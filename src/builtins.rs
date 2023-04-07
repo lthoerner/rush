@@ -39,7 +39,8 @@ pub fn working_directory(context: &mut Context, args: Vec<&str>) -> Result<()> {
 
 pub fn change_directory(context: &mut Context, args: Vec<&str>) -> Result<()> {
     check_args(&args, 1, "change-directory <path>")?;
-    context.env_mut().set_cwd(args[0]).map_err(|_| {
+    let history_limit = context.shell_config().history_limit();
+    context.env_mut().set_cwd(args[0], history_limit).map_err(|_| {
         eprintln!("Invalid path: '{}'", args[0]);
         InternalCommandError::FailedToRun.into()
     })
@@ -221,19 +222,31 @@ pub fn configure(context: &mut Context, args: Vec<&str>) -> Result<()> {
             })?;
             context.shell_config().truncate(truncation)
         }
+        "history-limit" => {
+            if value == "false" {
+                context.shell_config().disable_history_limit();
+                return Ok(());
+            }
+
+            let history_limit = value.parse::<usize>().map_err(|_| {
+                eprintln!("Invalid history limit: '{}'", value);
+                InternalCommandError::InvalidValue
+            })?;
+            context.shell_config().set_history_limit(history_limit)
+        }
         "show-errors" => {
             let show_errors = value.parse::<bool>().map_err(|_| {
                 eprintln!("Invalid value for show-errors: '{}'", value);
                 InternalCommandError::InvalidValue
             })?;
-            context.shell_config().show_errors(show_errors)
+            context.shell_config().set_show_errors(show_errors)
         }
         "multi-line-prompt" => {
             let multi_line = value.parse::<bool>().map_err(|_| {
                 eprintln!("Invalid value for multi-line-prompt: '{}'", value);
                 InternalCommandError::InvalidValue
             })?;
-            context.shell_config().multi_line_prompt(multi_line)
+            context.shell_config().set_multi_line_prompt(multi_line)
         }
         _ => {
             eprintln!("Invalid configuration key: '{}'", key);

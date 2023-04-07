@@ -22,6 +22,10 @@ pub enum ShellError {
     FailedToFlushStdout,
     #[error("Failed to read from stdin")]
     FailedToReadStdin,
+    #[error("Failed to open configuration file")]
+    FailedToOpenConfigFile,
+    #[error("Failed to read configuration file")]
+    FailedToReadConfigFile,
     #[error("Directory does not exist")]
     UnknownDirectory,
     #[error("Executable could not be found in PATH")]

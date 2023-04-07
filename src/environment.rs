@@ -81,11 +81,18 @@ impl Environment {
     }
 
     // Sets the current working directory and stores the previous working directory
-    pub fn set_cwd(&mut self, new_path: &str) -> Result<()> {
+    pub fn set_cwd(&mut self, new_path: &str, history_limit: Option<usize>) -> Result<()> {
         let previous_path = self.WORKING_DIRECTORY.clone();
         self.WORKING_DIRECTORY = Path::from_str(new_path, &self.HOME)?;
         self.backward_directories.push_back(previous_path);
         self.forward_directories.clear();
+
+        if let Some(limit) = history_limit {
+            while self.backward_directories.len() > limit {
+                self.backward_directories.pop_front();
+            }
+        }
+        
         self.update_process_env_vars(false, false, true)
     }
 

@@ -1,4 +1,5 @@
-use std::io::{stdin, stdout, Write};
+use std::io::{stdin, stdout, Write, BufReader, BufRead};
+use std::fs::File;
 
 use anyhow::Result;
 use colored::Colorize;
@@ -11,6 +12,8 @@ use crate::errors::ShellError;
 pub struct Configuration {
     // The truncation length for the prompt
     truncation_factor: Option<usize>,
+    // How many directories to store in the back/forward history
+    history_limit: Option<usize>,
     // Whether or not to print out full error messages and status codes when a command fails
     show_errors: bool,
     // Whether the prompt should be displayed in a single line or multiple lines
@@ -21,6 +24,7 @@ impl Default for Configuration {
     fn default() -> Self {
         Self {
             truncation_factor: None,
+            history_limit: None,
             show_errors: true,
             multi_line_prompt: false,
         }
@@ -28,6 +32,53 @@ impl Default for Configuration {
 }
 
 impl Configuration {
+    fn from_file(filename: &str) -> Result<Self> {
+        let mut config = Self::default();
+        let file = File::open(filename).map_err(|_| ShellError::FailedToOpenConfigFile)?;
+        let reader = BufReader::new(file);
+
+        for line in reader.lines() {
+            let line = line.map_err(|_| ShellError::FailedToReadConfigFile)?;
+            let tokens = line.split(": ").collect::<Vec<&str>>();
+            if tokens.len() != 2 {
+                return Err(ShellError::FailedToReadConfigFile.into());
+            }
+
+            let (key, value) = (tokens[0], tokens[1]);
+
+            // ? Should these be underscores instead of hyphens?
+            match key {
+                "truncation-factor" => {
+                    if let Ok(length) = value.parse::<usize>() {
+                        config.truncation_factor = Some(length);
+                    } else if value == "false" {
+                        config.truncation_factor = None;
+                    }
+                }
+                "history-limit" => {
+                    if let Ok(limit) = value.parse::<usize>() {
+                        config.history_limit = Some(limit);
+                    } else if value == "false" {
+                        config.history_limit = None;
+                    }
+                }
+                "show-errors" => {
+                    if let Ok(show) = value.parse::<bool>() {
+                        config.show_errors = show;
+                    }
+                }
+                "multi-line-prompt" => {
+                    if let Ok(multi_line) = value.parse::<bool>() {
+                        config.multi_line_prompt = multi_line;
+                    }
+                }
+                _ => return Err(ShellError::FailedToReadConfigFile.into()),
+            }
+        }
+
+        Ok(config)
+    }
+
     // Sets the truncation length for the prompt
     pub fn truncate(&mut self, length: usize) {
         self.truncation_factor = Some(length);
@@ -38,13 +89,28 @@ impl Configuration {
         self.truncation_factor = None;
     }
 
+    // Returns the history limit
+    pub fn history_limit(&self) -> Option<usize> {
+        self.history_limit
+    }
+
+    // Sets the history limit
+    pub fn set_history_limit(&mut self, limit: usize) {
+        self.history_limit = Some(limit);
+    }
+
+    // Disables history limiting
+    pub fn disable_history_limit(&mut self) {
+        self.history_limit = None;
+    }
+
     // Enables or disables error messages
-    pub fn show_errors(&mut self, show: bool) {
+    pub fn set_show_errors(&mut self, show: bool) {
         self.show_errors = show;
     }
 
     // Enables or disables multi-line prompts
-    pub fn multi_line_prompt(&mut self, multi_line: bool) {
+    pub fn set_multi_line_prompt(&mut self, multi_line: bool) {
         self.multi_line_prompt = multi_line;
     }
 }
@@ -60,7 +126,7 @@ impl Shell {
     pub fn new() -> Result<Self> {
         Ok(Self {
             environment: Environment::new()?,
-            config: Configuration::default(),
+            config: Configuration::from_file("config/config.rush")?,
             success: true,
         })
     }
