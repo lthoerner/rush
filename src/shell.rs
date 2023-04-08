@@ -11,13 +11,13 @@ use crate::errors::ShellError;
 // Represents any settings for the shell, most of which can be configured by the user
 pub struct Configuration {
     // The truncation length for the prompt
-    truncation_factor: Option<usize>,
+    pub truncation_factor: Option<usize>,
     // How many directories to store in the back/forward history
-    history_limit: Option<usize>,
+    pub history_limit: Option<usize>,
     // Whether or not to print out full error messages and status codes when a command fails
-    show_errors: bool,
+    pub show_errors: bool,
     // Whether the prompt should be displayed in a single line or multiple lines
-    multi_line_prompt: bool,
+    pub multi_line_prompt: bool,
 }
 
 impl Default for Configuration {
@@ -77,41 +77,6 @@ impl Configuration {
         }
 
         Ok(config)
-    }
-
-    // Sets the truncation length for the prompt
-    pub fn truncate(&mut self, length: usize) {
-        self.truncation_factor = Some(length);
-    }
-
-    // Disables prompt truncation
-    pub fn disable_truncation(&mut self) {
-        self.truncation_factor = None;
-    }
-
-    // Returns the history limit
-    pub fn history_limit(&self) -> Option<usize> {
-        self.history_limit
-    }
-
-    // Sets the history limit
-    pub fn set_history_limit(&mut self, limit: usize) {
-        self.history_limit = Some(limit);
-    }
-
-    // Disables history limiting
-    pub fn disable_history_limit(&mut self) {
-        self.history_limit = None;
-    }
-
-    // Enables or disables error messages
-    pub fn set_show_errors(&mut self, show: bool) {
-        self.show_errors = show;
-    }
-
-    // Enables or disables multi-line prompts
-    pub fn set_multi_line_prompt(&mut self, multi_line: bool) {
-        self.multi_line_prompt = multi_line;
     }
 }
 
