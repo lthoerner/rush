@@ -85,8 +85,8 @@ impl Path {
             Err(_) => self.absolute_path.to_string_lossy().to_string(),
         };
 
-        // ! This might cause a bug with directories that have a '/' in their name
-        // ! Also might cause a bug with non-unicode characters (paths use OsString which is not guaranteed to be valid unicode)
+        // $ This might cause a bug with directories that have a '/' in their name
+        // $ Also might cause a bug with non-unicode characters (paths use OsString which is not guaranteed to be valid unicode)
         let directories: Vec<String> = path.split("/").map(|d| d.to_string()).collect();
         let mut truncated_directories = Vec::new();
 

@@ -184,7 +184,7 @@ fn read_line() -> Result<String> {
 }
 
 // Splits arguments by spaces, taking quotes into account
-// ! This is a temporary solution, and will be replaced by a proper parser
+// $ This is a temporary solution, and will be replaced by a proper parser
 fn split_arguments(line: &str) -> (String, Vec<String>) {
     let line = line.trim();
     let mut args = Vec::new();
