@@ -9,7 +9,7 @@ use crossterm::style::{Print, Stylize};
 use crossterm::terminal::{self, Clear, ClearType};
 use crossterm::{execute, queue, ExecutableCommand};
 
-use rush_shell::commands::Context;
+use rush_eval::commands::Context;
 
 // Represents a character that can be added to the line buffer, or an ENTER keypress, which will send the line buffer to the shell
 // Keypresses that may have been handled downstream, but should not result in any further behavior, are represented by the Ignored variant

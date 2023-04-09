@@ -2,8 +2,8 @@
 
 use anyhow::Result;
 
-use rush_shell::shell::Shell;
-use rush_shell::commands::Context;
+use rush_eval::shell::Shell;
+use rush_eval::commands::Context;
 use rush_repl::prompt::Repl;
 
 // TODO: Add upstream error handling here
