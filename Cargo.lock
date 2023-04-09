@@ -176,6 +176,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "rush-console"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "crossterm",
+ "rush-eval",
+ "thiserror",
+]
+
+[[package]]
 name = "rush-eval"
 version = "0.1.0"
 dependencies = [
@@ -189,18 +199,8 @@ name = "rush-exec"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "rush-console",
  "rush-eval",
- "rush-repl",
-]
-
-[[package]]
-name = "rush-repl"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "crossterm",
- "rush-eval",
- "thiserror",
 ]
 
 [[package]]

@@ -1,5 +1,5 @@
 [package]
-name = "rush-repl"
+name = "rush-console"
 version = "0.1.0"
 edition = "2021"
 

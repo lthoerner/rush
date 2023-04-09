@@ -4,7 +4,7 @@ use anyhow::Result;
 
 use rush_eval::shell::Shell;
 use rush_eval::commands::Context;
-use rush_repl::prompt::Repl;
+use rush_console::prompt::Repl;
 
 // TODO: Add upstream error handling here
 fn main() -> Result<()> {
