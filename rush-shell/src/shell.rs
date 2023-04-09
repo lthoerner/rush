@@ -91,7 +91,7 @@ impl Shell {
     pub fn new() -> Result<Self> {
         Ok(Self {
             environment: Environment::new()?,
-            config: Configuration::from_file("rush-shell/config/config.rush")?,
+            config: Configuration::from_file("config/config.rush")?,
             success: true,
         })
     }
