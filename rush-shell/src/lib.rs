@@ -1,7 +1,7 @@
 #![allow(dead_code, unused_imports)]
 
 mod builtins;
-mod commands;
+pub mod commands;
 mod environment;
 mod errors;
 mod path;

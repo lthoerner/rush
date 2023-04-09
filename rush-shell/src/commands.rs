@@ -9,10 +9,27 @@ use crate::errors::ExternalCommandError;
 use crate::path::Path;
 use crate::shell::{Configuration, Shell};
 
+// Wrapper type for Vec<String> that makes it easier to read code related to Builtins
+struct Aliases {
+    aliases: Vec<String>,
+}
+
+impl From<Vec<&str>> for Aliases {
+    fn from(aliases: Vec<&str>) -> Self {
+        Self { aliases: aliases.iter().map(|a| a.to_string()).collect() }
+    }
+}
+
+impl Aliases {
+    fn contains(&self, alias: &str) -> bool {
+        self.aliases.contains(&alias.to_string())
+    }
+}
+
 // Represents a builtin function, its name and its aliases
 pub struct Builtin {
     true_name: String,
-    aliases: Vec<String>,
+    aliases: Aliases,
     function: Box<dyn Fn(&mut Context, Vec<&str>) -> Result<()>>,
 }
 
@@ -23,7 +40,7 @@ impl Builtin {
         function: F,
     ) -> Self {
         let true_name = true_name.to_string();
-        let aliases = aliases.iter().map(|a| a.to_string()).collect();
+        let aliases = Aliases::from(aliases);
         let function = Box::new(function);
 
         Self {
@@ -78,10 +95,9 @@ impl Runnable {
     }
 }
 
-// Wrapper struct around all of the data that could be needed for any command to run
-// For instance, a command like 'truncate' may need to access the working directory, whereas
+// Wrapper struct around all of the shell data that could be needed for any command to run
+// For instance, a command like 'config' may need to access the shell's environment, whereas
 // a command like 'exit' may not need any data at all, but the data needs to be available in all cases
-// TODO: Add an example for a command that needs different information
 pub struct Context<'a> {
     pub shell: &'a mut Shell,
 }
@@ -190,10 +206,8 @@ impl Dispatcher {
                     return Some(command);
                 }
 
-                for alias in &builtin.aliases {
-                    if alias == command_name {
-                        return Some(command);
-                    }
+                if builtin.aliases.contains(command_name) {
+                    return Some(command);
                 }
             }
         }
@@ -203,7 +217,6 @@ impl Dispatcher {
 
     // Resolves and dispatches a command to the appropriate function or external binary
     // If the command does not exist, returns None
-    // ? How should I consume the Context to ensure that it is not used after the command is run?
     pub fn dispatch(
         &self,
         command_name: &str,
