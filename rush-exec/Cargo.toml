@@ -7,5 +7,6 @@ edition = "2021"
 
 [dependencies]
 rush-eval = { path = "../rush-eval" }
+rush-parser = { path = "../rush-parser" }
 rush-console = { path = "../rush-console" }
 anyhow = "1.0.70"

@@ -5,6 +5,7 @@ use anyhow::Result;
 use rush_eval::shell::Shell;
 use rush_eval::commands::Context;
 use rush_console::prompt::Repl;
+use rush_parser::tokenize;
 
 // TODO: Add upstream error handling here
 fn main() -> Result<()> {
@@ -14,6 +15,7 @@ fn main() -> Result<()> {
     loop {
         let mut context = Context::new(&mut shell.environment, &mut shell.config);
         let line = repl.read(&mut context)?;
-        shell.eval(line)?;
+        let (command_name, command_args) = tokenize(line);
+        shell.eval(command_name, command_args)?;
     }
 }

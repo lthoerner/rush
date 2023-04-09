@@ -100,17 +100,15 @@ impl Shell {
 
     // Evaluates and executes a command from a string
     // $ Somewhat temporary, probably will be combined with .interpret()
-    pub fn eval(&mut self, line: String) -> Result<()> {
-        self.interpret(line);
+    pub fn eval(&mut self, command_name: String, command_args: Vec<String>) -> Result<()> {
+        self.interpret(command_name, command_args);
         Ok(())
     }
 
     // Interprets a command from a string
-    fn interpret(&mut self, line: String) {
-        // Determine the requested command and its arguments
-        let (command_name, command_args) = split_arguments(&line);
+    fn interpret(&mut self, command_name: String, command_args: Vec<String>) {
         let command_name = command_name.as_str();
-        let command_args = command_args.iter().map(|s| s.as_str()).collect();
+        let command_args = command_args.iter().map(|a| a.as_str()).collect();
 
         // Bundle all the information that needs to be modifiable by the commands into a Context
         let mut context = Context::new(&mut self.environment, &mut self.config);
@@ -155,45 +153,4 @@ fn read_line() -> Result<String> {
     }
 
     Ok(line)
-}
-
-// Splits arguments by spaces, taking quotes into account
-// $ This is a temporary solution, and will be replaced by a proper parser
-fn split_arguments(line: &str) -> (String, Vec<String>) {
-    let line = line.trim();
-    let mut args = Vec::new();
-    let mut current_arg = String::new();
-    let mut in_quotes = false;
-
-    for c in line.chars() {
-        match c {
-            '"' => {
-                if in_quotes {
-                    args.push(current_arg);
-                    current_arg = String::new();
-                }
-
-                in_quotes = !in_quotes;
-            }
-            ' ' => {
-                if in_quotes {
-                    current_arg.push(c);
-                } else {
-                    args.push(current_arg);
-                    current_arg = String::new();
-                }
-            }
-            _ => current_arg.push(c),
-        }
-    }
-
-    if args.is_empty() {
-        return (current_arg, Vec::new());
-    }
-
-    if !current_arg.is_empty() {
-        args.push(current_arg);
-    }
-
-    (args.remove(0), args)
 }

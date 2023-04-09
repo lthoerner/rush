@@ -201,7 +201,12 @@ dependencies = [
  "anyhow",
  "rush-console",
  "rush-eval",
+ "rush-parser",
 ]
+
+[[package]]
+name = "rush-parser"
+version = "0.1.0"
 
 [[package]]
 name = "scopeguard"
