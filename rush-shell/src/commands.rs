@@ -165,12 +165,11 @@ impl Default for Dispatcher {
         dispatcher.add_builtin("working-directory", vec!["pwd", "wd"], builtins::working_directory);
         dispatcher.add_builtin("change-directory", vec!["cd"], builtins::change_directory);
         dispatcher.add_builtin("list-directory", vec!["directory", "list", "ls", "dir"], builtins::list_directory);
-        dispatcher.add_builtin("go-back", vec!["back", "b", "prev", "pd"], builtins::go_back);
-        dispatcher.add_builtin("go-forward", vec!["forward", "f", "next", "nd"], builtins::go_forward);
+        dispatcher.add_builtin("previous-directory", vec!["ret", "back", "b", "prev", "pd"], builtins::previous_directory);
+        dispatcher.add_builtin("next-directory", vec!["adv", "forward", "f", "next", "nd"], builtins::next_directory);
         dispatcher.add_builtin("clear-terminal", vec!["clear", "cls"], builtins::clear_terminal);
-        dispatcher.add_builtin("create-file", vec!["create", "touch", "new", "cf"], builtins::create_file);
-        // TODO: Figure out 'cd' alias conflict
-        dispatcher.add_builtin("create-directory", vec!["mkdir", "md"], builtins::create_directory);
+        dispatcher.add_builtin("make-file", vec!["make", "touch", "new", "mf"], builtins::make_file);
+        dispatcher.add_builtin("make-directory", vec!["mkdir", "md"], builtins::make_directory);
         dispatcher.add_builtin("delete-file", vec!["delete", "remove", "rm", "del", "df"], builtins::delete_file);
         dispatcher.add_builtin("read-file", vec!["read", "cat", "rf"], builtins::read_file);
         dispatcher.add_builtin("run-executable", vec!["run", "exec", "re"], builtins::run_executable);

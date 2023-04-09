@@ -115,18 +115,17 @@ pub fn list_directory(context: &mut Context, args: Vec<&str>) -> Result<()> {
     Ok(())
 }
 
-// TODO: Find a better name for this
-pub fn go_back(context: &mut Context, args: Vec<&str>) -> Result<()> {
-    check_args(&args, 0, "go-back")?;
-    context.env_mut().go_back().map_err(|_| {
+pub fn previous_directory(context: &mut Context, args: Vec<&str>) -> Result<()> {
+    check_args(&args, 0, "previous-directory")?;
+    context.env_mut().previous_directory().map_err(|_| {
         eprintln!("Previous directory does not exist or is invalid");
         InternalCommandError::FailedToRun.into()
     })
 }
 
-pub fn go_forward(context: &mut Context, args: Vec<&str>) -> Result<()> {
-    check_args(&args, 0, "go-forward")?;
-    context.env_mut().go_forward().map_err(|_| {
+pub fn next_directory(context: &mut Context, args: Vec<&str>) -> Result<()> {
+    check_args(&args, 0, "next-directory")?;
+    context.env_mut().next_directory().map_err(|_| {
         eprintln!("Next directory does not exist or is invalid");
         InternalCommandError::FailedToRun.into()
     })
@@ -140,28 +139,28 @@ pub fn clear_terminal(_context: &mut Context, args: Vec<&str>) -> Result<()> {
 }
 
 // TODO: Add prompt to confirm file overwrite
-pub fn create_file(_context: &mut Context, args: Vec<&str>) -> Result<()> {
+pub fn make_file(_context: &mut Context, args: Vec<&str>) -> Result<()> {
     if args.len() == 1 {
         fs::File::create(args[0]).map_err(|_| {
-            eprintln!("Failed to create file: '{}'", args[0]);
+            eprintln!("Failed to make file: '{}'", args[0]);
             InternalCommandError::FailedToRun
         })?;
         Ok(())
     } else {
-        eprintln!("Usage: create-file <path>");
+        eprintln!("Usage: make-file <path>");
         Err(InternalCommandError::InvalidArgumentCount.into())
     }
 }
 
-pub fn create_directory(_context: &mut Context, args: Vec<&str>) -> Result<()> {
+pub fn make_directory(_context: &mut Context, args: Vec<&str>) -> Result<()> {
     if args.len() == 1 {
         fs::create_dir(args[0]).map_err(|_| {
-            eprintln!("Failed to create directory: '{}'", args[0]);
+            eprintln!("Failed to make directory: '{}'", args[0]);
             InternalCommandError::FailedToRun
         })?;
         Ok(())
     } else {
-        eprintln!("Usage: create-directory <path>");
+        eprintln!("Usage: make-directory <path>");
         Err(InternalCommandError::InvalidArgumentCount.into())
     }
 }

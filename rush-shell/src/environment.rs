@@ -97,7 +97,7 @@ impl Environment {
     }
 
     // Sets the current working directory to the previous working directory
-    pub fn go_back(&mut self) -> Result<()> {
+    pub fn previous_directory(&mut self) -> Result<()> {
         let starting_directory = self.WORKING_DIRECTORY.clone();
         if let Some(previous_path) = self.backward_directories.pop_back() {
             self.WORKING_DIRECTORY = previous_path;
@@ -109,7 +109,7 @@ impl Environment {
     }
 
     // Sets the current working directory to the next working directory
-    pub fn go_forward(&mut self) -> Result<()> {
+    pub fn next_directory(&mut self) -> Result<()> {
         let starting_directory = self.WORKING_DIRECTORY.clone();
         if let Some(next_path) = self.forward_directories.pop_front() {
             self.WORKING_DIRECTORY = next_path;
