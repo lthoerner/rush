@@ -40,10 +40,13 @@ pub fn working_directory(context: &mut Context, args: Vec<&str>) -> Result<()> {
 pub fn change_directory(context: &mut Context, args: Vec<&str>) -> Result<()> {
     check_args(&args, 1, "change-directory <path>")?;
     let history_limit = context.shell_config().history_limit;
-    context.env_mut().set_cwd(args[0], history_limit).map_err(|_| {
-        eprintln!("Invalid path: '{}'", args[0]);
-        InternalCommandError::FailedToRun.into()
-    })
+    context
+        .env_mut()
+        .set_cwd(args[0], history_limit)
+        .map_err(|_| {
+            eprintln!("Invalid path: '{}'", args[0]);
+            InternalCommandError::FailedToRun.into()
+        })
 }
 
 // TODO: Break up some of this code into different functions
@@ -213,18 +216,19 @@ pub fn configure(context: &mut Context, args: Vec<&str>) -> Result<()> {
         "truncation" => {
             if value == "false" {
                 context.shell_config().truncation_factor = None;
-                return Ok(())
+                return Ok(());
             }
 
-            context.shell_config().truncation_factor = Some(value.parse::<usize>().map_err(|_| {
-                eprintln!("Invalid truncation length: '{}'", value);
-                InternalCommandError::InvalidValue
-            })?)
+            context.shell_config().truncation_factor =
+                Some(value.parse::<usize>().map_err(|_| {
+                    eprintln!("Invalid truncation length: '{}'", value);
+                    InternalCommandError::InvalidValue
+                })?)
         }
         "history-limit" => {
             if value == "false" {
                 context.shell_config().history_limit = None;
-                return Ok(())
+                return Ok(());
             }
 
             context.shell_config().history_limit = Some(value.parse::<usize>().map_err(|_| {
@@ -266,7 +270,7 @@ pub fn environment_variable(context: &mut Context, args: Vec<&str>) -> Result<()
         "CWD" | "WORKING-DIRECTORY" => println!("{}", context.CWD()),
         _ => {
             eprintln!("Invalid environment variable: '{}'", args[0]);
-            return Err(InternalCommandError::InvalidArgument.into())
+            return Err(InternalCommandError::InvalidArgument.into());
         }
     }
 
@@ -286,7 +290,7 @@ pub fn edit_path(context: &mut Context, args: Vec<&str>) -> Result<()> {
         "prepend" => context.env_mut().PATH_mut().push_back(path),
         _ => {
             eprintln!("Invalid action: '{}'", action);
-            return Err(InternalCommandError::InvalidArgument.into())
+            return Err(InternalCommandError::InvalidArgument.into());
         }
     }
 

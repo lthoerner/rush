@@ -6,6 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+rush-repl = { path = "../rush-repl" }
 anyhow = "1.0.70"
 colored = "2.0.0"
 thiserror = "1.0.40"

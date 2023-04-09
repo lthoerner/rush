@@ -1,7 +1,7 @@
+use std::collections::VecDeque;
 use std::fmt::{Display, Formatter};
 use std::fs::canonicalize;
 use std::path::PathBuf;
-use std::collections::VecDeque;
 
 use anyhow::Result;
 

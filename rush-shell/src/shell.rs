@@ -1,5 +1,5 @@
-use std::io::{stdin, stdout, Write, BufReader, BufRead};
 use std::fs::File;
+use std::io::{stdin, stdout, BufRead, BufReader, Write};
 
 use anyhow::Result;
 use colored::Colorize;

@@ -92,7 +92,7 @@ impl Environment {
                 self.backward_directories.pop_front();
             }
         }
-        
+
         self.update_process_env_vars(false, false, true)
     }
 

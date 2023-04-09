@@ -179,7 +179,9 @@ dependencies = [
 name = "rush-repl"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "crossterm",
+ "thiserror",
 ]
 
 [[package]]
@@ -188,6 +190,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "colored",
+ "rush-repl",
  "thiserror",
 ]
 
