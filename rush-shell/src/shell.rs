@@ -84,6 +84,7 @@ impl Configuration {
 pub struct Shell {
     pub environment: Environment,
     pub config: Configuration,
+    dispatcher: Dispatcher,
     success: bool,
 }
 
@@ -92,43 +93,31 @@ impl Shell {
         Ok(Self {
             environment: Environment::new()?,
             config: Configuration::from_file("config/config.rush")?,
+            dispatcher: Dispatcher::default(),
             success: true,
         })
     }
 
-    // // Repeatedly prompts the user for commands and executes them
-    // pub fn run(&mut self) -> Result<()> {
-    //     let dispatcher = Dispatcher::default();
-
-    //     loop {
-    //         self.interpret(&dispatcher, self.prompt()?);
-    //         // Print an extra line break to prevent malformed output
-    //         println!();
-    //     }
-    // }
-
     // Evaluates and executes a command from a string
     // $ Somewhat temporary, probably will be combined with .interpret()
     pub fn eval(&mut self, line: String) -> Result<()> {
-        // $ This will need to be a field to avoid constructing it every time
-        let dispatcher = Dispatcher::default();
-        self.interpret(&dispatcher, line);
+        self.interpret(line);
 
         Ok(())
     }
 
     // Interprets a command from a string
-    fn interpret(&mut self, dispatcher: &Dispatcher, line: String) {
+    fn interpret(&mut self, line: String) {
         // Determine the requested command and its arguments
         let (command_name, command_args) = split_arguments(&line);
         let command_name = command_name.as_str();
         let command_args = command_args.iter().map(|s| s.as_str()).collect();
 
         // Bundle all the information that needs to be modifiable by the commands into a Context
-        let mut context = Context::new(self);
+        let mut context = Context::new(&mut self.environment, &mut self.config);
 
         // Dispatch the command to the Dispatcher
-        let exit_code = dispatcher.dispatch(command_name, command_args, &mut context);
+        let exit_code = self.dispatcher.dispatch(command_name, command_args, &mut context);
 
         // If the command was not found, print an error message
         match exit_code {

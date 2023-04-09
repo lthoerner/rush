@@ -3,7 +3,7 @@ use std::process::Command as Process;
 
 use anyhow::Result;
 
-use crate::builtins;
+use crate::{builtins, environment};
 use crate::environment::Environment;
 use crate::errors::ExternalCommandError;
 use crate::path::Path;
@@ -99,50 +99,54 @@ impl Runnable {
 // For instance, a command like 'config' may need to access the shell's environment, whereas
 // a command like 'exit' may not need any data at all, but the data needs to be available in all cases
 pub struct Context<'a> {
-    pub shell: &'a mut Shell,
+    environment: &'a mut Environment,
+    config: &'a mut Configuration,
 }
 
 #[allow(non_snake_case)]
 impl<'a> Context<'a> {
-    pub fn new(shell: &'a mut Shell) -> Self {
-        Self { shell }
+    pub fn new(environment: &'a mut Environment, config: &'a mut Configuration) -> Self {
+        Self {
+            environment,
+            config,
+        }
     }
 
     // Shortcut for accessing Context.shell.environment.HOME
     pub fn HOME(&self) -> &PathBuf {
-        &self.shell.environment.HOME()
+        &self.environment.HOME()
     }
 
     // Shortcut for accessing Context.shell.environment
     #[allow(dead_code)]
     pub fn env(&self) -> &Environment {
-        &self.shell.environment
+        &self.environment
     }
 
     // Mutable variant of Context.env()
     pub fn env_mut(&mut self) -> &mut Environment {
-        &mut self.shell.environment
+        &mut self.environment
     }
 
     // Shortcut for accessing Context.shell.config
     pub fn shell_config(&self) -> &Configuration {
-        &self.shell.config
+        &self.config
     }
 
     // Mutable variant of Context.shell_config()
     pub fn shell_config_mut(&mut self) -> &mut Configuration {
-        &mut self.shell.config
+        &mut self.config
     }
 
     // Shortcut for accessing Context.shell.environment.WORKING_DIRECTORY
     pub fn CWD(&self) -> &Path {
-        &self.shell.environment.WORKING_DIRECTORY
+        &self.environment.WORKING_DIRECTORY
     }
 
     // Mutable variant of Context.CWD
     #[allow(dead_code)]
     pub fn CWD_mut(&mut self) -> &mut Path {
-        &mut self.shell.environment.WORKING_DIRECTORY
+        &mut self.environment.WORKING_DIRECTORY
     }
 }
 

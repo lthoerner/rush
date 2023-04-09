@@ -12,7 +12,7 @@ fn main() -> Result<()> {
     let mut repl = Repl::new();
     
     loop {
-        let mut context = Context::new(&mut shell);
+        let mut context = Context::new(&mut shell.environment, &mut shell.config);
         let line = repl.read(&mut context)?;
         shell.eval(line)?;
     }
