@@ -96,39 +96,25 @@ impl Shell {
         })
     }
 
-    // Repeatedly prompts the user for commands and executes them
-    pub fn run(&mut self) -> Result<()> {
+    // // Repeatedly prompts the user for commands and executes them
+    // pub fn run(&mut self) -> Result<()> {
+    //     let dispatcher = Dispatcher::default();
+
+    //     loop {
+    //         self.interpret(&dispatcher, self.prompt()?);
+    //         // Print an extra line break to prevent malformed output
+    //         println!();
+    //     }
+    // }
+
+    // Evaluates and executes a command from a string
+    // $ Somewhat temporary, probably will be combined with .interpret()
+    pub fn eval(&mut self, line: String) -> Result<()> {
+        // $ This will need to be a field to avoid constructing it every time
         let dispatcher = Dispatcher::default();
+        self.interpret(&dispatcher, line);
 
-        loop {
-            self.interpret(&dispatcher, self.prompt()?);
-            // Print an extra line break to prevent malformed output
-            println!();
-        }
-    }
-
-    // Displays the prompt and returns the user input
-    fn prompt(&self) -> Result<String> {
-        let home = self.environment.HOME();
-        print!(
-            "{} on {}{}{} ",
-            self.environment.USER().blue(),
-            self.environment
-                .WORKING_DIRECTORY
-                .collapse(home, self.config.truncation_factor)
-                .green(),
-            match self.config.multi_line_prompt {
-                true => "\n",
-                false => " ",
-            },
-            match self.success {
-                true => "❯".bright_green().bold(),
-                false => "❯".bright_red().bold(),
-            }
-        );
-
-        flush()?;
-        read_line()
+        Ok(())
     }
 
     // Interprets a command from a string

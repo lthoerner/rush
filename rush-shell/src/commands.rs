@@ -1,5 +1,5 @@
 use std::path::PathBuf;
-use std::process::Command;
+use std::process::Command as Process;
 
 use anyhow::Result;
 
@@ -74,10 +74,10 @@ impl Runnable {
         match self {
             Runnable::Internal(builtin) => (builtin.function)(context, arguments),
             Runnable::External(path) => {
-                // Create the process and pass the provided arguments to it
-                let mut executable = Command::new(path.path());
+                // Create the Process and pass the provided arguments to it
+                let mut executable = Process::new(path.path());
                 executable.args(arguments);
-                // Execute the process and wait for it to finish
+                // Execute the Process and wait for it to finish
                 let mut handle = executable.spawn()?;
                 let status = handle.wait()?;
 

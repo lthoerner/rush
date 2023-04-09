@@ -9,11 +9,11 @@ use rush_repl::prompt::Repl;
 // TODO: Add upstream error handling here
 fn main() -> Result<()> {
     let mut shell = Shell::new()?;
-    shell.run()?;
-    // let mut repl = Repl::new();
-    // let mut context = Context::new(&mut shell);
-
-    // repl.read(&mut context)?;
-
-    Ok(())
+    let mut repl = Repl::new();
+    
+    loop {
+        let mut context = Context::new(&mut shell);
+        let line = repl.read(&mut context)?;
+        shell.eval(line)?;
+    }
 }
