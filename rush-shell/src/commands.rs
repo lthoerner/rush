@@ -108,7 +108,7 @@ impl<'a> Context<'a> {
         Self { shell }
     }
 
-    // Shortcut for accessing Context.shell.environment.home
+    // Shortcut for accessing Context.shell.environment.HOME
     pub fn HOME(&self) -> &PathBuf {
         &self.shell.environment.HOME()
     }
@@ -125,16 +125,21 @@ impl<'a> Context<'a> {
     }
 
     // Shortcut for accessing Context.shell.config
-    pub fn shell_config(&mut self) -> &mut Configuration {
+    pub fn shell_config(&self) -> &Configuration {
+        &self.shell.config
+    }
+
+    // Mutable variant of Context.shell_config()
+    pub fn shell_config_mut(&mut self) -> &mut Configuration {
         &mut self.shell.config
     }
 
-    // Shortcut for accessing Context.shell.environment.working_directory
+    // Shortcut for accessing Context.shell.environment.WORKING_DIRECTORY
     pub fn CWD(&self) -> &Path {
         &self.shell.environment.WORKING_DIRECTORY
     }
 
-    // Mutable variant of Context.cwd()
+    // Mutable variant of Context.CWD
     #[allow(dead_code)]
     pub fn CWD_mut(&mut self) -> &mut Path {
         &mut self.shell.environment.WORKING_DIRECTORY

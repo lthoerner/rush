@@ -39,7 +39,7 @@ pub fn working_directory(context: &mut Context, args: Vec<&str>) -> Result<()> {
 
 pub fn change_directory(context: &mut Context, args: Vec<&str>) -> Result<()> {
     check_args(&args, 1, "change-directory <path>")?;
-    let history_limit = context.shell_config().history_limit;
+    let history_limit = context.shell_config_mut().history_limit;
     context
         .env_mut()
         .set_cwd(args[0], history_limit)
@@ -215,11 +215,11 @@ pub fn configure(context: &mut Context, args: Vec<&str>) -> Result<()> {
     match key {
         "truncation" => {
             if value == "false" {
-                context.shell_config().truncation_factor = None;
+                context.shell_config_mut().truncation_factor = None;
                 return Ok(());
             }
 
-            context.shell_config().truncation_factor =
+            context.shell_config_mut().truncation_factor =
                 Some(value.parse::<usize>().map_err(|_| {
                     eprintln!("Invalid truncation length: '{}'", value);
                     InternalCommandError::InvalidValue
@@ -227,23 +227,23 @@ pub fn configure(context: &mut Context, args: Vec<&str>) -> Result<()> {
         }
         "history-limit" => {
             if value == "false" {
-                context.shell_config().history_limit = None;
+                context.shell_config_mut().history_limit = None;
                 return Ok(());
             }
 
-            context.shell_config().history_limit = Some(value.parse::<usize>().map_err(|_| {
+            context.shell_config_mut().history_limit = Some(value.parse::<usize>().map_err(|_| {
                 eprintln!("Invalid history limit: '{}'", value);
                 InternalCommandError::InvalidValue
             })?)
         }
         "show-errors" => {
-            context.shell_config().show_errors = value.parse::<bool>().map_err(|_| {
+            context.shell_config_mut().show_errors = value.parse::<bool>().map_err(|_| {
                 eprintln!("Invalid value for show-errors: '{}'", value);
                 InternalCommandError::InvalidValue
             })?
         }
         "multi-line-prompt" => {
-            context.shell_config().multi_line_prompt = value.parse::<bool>().map_err(|_| {
+            context.shell_config_mut().multi_line_prompt = value.parse::<bool>().map_err(|_| {
                 eprintln!("Invalid value for multi-line-prompt: '{}'", value);
                 InternalCommandError::InvalidValue
             })?
