@@ -176,6 +176,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "rush-exec"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "rush-repl",
+ "rush-shell",
+]
+
+[[package]]
 name = "rush-repl"
 version = "0.1.0"
 dependencies = [
@@ -190,7 +199,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "colored",
- "rush-repl",
  "thiserror",
 ]
 
