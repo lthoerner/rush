@@ -7,6 +7,7 @@ Rush is a shell designed to be as user-friendly as possible, both for longtime u
 ## Goals
 - Support for easy coloration of input and output
 - Powerful built-in commands with consistent structure and usage
+- Event-based plugin API for 3rd-party feature development
 - Out-of-box fuzzy finding, autocompletion, and command history
 - Robust aliasing system for commands and executables
 - Simple customization of shell visuals (prompt, coloration, etc) & debug/verbose output

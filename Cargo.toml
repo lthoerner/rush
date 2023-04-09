@@ -3,4 +3,5 @@ members = [
     "rush-exec",
     "rush-shell",
     "rush-repl",
+    "rush-builtins",
 ]

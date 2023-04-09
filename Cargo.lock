@@ -176,6 +176,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "rush-builtins"
+version = "0.1.0"
+dependencies = [
+ "rush-shell",
+]
+
+[[package]]
 name = "rush-exec"
 version = "0.1.0"
 dependencies = [
