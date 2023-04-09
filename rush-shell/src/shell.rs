@@ -102,7 +102,6 @@ impl Shell {
     // $ Somewhat temporary, probably will be combined with .interpret()
     pub fn eval(&mut self, line: String) -> Result<()> {
         self.interpret(line);
-
         Ok(())
     }
 
