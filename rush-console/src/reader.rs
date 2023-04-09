@@ -1,5 +1,3 @@
-#![allow(dead_code, unused_imports, unused_variables, unreachable_code)]
-
 use std::io::{stdout, Stdout};
 
 use anyhow::Result;
@@ -7,7 +5,7 @@ use crossterm::cursor;
 use crossterm::event::{read, Event, KeyCode, KeyModifiers};
 use crossterm::style::{Print, Stylize};
 use crossterm::terminal::{self, Clear, ClearType};
-use crossterm::{execute, queue, ExecutableCommand};
+use crossterm::{execute, queue};
 
 use rush_eval::commands::Context;
 
@@ -21,21 +19,20 @@ enum EventOutput {
     Ignored,
 }
 
-// ? What should this be named?
-// ? Does it need to be a struct?
-pub struct Repl {
+// Allows for reading a line of input from the user through the .read() method
+// Handles all the actual terminal interaction between when the method is invoked and
+// when the command is actually returned, such as line buffering etc
+pub struct Console {
     stdout: Stdout,
 }
 
-impl Repl {
+impl Console {
     pub fn new() -> Self {
         Self { stdout: stdout() }
     }
 
     // TODO: Map crossterm errors to custom errors
     // Runs the REPL, returning as soon as a potential command is entered
-    // Handles all the actual terminal interaction between when the method is invoked and
-    // when the command is actually returned, such as line buffering etc.
     pub fn read(&mut self, context: &Context) -> Result<String> {
         let mut line_buffer = String::new();
 
@@ -46,7 +43,7 @@ impl Repl {
         loop {
             execute!(self.stdout)?;
             let event = read()?;
-            match self.handle_event(&event, prompt_boundary, context)? {
+            match self.handle_event(&event, prompt_boundary)? {
                 EventOutput::Char(c) => line_buffer.push(c),
                 EventOutput::Delete => { line_buffer.pop(); }
                 EventOutput::Return => {
@@ -60,7 +57,7 @@ impl Repl {
 
     // Handles a key event by queueing appropriate commands based on the given keypress
     // $ This is a temporary implementation for testing purposes only
-    fn handle_event(&mut self, event: &Event, prompt_boundary: u16, context: &Context) -> Result<EventOutput> {
+    fn handle_event(&mut self, event: &Event, prompt_boundary: u16) -> Result<EventOutput> {
         let output;
         if let Event::Key(event) = event {
             match (event.modifiers, event.code) {
@@ -115,6 +112,7 @@ fn generate_prompt(context: &Context) -> String {
 }
 
 // Clears the entire terminal
+#[allow(dead_code)]
 fn clear_terminal(stdout: &mut Stdout) -> Result<()> {
     queue!(stdout, cursor::MoveTo(0, 0), Clear(ClearType::All))?;
     execute!(stdout)?;
