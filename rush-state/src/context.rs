@@ -29,7 +29,6 @@ impl<'a> Context<'a> {
     }
 
     // Shortcut for accessing Context.shell.environment
-    #[allow(dead_code)]
     pub fn env(&self) -> &Environment {
         &self.environment
     }

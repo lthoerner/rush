@@ -9,7 +9,7 @@ use crate::path::Path;
 // Represents the shell environment by encapsulating the environment variables
 // * Environment variables are represented in all caps by convention,
 // * any fields that are not actual environment variables are represented in the usual snake_case
-#[allow(dead_code, non_snake_case)]
+#[allow(non_snake_case)]
 pub struct Environment {
     USER: String,
     HOME: PathBuf,
@@ -19,6 +19,7 @@ pub struct Environment {
     // * PATH is not to be confused with the WORKING_DIRECTORY. PATH is a list of directories which
     // * the shell will search for executables in. WORKING_DIRECTORY is the current directory the user is in.
     PATH: VecDeque<Path>,
+    #[allow(dead_code)]
     custom_variables: HashMap<String, String>,
 }
 

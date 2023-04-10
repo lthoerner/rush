@@ -48,11 +48,6 @@ impl Builtin {
             function,
         }
     }
-
-    #[allow(dead_code)]
-    pub fn true_name(&self) -> &String {
-        &self.true_name
-    }
 }
 
 // Represents either a builtin (internal command) or an executable (external command)
