@@ -50,9 +50,9 @@ pub enum InternalCommandError {
 #[derive(Error, Debug)]
 pub enum ExternalCommandError {
     #[error("Failed to execute external command")]
-    FailedToExecute(isize),
+    Execute(isize),
     #[error("Failed to read from stdout")]
-    FailedToReadStdout,
+    ReadStdout,
     #[error("Failed to read from stderr")]
-    FailedToReadStderr,
+    ReadStderr,
 }

@@ -87,7 +87,7 @@ impl Path {
 
         // $ This might cause a bug with directories that have a '/' in their name
         // $ Also might cause a bug with non-unicode characters (paths use OsString which is not guaranteed to be valid unicode)
-        let directories: Vec<String> = path.split("/").map(|d| d.to_string()).collect();
+        let directories: Vec<String> = path.split('/').map(|d| d.to_string()).collect();
         let mut truncated_directories = Vec::new();
 
         if let Some(factor) = truncation_factor {
@@ -111,9 +111,9 @@ fn expand_home(path: &PathBuf, home_directory: &PathBuf) -> Result<String> {
     let path = path
         .to_str()
         .ok_or(ShellError::FailedToConvertPathBufToString)?;
-    if path.starts_with("~") {
+    if path.starts_with('~') {
         Ok(path.replace(
-            "~",
+            '~',
             home_directory
                 .to_str()
                 .ok_or(ShellError::FailedToConvertPathBufToString)?,

@@ -64,8 +64,8 @@ pub fn list_directory(context: &mut Context, args: Vec<&str>) -> Result<()> {
                 InternalCommandError::FailedToRun
             })?;
 
-            fs::read_dir(&absolute_path.path()).map_err(|_| {
-                eprintln!("Failed to read directory: '{}'", absolute_path.to_string());
+            fs::read_dir(absolute_path.path()).map_err(|_| {
+                eprintln!("Failed to read directory: '{}'", absolute_path);
                 InternalCommandError::FailedToRun
             })?
         }
@@ -231,10 +231,11 @@ pub fn configure(context: &mut Context, args: Vec<&str>) -> Result<()> {
                 return Ok(());
             }
 
-            context.shell_config_mut().history_limit = Some(value.parse::<usize>().map_err(|_| {
-                eprintln!("Invalid history limit: '{}'", value);
-                InternalCommandError::InvalidValue
-            })?)
+            context.shell_config_mut().history_limit =
+                Some(value.parse::<usize>().map_err(|_| {
+                    eprintln!("Invalid history limit: '{}'", value);
+                    InternalCommandError::InvalidValue
+                })?)
         }
         "show-errors" => {
             context.shell_config_mut().show_errors = value.parse::<bool>().map_err(|_| {

@@ -16,7 +16,9 @@ struct Aliases {
 
 impl From<Vec<&str>> for Aliases {
     fn from(aliases: Vec<&str>) -> Self {
-        Self { aliases: aliases.iter().map(|a| a.to_string()).collect() }
+        Self {
+            aliases: aliases.iter().map(|a| a.to_string()).collect(),
+        }
     }
 }
 
@@ -88,7 +90,7 @@ impl Runnable {
                     // * as per https://tldp.org/LDP/abs/html/exitcodes.html
                     // * It can be assumed that the command was found here because the External path must have been validated already
                     // * Otherwise it could be a 127 for "command not found"
-                    Err(ExternalCommandError::FailedToExecute(status.code().unwrap_or(126) as isize).into())
+                    Err(ExternalCommandError::Execute(status.code().unwrap_or(126) as isize).into())
                 }
             }
         }
@@ -110,7 +112,7 @@ impl<'a> Context<'a> {
 
     // Shortcut for accessing Context.shell.environment.HOME
     pub fn HOME(&self) -> &PathBuf {
-        &self.shell.environment.HOME()
+        self.shell.environment.HOME()
     }
 
     // Shortcut for accessing Context.shell.environment
@@ -231,7 +233,7 @@ impl Dispatcher {
         // If the command resides in the Dispatcher (generally means it is a builtin) run it
         if let Some(command) = self.resolve(command_name) {
             let exit_status = command.run(context, command_args);
-            return Some(exit_status);
+            Some(exit_status)
         } else {
             // If the command is not in the Dispatcher, try to run it as an executable from the PATH
             let path = Path::from_path_var(command_name, context.env().PATH());
