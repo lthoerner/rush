@@ -223,6 +223,7 @@ dependencies = [
  "colored",
  "fs-err",
  "rush-state",
+ "thiserror",
 ]
 
 [[package]]

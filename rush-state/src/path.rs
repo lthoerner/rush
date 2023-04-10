@@ -5,7 +5,7 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 
-use crate::errors::ShellError;
+use crate::errors::PathError;
 
 // Wrapper class for a directory path string
 // Adds convenience methods for displaying the path in a user-friendly way,
@@ -38,7 +38,7 @@ impl Path {
         // If the file system can canonicalize the path, it should exist,
         // but this is added for extra precaution
         if !absolute_path.exists() {
-            Err(ShellError::UnknownDirectory.into())
+            Err(PathError::UnknownDirectory.into())
         } else {
             Ok(Self { absolute_path })
         }
@@ -58,7 +58,11 @@ impl Path {
             }
         }
 
-        Err(ShellError::UnknownCommand(name.to_string()).into())
+        // * This is a FailedToAccess error because it is exceedingly unlikely to have an
+        // * invalid directory in the PATH, but it is not uncommon for one or more of the PATH directories
+        // * to require elevated permissions to access
+        // TODO: Map file system errors to get the actual error
+        Err(PathError::FailedToAccess.into())
     }
 
     // Gets the absolute path, with all directory names included
@@ -85,8 +89,7 @@ impl Path {
             Err(_) => self.absolute_path.to_string_lossy().to_string(),
         };
 
-        // $ This might cause a bug with directories that have a '/' in their name
-        // $ Also might cause a bug with non-unicode characters (paths use OsString which is not guaranteed to be valid unicode)
+        // $ This might cause a bug with non-unicode characters (paths use OsString which is not guaranteed to be valid unicode)
         let directories: Vec<String> = path.split("/").map(|d| d.to_string()).collect();
         let mut truncated_directories = Vec::new();
 
@@ -107,16 +110,17 @@ impl Path {
     }
 }
 
+// Expands the home directory shorthand in a path string
 fn expand_home(path: &PathBuf, home_directory: &PathBuf) -> Result<String> {
     let path = path
         .to_str()
-        .ok_or(ShellError::FailedToConvertPathBufToString)?;
+        .ok_or(PathError::FailedToConvertPathBufToString)?;
     if path.starts_with("~") {
         Ok(path.replace(
             "~",
             home_directory
                 .to_str()
-                .ok_or(ShellError::FailedToConvertPathBufToString)?,
+                .ok_or(PathError::FailedToConvertPathBufToString)?,
         ))
     } else {
         Ok(path.to_string())

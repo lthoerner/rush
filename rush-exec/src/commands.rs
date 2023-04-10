@@ -2,9 +2,10 @@ use std::process::Command as Process;
 
 use anyhow::Result;
 
-use rush_state::errors::ExternalCommandError;
 use rush_state::path::Path;
 use rush_state::shell::Context;
+
+use crate::errors::ExecutableError;
 
 // Represents either a builtin (internal command) or an executable (external command)
 // A Runnable may be executed by calling its .run() method
@@ -94,7 +95,7 @@ impl Runnable for Executable {
             // * as per https://tldp.org/LDP/abs/html/exitcodes.html
             // * It can be assumed that the command was found here because the External path must have been validated already
             // * Otherwise it could be a 127 for "command not found"
-            Err(ExternalCommandError::FailedToExecute(status.code().unwrap_or(126) as isize).into())
+            Err(ExecutableError::FailedToExecute(status.code().unwrap_or(126) as isize).into())
         }
     }
 }

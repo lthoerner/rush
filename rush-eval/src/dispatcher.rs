@@ -2,11 +2,11 @@ use anyhow::Result;
 
 use rush_exec::builtins;
 use rush_exec::commands::{Builtin, Executable, Runnable};
-use rush_state::errors::ShellError;
 use rush_state::path::Path;
 use rush_state::shell::Context;
 
 use crate::parser;
+use crate::errors::DispatchError;
 
 // Represents a collection of builtin commands
 // Allows for command resolution and execution through aliases
@@ -105,7 +105,7 @@ impl Dispatcher {
                 // ? Should this check if the file is an executable first?
                 Executable::new(path).run(context, command_args)
             } else {
-                Err(ShellError::UnknownCommand(command_name.to_string()).into())
+                Err(DispatchError::UnknownCommand(command_name.to_string()).into())
             }
         }
     }

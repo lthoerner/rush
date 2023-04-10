@@ -3,7 +3,7 @@ use colored::Colorize;
 
 use rush_console::reader::Console;
 use rush_eval::dispatcher::Dispatcher;
-use rush_state::errors::ShellError;
+use rush_eval::errors::DispatchError;
 use rush_state::shell::Context;
 use rush_state::shell::Shell;
 
@@ -26,8 +26,8 @@ fn main() -> Result<()> {
 fn handle_error(error: Result<()>, context: &mut Context) {
     match error {
         Ok(_) => context.set_success(true),
-        Err(e) => match e.downcast_ref::<ShellError>() {
-            Some(ShellError::UnknownCommand(command_name)) => {
+        Err(e) => match e.downcast_ref::<DispatchError>() {
+            Some(DispatchError::UnknownCommand(command_name)) => {
                 eprintln!("Unknown command: {}", command_name.red());
                 context.set_success(false);
             }
