@@ -7,6 +7,6 @@ edition = "2021"
 
 [dependencies]
 rush-state = { path = "../rush-state" }
-anyhow.workspace = true
 thiserror.workspace = true
+anyhow.workspace = true
 colored.workspace = true

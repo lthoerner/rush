@@ -6,9 +6,9 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+rush-state = { path = "../rush-state" }
+rush-console = { path = "../rush-console" }
 rush-eval = { path = "../rush-eval" }
 rush-parser = { path = "../rush-parser" }
-rush-console = { path = "../rush-console" }
-rush-state = { path = "../rush-state" }
 anyhow.workspace = true
 colored.workspace = true

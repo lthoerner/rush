@@ -6,8 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-rush-eval = { path = "../rush-eval" }
 rush-state = { path = "../rush-state" }
-anyhow = "1.0.70"
-crossterm = "0.26.1"
-thiserror = "1.0.40"
+rush-eval = { path = "../rush-eval" }
+thiserror.workspace = true
+anyhow.workspace = true
+crossterm.workspace = true
