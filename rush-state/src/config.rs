@@ -1,5 +1,5 @@
-use std::fs::File;
-use std::io::{BufReader, BufRead};
+use fs_err::File;
+use std::io::{BufRead, BufReader};
 
 use anyhow::Result;
 

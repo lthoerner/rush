@@ -1,6 +1,6 @@
+use fs_err::canonicalize;
 use std::collections::VecDeque;
 use std::fmt::{Display, Formatter};
-use std::fs::canonicalize;
 use std::path::PathBuf;
 
 use anyhow::Result;

@@ -9,8 +9,8 @@ You may notice that builtin commands are referenced in commands::Runnable::Inter
 An 'External' will only have access to its arguments and environment variables, but not the shell's state, mostly for security reasons.
  */
 
+use fs_err;
 use std::env;
-use std::fs;
 use std::io::{BufRead, BufReader};
 
 use anyhow::Result;
@@ -57,7 +57,7 @@ pub fn list_directory(context: &mut Context, args: Vec<&str>) -> Result<()> {
         // Use the working directory as the default path argument
         // This uses expect() because it needs to crash if the working directory is invalid,
         // though in the future the error should be handled properly
-        0 => fs::read_dir(env::current_dir().expect("Failed to get working directory"))
+        0 => fs_err::read_dir(env::current_dir().expect("Failed to get working directory"))
             .expect("Failed to read directory"),
         1 => {
             // Path::from_str() will attempt to expand and canonicalize the path, and return None if the path does not exist
@@ -66,7 +66,7 @@ pub fn list_directory(context: &mut Context, args: Vec<&str>) -> Result<()> {
                 InternalCommandError::FailedToRun
             })?;
 
-            fs::read_dir(&absolute_path.path()).map_err(|_| {
+            fs_err::read_dir(&absolute_path.path()).map_err(|_| {
                 eprintln!("Failed to read directory: '{}'", absolute_path.to_string());
                 InternalCommandError::FailedToRun
             })?
@@ -144,7 +144,7 @@ pub fn clear_terminal(_context: &mut Context, args: Vec<&str>) -> Result<()> {
 // TODO: Add prompt to confirm file overwrite
 pub fn create_file(_context: &mut Context, args: Vec<&str>) -> Result<()> {
     if args.len() == 1 {
-        fs::File::create(args[0]).map_err(|_| {
+        fs_err::File::create(args[0]).map_err(|_| {
             eprintln!("Failed to create file: '{}'", args[0]);
             InternalCommandError::FailedToRun
         })?;
@@ -157,7 +157,7 @@ pub fn create_file(_context: &mut Context, args: Vec<&str>) -> Result<()> {
 
 pub fn create_directory(_context: &mut Context, args: Vec<&str>) -> Result<()> {
     if args.len() == 1 {
-        fs::create_dir(args[0]).map_err(|_| {
+        fs_err::create_dir(args[0]).map_err(|_| {
             eprintln!("Failed to create directory: '{}'", args[0]);
             InternalCommandError::FailedToRun
         })?;
@@ -170,7 +170,7 @@ pub fn create_directory(_context: &mut Context, args: Vec<&str>) -> Result<()> {
 
 pub fn delete_file(_context: &mut Context, args: Vec<&str>) -> Result<()> {
     if args.len() == 1 {
-        fs::remove_file(args[0]).map_err(|_| {
+        fs_err::remove_file(args[0]).map_err(|_| {
             eprintln!("Failed to delete file: '{}'", args[0]);
             InternalCommandError::FailedToRun
         })?;
@@ -184,7 +184,7 @@ pub fn delete_file(_context: &mut Context, args: Vec<&str>) -> Result<()> {
 pub fn read_file(_context: &mut Context, args: Vec<&str>) -> Result<()> {
     check_args(&args, 1, "read-file <path>")?;
     let file_name = args[0].to_string();
-    let file = fs::File::open(&file_name).map_err(|_| {
+    let file = fs_err::File::open(&file_name).map_err(|_| {
         eprintln!("Failed to open file: '{}'", file_name);
         InternalCommandError::FailedToRun
     })?;
@@ -233,10 +233,11 @@ pub fn configure(context: &mut Context, args: Vec<&str>) -> Result<()> {
                 return Ok(());
             }
 
-            context.shell_config_mut().history_limit = Some(value.parse::<usize>().map_err(|_| {
-                eprintln!("Invalid history limit: '{}'", value);
-                InternalCommandError::InvalidValue
-            })?)
+            context.shell_config_mut().history_limit =
+                Some(value.parse::<usize>().map_err(|_| {
+                    eprintln!("Invalid history limit: '{}'", value);
+                    InternalCommandError::InvalidValue
+                })?)
         }
         "show-errors" => {
             context.shell_config_mut().show_errors = value.parse::<bool>().map_err(|_| {
