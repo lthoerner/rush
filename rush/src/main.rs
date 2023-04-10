@@ -11,7 +11,7 @@ use rush_state::shell::Shell;
 fn main() -> Result<()> {
     let mut shell = Shell::new()?;
     let mut console = Console::new();
-    let dispatcher = Dispatcher::new();
+    let dispatcher = Dispatcher::default();
 
     let mut context = Context::new(
         &mut shell.environment,

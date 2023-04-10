@@ -211,6 +211,7 @@ dependencies = [
  "anyhow",
  "colored",
  "fs-err",
+ "rush-exec",
  "rush-state",
  "thiserror",
 ]
@@ -218,6 +219,12 @@ dependencies = [
 [[package]]
 name = "rush-exec"
 version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "colored",
+ "fs-err",
+ "rush-state",
+]
 
 [[package]]
 name = "rush-parser"

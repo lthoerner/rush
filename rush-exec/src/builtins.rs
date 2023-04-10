@@ -20,7 +20,7 @@ use rush_state::context::Context;
 use rush_state::errors::InternalCommandError;
 use rush_state::path::Path;
 
-use crate::commands::Runnable;
+use crate::commands::{Runnable, Executable};
 
 pub fn test(_context: &mut Context, args: Vec<&str>) -> Result<()> {
     check_args(&args, 0, "test")?;
@@ -142,7 +142,7 @@ pub fn clear_terminal(_context: &mut Context, args: Vec<&str>) -> Result<()> {
 }
 
 // TODO: Add prompt to confirm file overwrite
-pub fn create_file(_context: &mut Context, args: Vec<&str>) -> Result<()> {
+pub fn make_file(_context: &mut Context, args: Vec<&str>) -> Result<()> {
     if args.len() == 1 {
         fs_err::File::create(args[0]).map_err(|_| {
             eprintln!("Failed to create file: '{}'", args[0]);
@@ -150,12 +150,12 @@ pub fn create_file(_context: &mut Context, args: Vec<&str>) -> Result<()> {
         })?;
         Ok(())
     } else {
-        eprintln!("Usage: create-file <path>");
+        eprintln!("Usage: make-file <path>");
         Err(InternalCommandError::InvalidArgumentCount.into())
     }
 }
 
-pub fn create_directory(_context: &mut Context, args: Vec<&str>) -> Result<()> {
+pub fn make_directory(_context: &mut Context, args: Vec<&str>) -> Result<()> {
     if args.len() == 1 {
         fs_err::create_dir(args[0]).map_err(|_| {
             eprintln!("Failed to create directory: '{}'", args[0]);
@@ -163,7 +163,7 @@ pub fn create_directory(_context: &mut Context, args: Vec<&str>) -> Result<()> {
         })?;
         Ok(())
     } else {
-        eprintln!("Usage: create-directory <path>");
+        eprintln!("Usage: make-directory <path>");
         Err(InternalCommandError::InvalidArgumentCount.into())
     }
 }
@@ -206,7 +206,7 @@ pub fn run_executable(context: &mut Context, args: Vec<&str>) -> Result<()> {
         InternalCommandError::FailedToRun
     })?;
 
-    Runnable::External(executable_path).run(context, args)
+    Executable::new(executable_path).run(context, args)
 }
 
 pub fn configure(context: &mut Context, args: Vec<&str>) -> Result<()> {

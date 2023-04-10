@@ -3,16 +3,13 @@ use anyhow::Result;
 use rush_state::context::Context;
 use rush_state::errors::ShellError;
 use rush_state::path::Path;
+use rush_exec::builtins;
+use rush_exec::commands::{Builtin, Runnable, Executable};
 
-use crate::builtins;
-use crate::commands::{Builtin, Runnable};
-
-// Represents a collection of commands
+// Represents a collection of builtin commands
 // Allows for command resolution and execution through aliases
-// * The Dispatcher generally only stores builtins, but it is capable of storing external Runnables, also known as executables or binaries
-// * However, because they do not have any aliases, they would not be able to be resolved
 pub struct Dispatcher {
-    commands: Vec<Runnable>,
+    commands: Vec<Builtin>,
 }
 
 impl Default for Dispatcher {
@@ -29,9 +26,8 @@ impl Default for Dispatcher {
         dispatcher.add_builtin("go-back", vec!["back", "b", "prev", "pd"], builtins::go_back);
         dispatcher.add_builtin("go-forward", vec!["forward", "f", "next", "nd"], builtins::go_forward);
         dispatcher.add_builtin("clear-terminal", vec!["clear", "cls"], builtins::clear_terminal);
-        dispatcher.add_builtin("create-file", vec!["create", "touch", "new", "cf"], builtins::create_file);
-        // TODO: Figure out 'cd' alias conflict
-        dispatcher.add_builtin("create-directory", vec!["mkdir", "md"], builtins::create_directory);
+        dispatcher.add_builtin("make-file", vec!["create", "touch", "new", "mf"], builtins::make_file);
+        dispatcher.add_builtin("make-directory", vec!["mkdir", "md"], builtins::make_directory);
         dispatcher.add_builtin("delete-file", vec!["delete", "remove", "rm", "del", "df"], builtins::delete_file);
         dispatcher.add_builtin("read-file", vec!["read", "cat", "rf"], builtins::read_file);
         dispatcher.add_builtin("run-executable", vec!["run", "exec", "re"], builtins::run_executable);
@@ -57,24 +53,19 @@ impl Dispatcher {
         aliases: Vec<&str>,
         function: F,
     ) {
-        self.commands.push(Runnable::Internal(Builtin::new(
-            true_name, aliases, function,
-        )))
+        self.commands.push(Builtin::new(true_name, aliases, function))
     }
 
-    // Resolves a command name to a command
-    // Returns None if the command is not found
-    // TODO: Figure out nomenclature on commands vs runnables
-    fn resolve(&self, command_name: &str) -> Option<&Runnable> {
+    // Finds a builtin command by name or alias
+    // Returns None if the builtin does not exist
+    fn resolve(&self, command_name: &str) -> Option<&Builtin> {
         for command in &self.commands {
-            if let Runnable::Internal(builtin) = command {
-                if builtin.true_name == command_name {
-                    return Some(command);
-                }
+            if command.true_name == command_name {
+                return Some(command);
+            }
 
-                if builtin.aliases.contains(command_name) {
-                    return Some(command);
-                }
+            if command.aliases.contains(command_name) {
+                return Some(command);
             }
         }
 
@@ -112,7 +103,7 @@ impl Dispatcher {
             let path = Path::from_path_var(command_name, context.env().PATH());
             if let Ok(path) = path {
                 // ? Should this check if the file is an executable first?
-                Runnable::External(path).run(context, command_args)
+                Executable::new(path).run(context, command_args)
             } else {
                 Err(ShellError::UnknownCommand(command_name.to_string()).into())
             }
