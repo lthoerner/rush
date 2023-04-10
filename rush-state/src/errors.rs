@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 // TODO: Either move errors to a separate crate entirely, or have a separate error file for each crate
 
 use thiserror::Error;
