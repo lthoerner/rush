@@ -9,6 +9,5 @@ edition = "2021"
 rush-state = { path = "../rush-state" }
 rush-console = { path = "../rush-console" }
 rush-eval = { path = "../rush-eval" }
-rush-parser = { path = "../rush-parser" }
 anyhow.workspace = true
 colored.workspace = true

@@ -3,7 +3,6 @@ use colored::Colorize;
 
 use rush_console::reader::Console;
 use rush_eval::dispatcher::Dispatcher;
-use rush_parser::tokenize;
 use rush_state::context::Context;
 use rush_state::errors::ShellError;
 use rush_state::shell::Shell;
@@ -21,9 +20,8 @@ fn main() -> Result<()> {
 
     loop {
         let line = console.read(&mut context)?;
-        let (command_name, command_args) = tokenize(line);
+        let status = dispatcher.eval(&mut context, line);
         // ? Should this be done in the Console?
-        let status = dispatcher.eval(&mut context, command_name, command_args);
         handle_error(status, &mut context);
     }
 }

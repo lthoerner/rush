@@ -6,6 +6,8 @@ use rush_state::path::Path;
 use rush_exec::builtins;
 use rush_exec::commands::{Builtin, Runnable, Executable};
 
+use crate::parser;
+
 // Represents a collection of builtin commands
 // Allows for command resolution and execution through aliases
 pub struct Dispatcher {
@@ -73,12 +75,9 @@ impl Dispatcher {
     }
 
     // Evaluates and executes a command from a string
-    pub fn eval(
-        &self,
-        context: &mut Context,
-        command_name: String,
-        command_args: Vec<String>,
-    ) -> Result<()> {
+    pub fn eval(&self, context: &mut Context, line: String) -> Result<()> {
+        let (command_name, command_args) = parser::tokenize(line);
+        // ? Is there a way to avoid this type conversion?
         let command_name = command_name.as_str();
         let command_args = command_args.iter().map(|a| a.as_str()).collect();
 

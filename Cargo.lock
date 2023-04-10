@@ -189,7 +189,6 @@ dependencies = [
  "colored",
  "rush-console",
  "rush-eval",
- "rush-parser",
  "rush-state",
 ]
 
@@ -225,10 +224,6 @@ dependencies = [
  "fs-err",
  "rush-state",
 ]
-
-[[package]]
-name = "rush-parser"
-version = "0.1.0"
 
 [[package]]
 name = "rush-state"
