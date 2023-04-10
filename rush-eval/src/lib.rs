@@ -1,3 +1,3 @@
 mod builtins;
 mod commands;
-pub mod evaluator;
+pub mod dispatcher;

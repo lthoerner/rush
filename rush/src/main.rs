@@ -1,7 +1,7 @@
 use anyhow::Result;
 use colored::Colorize;
 
-use rush_eval::evaluator::Evaluator;
+use rush_eval::dispatcher::Dispatcher;
 use rush_state::shell::Shell;
 use rush_state::context::Context;
 use rush_state::errors::ShellError;
@@ -11,7 +11,7 @@ use rush_parser::tokenize;
 fn main() -> Result<()> {
     let mut shell = Shell::new()?;
     let mut console = Console::new();
-    let evaluator = Evaluator::new();
+    let dispatcher = Dispatcher::new();
     
     let mut context = Context::new(&mut shell.environment, &mut shell.config, &mut shell.success);
 
@@ -19,7 +19,7 @@ fn main() -> Result<()> {
         let line = console.read(&mut context)?;
         let (command_name, command_args) = tokenize(line);
         // ? Should this be done in the Console?
-        let status = evaluator.eval(&mut context, command_name, command_args);
+        let status = dispatcher.eval(&mut context, command_name, command_args);
         handle_error(status, &mut context);
     }
 }
