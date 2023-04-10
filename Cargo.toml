@@ -5,6 +5,7 @@ members = [
     "rush-console",
     "rush-eval",
     "rush-parser",
+    "rush-exec",
 ]
 
 [workspace.dependencies]

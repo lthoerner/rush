@@ -182,6 +182,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "rush"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "colored",
+ "rush-console",
+ "rush-eval",
+ "rush-parser",
+ "rush-state",
+]
+
+[[package]]
 name = "rush-console"
 version = "0.1.0"
 dependencies = [
@@ -206,14 +218,6 @@ dependencies = [
 [[package]]
 name = "rush-exec"
 version = "0.1.0"
-dependencies = [
- "anyhow",
- "colored",
- "rush-console",
- "rush-eval",
- "rush-parser",
- "rush-state",
-]
 
 [[package]]
 name = "rush-parser"
