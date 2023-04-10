@@ -1,6 +1,6 @@
 [workspace]
 members = [
-    "rush-exec",
+    "rush",
     "rush-parser",
     "rush-eval",
     "rush-console",
