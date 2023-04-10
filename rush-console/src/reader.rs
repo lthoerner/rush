@@ -47,10 +47,12 @@ impl Console {
             let event = read()?;
             match self.handle_event(&event, prompt_boundary)? {
                 HandlerOutput::Char(c) => line_buffer.push(c),
-                HandlerOutput::Delete => { line_buffer.pop(); }
+                HandlerOutput::Delete => {
+                    line_buffer.pop();
+                }
                 HandlerOutput::Return => {
                     terminal::disable_raw_mode()?;
-                    return Ok(line_buffer)
+                    return Ok(line_buffer);
                 }
                 HandlerOutput::Reprompt => {
                     line_buffer.clear();
@@ -73,7 +75,7 @@ impl Console {
                 }
                 (KeyModifiers::NONE, KeyCode::Backspace) => {
                     if cursor::position()?.0 == prompt_boundary {
-                        return Ok(HandlerOutput::Ignored)
+                        return Ok(HandlerOutput::Ignored);
                     }
 
                     self.backspace_char()?;
@@ -118,7 +120,12 @@ impl Console {
     // Queues a backspace or delete operation
     // TODO: Add a delete mode
     fn backspace_char(&mut self) -> Result<()> {
-        queue!(self.stdout, cursor::MoveLeft(1), Print(' '), cursor::MoveLeft(1))?;
+        queue!(
+            self.stdout,
+            cursor::MoveLeft(1),
+            Print(' '),
+            cursor::MoveLeft(1)
+        )?;
         Ok(())
     }
 }
@@ -138,7 +145,14 @@ fn generate_prompt(context: &Context) -> String {
     let prompt_tick = match context.command_success {
         true => "❯".green(),
         false => "❯".red(),
-    }.bold();
+    }
+    .bold();
 
-    format!("\r\n{} on {}{}{} ", user.dark_blue(), cwd.dark_green(), prompt_delimiter, prompt_tick)
+    format!(
+        "\r\n{} on {}{}{} ",
+        user.dark_blue(),
+        cwd.dark_green(),
+        prompt_delimiter,
+        prompt_tick
+    )
 }

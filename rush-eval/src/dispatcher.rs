@@ -1,11 +1,11 @@
 use anyhow::Result;
 
 use rush_state::context::Context;
-use rush_state::path::Path;
 use rush_state::errors::ShellError;
+use rush_state::path::Path;
 
-use crate::commands::{Runnable, Builtin};
 use crate::builtins;
+use crate::commands::{Builtin, Runnable};
 
 // Represents a collection of commands
 // Allows for command resolution and execution through aliases
@@ -82,7 +82,12 @@ impl Dispatcher {
     }
 
     // Evaluates and executes a command from a string
-    pub fn eval(&self, context: &mut Context, command_name: String, command_args: Vec<String>) -> Result<()> {
+    pub fn eval(
+        &self,
+        context: &mut Context,
+        command_name: String,
+        command_args: Vec<String>,
+    ) -> Result<()> {
         let command_name = command_name.as_str();
         let command_args = command_args.iter().map(|a| a.as_str()).collect();
 

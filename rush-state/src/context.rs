@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
-use crate::path::Path;
-use crate::environment::Environment;
 use crate::config::Configuration;
+use crate::environment::Environment;
+use crate::path::Path;
 
 // Wrapper struct around all of the shell data that could be needed for any command to run
 // For instance, a command like 'config' may need to access the shell's environment, whereas
@@ -15,7 +15,11 @@ pub struct Context<'a> {
 
 #[allow(non_snake_case)]
 impl<'a> Context<'a> {
-    pub fn new(environment: &'a mut Environment, config: &'a mut Configuration, command_success: &'a mut bool) -> Self {
+    pub fn new(
+        environment: &'a mut Environment,
+        config: &'a mut Configuration,
+        command_success: &'a mut bool,
+    ) -> Self {
         Self {
             environment,
             config,

@@ -13,7 +13,9 @@ pub struct Aliases {
 
 impl From<Vec<&str>> for Aliases {
     fn from(aliases: Vec<&str>) -> Self {
-        Self { aliases: aliases.iter().map(|a| a.to_string()).collect() }
+        Self {
+            aliases: aliases.iter().map(|a| a.to_string()).collect(),
+        }
     }
 }
 

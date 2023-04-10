@@ -1,19 +1,23 @@
 use anyhow::Result;
 use colored::Colorize;
 
+use rush_console::reader::Console;
 use rush_eval::dispatcher::Dispatcher;
-use rush_state::shell::Shell;
+use rush_parser::tokenize;
 use rush_state::context::Context;
 use rush_state::errors::ShellError;
-use rush_console::reader::Console;
-use rush_parser::tokenize;
+use rush_state::shell::Shell;
 
 fn main() -> Result<()> {
     let mut shell = Shell::new()?;
     let mut console = Console::new();
     let dispatcher = Dispatcher::new();
-    
-    let mut context = Context::new(&mut shell.environment, &mut shell.config, &mut shell.success);
+
+    let mut context = Context::new(
+        &mut shell.environment,
+        &mut shell.config,
+        &mut shell.success,
+    );
 
     loop {
         let line = console.read(&mut context)?;
@@ -28,18 +32,16 @@ fn main() -> Result<()> {
 fn handle_error(error: Result<()>, context: &mut Context) {
     match error {
         Ok(_) => context.set_command_success(true),
-        Err(e) => {
-            match e.downcast_ref::<ShellError>() {
-                Some(ShellError::UnknownCommand(command_name)) => {
-                    eprintln!("Unknown command: {}", command_name.red());
-                    context.set_command_success(false);
-                }
-                _ => {
-                    if context.shell_config().show_errors {
-                        eprintln!("Error: {}", format!("{:#?}: {}", e, e).red());
-                    }
+        Err(e) => match e.downcast_ref::<ShellError>() {
+            Some(ShellError::UnknownCommand(command_name)) => {
+                eprintln!("Unknown command: {}", command_name.red());
+                context.set_command_success(false);
+            }
+            _ => {
+                if context.shell_config().show_errors {
+                    eprintln!("Error: {}", format!("{:#?}: {}", e, e).red());
                 }
             }
-        }
+        },
     }
 }
