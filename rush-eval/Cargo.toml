@@ -1,5 +1,5 @@
 [package]
-name = "rush-exec"
+name = "rush-eval"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 rush-state = { path = "../rush-state" }
+rush-exec = { path = "../rush-exec" }
 thiserror.workspace = true
 anyhow.workspace = true
 colored.workspace = true

@@ -9,16 +9,17 @@ use crate::path::Path;
 // Represents the shell environment by encapsulating the environment variables
 // * Environment variables are represented in all caps by convention,
 // * any fields that are not actual environment variables are represented in the usual snake_case
-#[allow(dead_code, non_snake_case)]
+#[allow(non_snake_case)]
 pub struct Environment {
     USER: String,
     HOME: PathBuf,
-    pub WORKING_DIRECTORY: Path,
+    WORKING_DIRECTORY: Path,
     backward_directories: VecDeque<Path>,
     forward_directories: VecDeque<Path>,
     // * PATH is not to be confused with the WORKING_DIRECTORY. PATH is a list of directories which
     // * the shell will search for executables in. WORKING_DIRECTORY is the current directory the user is in.
     PATH: VecDeque<Path>,
+    #[allow(dead_code)]
     custom_variables: HashMap<String, String>,
 }
 
@@ -28,7 +29,7 @@ impl Environment {
         let USER = get_parent_env_var("USER")?;
         let HOME = PathBuf::from(get_parent_env_var("HOME")?);
         let WORKING_DIRECTORY = Path::from_str(get_parent_env_var("PWD")?.as_str(), &HOME)?;
-        let PATH = convert_path(get_parent_env_var("PATH")?.as_str(), &HOME)?;
+        let PATH = convert_path(get_parent_env_var("PATH")?.as_str(), &HOME);
 
         Ok(Self {
             USER,
@@ -72,6 +73,14 @@ impl Environment {
         &self.HOME
     }
 
+    pub fn CWD(&self) -> &Path {
+        &self.WORKING_DIRECTORY
+    }
+
+    pub fn CWD_mut(&mut self) -> &mut Path {
+        &mut self.WORKING_DIRECTORY
+    }
+
     pub fn PATH(&self) -> &VecDeque<Path> {
         &self.PATH
     }
@@ -81,7 +90,7 @@ impl Environment {
     }
 
     // Sets the current working directory and stores the previous working directory
-    pub fn set_cwd(&mut self, new_path: &str, history_limit: Option<usize>) -> Result<()> {
+    pub fn set_CWD(&mut self, new_path: &str, history_limit: Option<usize>) -> Result<()> {
         let previous_path = self.WORKING_DIRECTORY.clone();
         self.WORKING_DIRECTORY = Path::from_str(new_path, &self.HOME)?;
         self.backward_directories.push_back(previous_path);
@@ -127,8 +136,16 @@ fn get_parent_env_var(var_name: &str) -> Result<String> {
 }
 
 // Converts the PATH environment variable from a string to a vector of Paths
-fn convert_path(path: &str, home: &PathBuf) -> Result<VecDeque<Path>> {
-    path.split(':')
-        .map(|p| -> Result<Path> { Path::from_str(p, home) })
-        .collect()
+fn convert_path(path: &str, home: &PathBuf) -> VecDeque<Path> {
+    let mut paths = VecDeque::new();
+
+    let path_strings = path.split(':').collect::<Vec<&str>>();
+    for path_string in path_strings {
+        let path = Path::from_str(path_string, home);
+        if let Ok(path) = path {
+            paths.push_back(path);
+        }
+    }
+
+    paths
 }
