@@ -35,7 +35,7 @@ pub fn exit(_context: &mut Context, args: Vec<&str>) -> Result<()> {
 
 pub fn working_directory(context: &mut Context, args: Vec<&str>) -> Result<()> {
     check_args(&args, 0, "working-directory")?;
-    println!("{}", context.CWD());
+    println!("{}", context.env().CWD());
     Ok(())
 }
 
@@ -44,7 +44,7 @@ pub fn change_directory(context: &mut Context, args: Vec<&str>) -> Result<()> {
     let history_limit = context.shell_config_mut().history_limit;
     context
         .env_mut()
-        .set_cwd(args[0], history_limit)
+        .set_CWD(args[0], history_limit)
         .map_err(|_| {
             eprintln!("Invalid path: '{}'", args[0]);
             InternalCommandError::FailedToRun.into()
@@ -61,7 +61,7 @@ pub fn list_directory(context: &mut Context, args: Vec<&str>) -> Result<()> {
             .expect("Failed to read directory"),
         1 => {
             // Path::from_str() will attempt to expand and canonicalize the path, and return None if the path does not exist
-            let absolute_path = Path::from_str(args[0], context.HOME()).map_err(|_| {
+            let absolute_path = Path::from_str(args[0], context.env().HOME()).map_err(|_| {
                 eprintln!("Invalid path: '{}'", args[0]);
                 InternalCommandError::FailedToRun
             })?;
@@ -201,7 +201,7 @@ pub fn read_file(_context: &mut Context, args: Vec<&str>) -> Result<()> {
 pub fn run_executable(context: &mut Context, args: Vec<&str>) -> Result<()> {
     check_args(&args, 1, "run-executable <path>")?;
     let executable_name = args[0].to_string();
-    let executable_path = Path::from_str(&executable_name, context.HOME()).map_err(|_| {
+    let executable_path = Path::from_str(&executable_name, context.env().HOME()).map_err(|_| {
         eprintln!("Failed to resolve executable path: '{}'", executable_name);
         InternalCommandError::FailedToRun
     })?;
@@ -270,7 +270,7 @@ pub fn environment_variable(context: &mut Context, args: Vec<&str>) -> Result<()
         }
         "USER" => println!("{}", context.env().USER()),
         "HOME" => println!("{}", context.env().HOME().display()),
-        "CWD" | "WORKING-DIRECTORY" => println!("{}", context.CWD()),
+        "CWD" | "WORKING-DIRECTORY" => println!("{}", context.env().CWD()),
         _ => {
             eprintln!("Invalid environment variable: '{}'", args[0]);
             return Err(InternalCommandError::InvalidArgument.into());
@@ -283,7 +283,7 @@ pub fn environment_variable(context: &mut Context, args: Vec<&str>) -> Result<()
 pub fn edit_path(context: &mut Context, args: Vec<&str>) -> Result<()> {
     check_args(&args, 2, "edit-path <append | prepend> <path>")?;
     let action = args[0];
-    let path = Path::from_str(args[1], context.HOME()).map_err(|_| {
+    let path = Path::from_str(args[1], context.env().HOME()).map_err(|_| {
         eprintln!("Invalid directory: '{}'", args[1]);
         InternalCommandError::FailedToRun
     })?;

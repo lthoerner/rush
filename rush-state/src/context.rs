@@ -1,8 +1,5 @@
-use std::path::PathBuf;
-
 use crate::config::Configuration;
 use crate::environment::Environment;
-use crate::path::Path;
 
 // Wrapper struct around all of the shell data that could be needed for any command to run
 // For instance, a command like 'config' may need to access the shell's environment, whereas
@@ -27,11 +24,6 @@ impl<'a> Context<'a> {
         }
     }
 
-    // Shortcut for accessing Context.shell.environment.HOME
-    pub fn HOME(&self) -> &PathBuf {
-        &self.environment.HOME()
-    }
-
     // Shortcut for accessing Context.shell.environment
     pub fn env(&self) -> &Environment {
         &self.environment
@@ -52,18 +44,8 @@ impl<'a> Context<'a> {
         &mut self.config
     }
 
-    // Shortcut for accessing Context.shell.environment.WORKING_DIRECTORY
-    pub fn CWD(&self) -> &Path {
-        &self.environment.WORKING_DIRECTORY
-    }
-
-    // Mutable variant of Context.CWD
-    pub fn CWD_mut(&mut self) -> &mut Path {
-        &mut self.environment.WORKING_DIRECTORY
-    }
-
     // Setter for Context.command_success
-    pub fn set_command_success(&mut self, success: bool) {
+    pub fn set_success(&mut self, success: bool) {
         *self.command_success = success;
     }
 }

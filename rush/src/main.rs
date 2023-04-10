@@ -31,11 +31,11 @@ fn main() -> Result<()> {
 // Prints an appropriate error message for the given error, if applicable
 fn handle_error(error: Result<()>, context: &mut Context) {
     match error {
-        Ok(_) => context.set_command_success(true),
+        Ok(_) => context.set_success(true),
         Err(e) => match e.downcast_ref::<ShellError>() {
             Some(ShellError::UnknownCommand(command_name)) => {
                 eprintln!("Unknown command: {}", command_name.red());
-                context.set_command_success(false);
+                context.set_success(false);
             }
             _ => {
                 if context.shell_config().show_errors {

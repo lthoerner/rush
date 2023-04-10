@@ -13,7 +13,7 @@ use crate::path::Path;
 pub struct Environment {
     USER: String,
     HOME: PathBuf,
-    pub WORKING_DIRECTORY: Path,
+    WORKING_DIRECTORY: Path,
     backward_directories: VecDeque<Path>,
     forward_directories: VecDeque<Path>,
     // * PATH is not to be confused with the WORKING_DIRECTORY. PATH is a list of directories which
@@ -73,6 +73,14 @@ impl Environment {
         &self.HOME
     }
 
+    pub fn CWD(&self) -> &Path {
+        &self.WORKING_DIRECTORY
+    }
+
+    pub fn CWD_mut(&mut self) -> &mut Path {
+        &mut self.WORKING_DIRECTORY
+    }
+
     pub fn PATH(&self) -> &VecDeque<Path> {
         &self.PATH
     }
@@ -82,7 +90,7 @@ impl Environment {
     }
 
     // Sets the current working directory and stores the previous working directory
-    pub fn set_cwd(&mut self, new_path: &str, history_limit: Option<usize>) -> Result<()> {
+    pub fn set_CWD(&mut self, new_path: &str, history_limit: Option<usize>) -> Result<()> {
         let previous_path = self.WORKING_DIRECTORY.clone();
         self.WORKING_DIRECTORY = Path::from_str(new_path, &self.HOME)?;
         self.backward_directories.push_back(previous_path);

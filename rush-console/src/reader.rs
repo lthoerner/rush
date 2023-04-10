@@ -135,7 +135,7 @@ fn generate_prompt(context: &Context) -> String {
     let user = context.env().USER().clone();
     let home = context.env().HOME();
     let truncation = context.shell_config().truncation_factor;
-    let cwd = context.CWD().collapse(home, truncation);
+    let cwd = context.env().CWD().collapse(home, truncation);
     let prompt_delimiter = match context.shell_config().multi_line_prompt {
         true => "\r\n",
         false => " ",
