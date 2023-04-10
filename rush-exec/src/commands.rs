@@ -2,9 +2,9 @@ use std::process::Command as Process;
 
 use anyhow::Result;
 
-use rush_state::shell::Context;
 use rush_state::errors::ExternalCommandError;
 use rush_state::path::Path;
+use rush_state::shell::Context;
 
 // Represents either a builtin (internal command) or an executable (external command)
 // A Runnable may be executed by calling its .run() method

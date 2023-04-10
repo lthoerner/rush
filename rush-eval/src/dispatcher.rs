@@ -1,10 +1,10 @@
 use anyhow::Result;
 
-use rush_state::shell::Context;
+use rush_exec::builtins;
+use rush_exec::commands::{Builtin, Executable, Runnable};
 use rush_state::errors::ShellError;
 use rush_state::path::Path;
-use rush_exec::builtins;
-use rush_exec::commands::{Builtin, Runnable, Executable};
+use rush_state::shell::Context;
 
 use crate::parser;
 
@@ -55,7 +55,8 @@ impl Dispatcher {
         aliases: Vec<&str>,
         function: F,
     ) {
-        self.commands.push(Builtin::new(true_name, aliases, function))
+        self.commands
+            .push(Builtin::new(true_name, aliases, function))
     }
 
     // Finds a builtin command by name or alias

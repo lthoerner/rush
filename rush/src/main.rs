@@ -3,8 +3,8 @@ use colored::Colorize;
 
 use rush_console::reader::Console;
 use rush_eval::dispatcher::Dispatcher;
-use rush_state::shell::Context;
 use rush_state::errors::ShellError;
+use rush_state::shell::Context;
 use rush_state::shell::Shell;
 
 fn main() -> Result<()> {
