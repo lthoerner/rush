@@ -74,6 +74,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "fs-err"
+version = "2.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0845fa252299212f0389d64ba26f34fa32cfe41588355f21ed507c59a0f64541"
+
+[[package]]
 name = "hermit-abi"
 version = "0.1.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -192,6 +198,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "colored",
+ "fs-err",
  "rush-state",
  "thiserror",
 ]
@@ -217,6 +224,7 @@ name = "rush-state"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "fs-err",
  "thiserror",
 ]
 

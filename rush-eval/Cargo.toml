@@ -10,3 +10,4 @@ rush-state = { path = "../rush-state" }
 thiserror.workspace = true
 anyhow.workspace = true
 colored.workspace = true
+fs-err = "2.9.0"
