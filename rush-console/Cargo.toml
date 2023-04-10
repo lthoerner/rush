@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 rush-eval = { path = "../rush-eval" }
+rush-state = { path = "../rush-state" }
 anyhow = "1.0.70"
 crossterm = "0.26.1"
 thiserror = "1.0.40"

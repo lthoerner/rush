@@ -16,9 +16,11 @@ use std::io::{BufRead, BufReader};
 use anyhow::Result;
 use colored::Colorize;
 
-use crate::commands::{Context, Runnable};
-use crate::errors::InternalCommandError;
-use crate::path::Path;
+use rush_state::context::Context;
+use rush_state::errors::InternalCommandError;
+use rush_state::path::Path;
+
+use crate::commands::Runnable;
 
 pub fn test(_context: &mut Context, args: Vec<&str>) -> Result<()> {
     check_args(&args, 0, "test")?;

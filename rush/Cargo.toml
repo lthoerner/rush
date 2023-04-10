@@ -9,4 +9,6 @@ edition = "2021"
 rush-eval = { path = "../rush-eval" }
 rush-parser = { path = "../rush-parser" }
 rush-console = { path = "../rush-console" }
-anyhow = "1.0.70"
+rush-state = { path = "../rush-state" }
+anyhow.workspace = true
+colored.workspace = true

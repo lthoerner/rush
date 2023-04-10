@@ -7,7 +7,7 @@ use crossterm::style::{Print, Stylize};
 use crossterm::terminal::{self, Clear, ClearType};
 use crossterm::{execute, queue};
 
-use rush_eval::commands::Context;
+use rush_state::context::Context;
 
 // Represents a character that can be added to the line buffer, or an ENTER keypress, which will send the line buffer to the shell
 // Keypresses that may have been handled downstream, but should not result in any further behavior, are represented by the Ignored variant
@@ -135,7 +135,10 @@ fn generate_prompt(context: &Context) -> String {
     };
 
     // ? What is the actual name for this?
-    let prompt_tick = "❯";
+    let prompt_tick = match context.command_success {
+        true => "❯".green(),
+        false => "❯".red(),
+    }.bold();
 
-    format!("\r\n{} on {}{}{} ", user.dark_blue(), cwd.dark_green(), prompt_delimiter, prompt_tick.green().bold())
+    format!("\r\n{} on {}{}{} ", user.dark_blue(), cwd.dark_green(), prompt_delimiter, prompt_tick)
 }

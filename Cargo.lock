@@ -182,6 +182,7 @@ dependencies = [
  "anyhow",
  "crossterm",
  "rush-eval",
+ "rush-state",
  "thiserror",
 ]
 
@@ -191,6 +192,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "colored",
+ "rush-state",
  "thiserror",
 ]
 
@@ -199,14 +201,24 @@ name = "rush-exec"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "colored",
  "rush-console",
  "rush-eval",
  "rush-parser",
+ "rush-state",
 ]
 
 [[package]]
 name = "rush-parser"
 version = "0.1.0"
+
+[[package]]
+name = "rush-state"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "thiserror",
+]
 
 [[package]]
 name = "scopeguard"

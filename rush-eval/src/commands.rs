@@ -1,13 +1,12 @@
-use std::path::PathBuf;
 use std::process::Command as Process;
 
 use anyhow::Result;
 
-use crate::{builtins, environment};
-use crate::environment::Environment;
-use crate::errors::ExternalCommandError;
-use crate::path::Path;
-use crate::shell::{Configuration, Shell};
+use rush_state::context::Context;
+use rush_state::errors::{ExternalCommandError, ShellError};
+use rush_state::path::Path;
+
+use crate::builtins;
 
 // Wrapper type for Vec<String> that makes it easier to read code related to Builtins
 struct Aliases {
@@ -95,61 +94,6 @@ impl Runnable {
     }
 }
 
-// Wrapper struct around all of the shell data that could be needed for any command to run
-// For instance, a command like 'config' may need to access the shell's environment, whereas
-// a command like 'exit' may not need any data at all, but the data needs to be available in all cases
-pub struct Context<'a> {
-    environment: &'a mut Environment,
-    config: &'a mut Configuration,
-}
-
-#[allow(non_snake_case)]
-impl<'a> Context<'a> {
-    pub fn new(environment: &'a mut Environment, config: &'a mut Configuration) -> Self {
-        Self {
-            environment,
-            config,
-        }
-    }
-
-    // Shortcut for accessing Context.shell.environment.HOME
-    pub fn HOME(&self) -> &PathBuf {
-        &self.environment.HOME()
-    }
-
-    // Shortcut for accessing Context.shell.environment
-    #[allow(dead_code)]
-    pub fn env(&self) -> &Environment {
-        &self.environment
-    }
-
-    // Mutable variant of Context.env()
-    pub fn env_mut(&mut self) -> &mut Environment {
-        &mut self.environment
-    }
-
-    // Shortcut for accessing Context.shell.config
-    pub fn shell_config(&self) -> &Configuration {
-        &self.config
-    }
-
-    // Mutable variant of Context.shell_config()
-    pub fn shell_config_mut(&mut self) -> &mut Configuration {
-        &mut self.config
-    }
-
-    // Shortcut for accessing Context.shell.environment.WORKING_DIRECTORY
-    pub fn CWD(&self) -> &Path {
-        &self.environment.WORKING_DIRECTORY
-    }
-
-    // Mutable variant of Context.CWD
-    #[allow(dead_code)]
-    pub fn CWD_mut(&mut self) -> &mut Path {
-        &mut self.environment.WORKING_DIRECTORY
-    }
-}
-
 // Represents a collection of commands
 // Allows for command resolution and execution through aliases
 // * The Dispatcher generally only stores builtins, but it is capable of storing external Runnables, also known as executables or binaries
@@ -231,19 +175,19 @@ impl Dispatcher {
         command_name: &str,
         command_args: Vec<&str>,
         context: &mut Context,
-    ) -> Option<Result<()>> {
+    ) -> Result<()> {
         // If the command resides in the Dispatcher (generally means it is a builtin) run it
         if let Some(command) = self.resolve(command_name) {
             let exit_status = command.run(context, command_args);
-            return Some(exit_status);
+            exit_status
         } else {
             // If the command is not in the Dispatcher, try to run it as an executable from the PATH
             let path = Path::from_path_var(command_name, context.env().PATH());
             if let Ok(path) = path {
                 // ? Should this check if the file is an executable first?
-                Some(Runnable::External(path).run(context, command_args))
+                Runnable::External(path).run(context, command_args)
             } else {
-                None
+                Err(ShellError::UnknownCommand(command_name.to_string()).into())
             }
         }
     }

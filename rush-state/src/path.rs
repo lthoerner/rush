@@ -58,7 +58,7 @@ impl Path {
             }
         }
 
-        Err(ShellError::UnknownExecutable.into())
+        Err(ShellError::UnknownCommand(name.to_string()).into())
     }
 
     // Gets the absolute path, with all directory names included

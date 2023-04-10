@@ -1,5 +1,7 @@
 #![allow(dead_code)]
 
+// TODO: Either move errors to a separate crate entirely, or have a separate error file for each crate
+
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -28,8 +30,8 @@ pub enum ShellError {
     FailedToReadConfigFile,
     #[error("Directory does not exist")]
     UnknownDirectory,
-    #[error("Executable could not be found in PATH")]
-    UnknownExecutable,
+    #[error("Command name could not be found as a builtin or an executable in PATH")]
+    UnknownCommand(String),
     #[error("Unknown error")]
     Uncategorized,
 }

@@ -1,7 +1,13 @@
 [workspace]
 members = [
     "rush",
-    "rush-parser",
-    "rush-eval",
+    "rush-state",
     "rush-console",
+    "rush-eval",
+    "rush-parser",
 ]
+
+[workspace.dependencies]
+anyhow = "1.0.70"
+thiserror = "1.0.40"
+colored = "2.0.0"
