@@ -72,7 +72,7 @@ pub fn list_directory(context: &mut Context, args: Vec<&str>) -> Result<()> {
         }
         _ => {
             eprintln!("Usage: list-directory <path>");
-            return Err(BuiltinError::InvalidArgumentCount.into());
+            return Err(BuiltinError::InvalidArgumentCount(args.len()).into());
         }
     };
 
@@ -150,7 +150,7 @@ pub fn make_file(_context: &mut Context, args: Vec<&str>) -> Result<()> {
         Ok(())
     } else {
         eprintln!("Usage: make-file <path>");
-        Err(BuiltinError::InvalidArgumentCount.into())
+        Err(BuiltinError::InvalidArgumentCount(args.len()).into())
     }
 }
 
@@ -163,7 +163,7 @@ pub fn make_directory(_context: &mut Context, args: Vec<&str>) -> Result<()> {
         Ok(())
     } else {
         eprintln!("Usage: make-directory <path>");
-        Err(BuiltinError::InvalidArgumentCount.into())
+        Err(BuiltinError::InvalidArgumentCount(args.len()).into())
     }
 }
 
@@ -176,7 +176,7 @@ pub fn delete_file(_context: &mut Context, args: Vec<&str>) -> Result<()> {
         Ok(())
     } else {
         eprintln!("Usage: delete-file <path>");
-        Err(BuiltinError::InvalidArgumentCount.into())
+        Err(BuiltinError::InvalidArgumentCount(args.len()).into())
     }
 }
 
@@ -223,7 +223,7 @@ pub fn configure(context: &mut Context, args: Vec<&str>) -> Result<()> {
             context.shell_config_mut().truncation_factor =
                 Some(value.parse::<usize>().map_err(|_| {
                     eprintln!("Invalid truncation length: '{}'", value);
-                    BuiltinError::InvalidValue
+                    BuiltinError::InvalidValue(value.to_string())
                 })?)
         }
         "history-limit" => {
@@ -235,24 +235,24 @@ pub fn configure(context: &mut Context, args: Vec<&str>) -> Result<()> {
             context.shell_config_mut().history_limit =
                 Some(value.parse::<usize>().map_err(|_| {
                     eprintln!("Invalid history limit: '{}'", value);
-                    BuiltinError::InvalidValue
+                    BuiltinError::InvalidValue(value.to_string())
                 })?)
         }
         "show-errors" => {
             context.shell_config_mut().show_errors = value.parse::<bool>().map_err(|_| {
                 eprintln!("Invalid value for show-errors: '{}'", value);
-                BuiltinError::InvalidValue
+                BuiltinError::InvalidValue(value.to_string())
             })?
         }
         "multi-line-prompt" => {
             context.shell_config_mut().multi_line_prompt = value.parse::<bool>().map_err(|_| {
                 eprintln!("Invalid value for multi-line-prompt: '{}'", value);
-                BuiltinError::InvalidValue
+                BuiltinError::InvalidValue(value.to_string())
             })?
         }
         _ => {
             eprintln!("Invalid configuration key: '{}'", key);
-            return Err(BuiltinError::InvalidArgument.into());
+            return Err(BuiltinError::InvalidArgument(key.to_string()).into());
         }
     }
 
@@ -272,7 +272,7 @@ pub fn environment_variable(context: &mut Context, args: Vec<&str>) -> Result<()
         "CWD" | "WORKING-DIRECTORY" => println!("{}", context.env().CWD()),
         _ => {
             eprintln!("Invalid environment variable: '{}'", args[0]);
-            return Err(BuiltinError::InvalidArgument.into());
+            return Err(BuiltinError::InvalidArgument(args[0].to_string()).into());
         }
     }
 
@@ -292,7 +292,7 @@ pub fn edit_path(context: &mut Context, args: Vec<&str>) -> Result<()> {
         "prepend" => context.env_mut().PATH_mut().push_back(path),
         _ => {
             eprintln!("Invalid action: '{}'", action);
-            return Err(BuiltinError::InvalidArgument.into());
+            return Err(BuiltinError::InvalidArgument(args[0].to_string()).into());
         }
     }
 
@@ -305,6 +305,6 @@ fn check_args(args: &Vec<&str>, expected_args: usize, usage: &str) -> Result<()>
         Ok(())
     } else {
         eprintln!("Usage: {}", usage);
-        Err(BuiltinError::InvalidArgumentCount.into())
+        Err(BuiltinError::InvalidArgumentCount(args.len()).into())
     }
 }
