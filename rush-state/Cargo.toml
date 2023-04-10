@@ -8,4 +8,4 @@ edition = "2021"
 [dependencies]
 thiserror.workspace = true
 anyhow.workspace = true
-fs-err = "2.9.0"
+fs-err.workspace = true
