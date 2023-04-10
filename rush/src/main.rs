@@ -19,18 +19,24 @@ fn main() -> Result<()> {
         let line = console.read(&mut context)?;
         let (command_name, command_args) = tokenize(line);
         // ? Should this be done in the Console?
-        match evaluator.eval(&mut context, command_name, command_args) {
-            Ok(_) => context.set_command_success(true),
-            Err(e) => {
-                match e.downcast_ref::<ShellError>() {
-                    Some(ShellError::UnknownCommand(command_name)) => {
-                        eprintln!("Unknown command: {}", command_name.red());
-                        context.set_command_success(false);
-                    }
-                    _ => {
-                        if context.shell_config().show_errors {
-                            eprintln!("Error: {}", format!("{:#?}: {}", e, e).red());
-                        }
+        let status = evaluator.eval(&mut context, command_name, command_args);
+        handle_error(status, &mut context);
+    }
+}
+
+// Prints an appropriate error message for the given error, if applicable
+fn handle_error(error: Result<()>, context: &mut Context) {
+    match error {
+        Ok(_) => context.set_command_success(true),
+        Err(e) => {
+            match e.downcast_ref::<ShellError>() {
+                Some(ShellError::UnknownCommand(command_name)) => {
+                    eprintln!("Unknown command: {}", command_name.red());
+                    context.set_command_success(false);
+                }
+                _ => {
+                    if context.shell_config().show_errors {
+                        eprintln!("Error: {}", format!("{:#?}: {}", e, e).red());
                     }
                 }
             }
