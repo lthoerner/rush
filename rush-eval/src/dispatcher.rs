@@ -1,6 +1,6 @@
 use anyhow::Result;
 
-use rush_state::context::Context;
+use rush_state::shell::Context;
 use rush_state::errors::ShellError;
 use rush_state::path::Path;
 use rush_exec::builtins;

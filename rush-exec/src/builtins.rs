@@ -16,7 +16,7 @@ use std::io::{BufRead, BufReader};
 use anyhow::Result;
 use colored::Colorize;
 
-use rush_state::context::Context;
+use rush_state::shell::Context;
 use rush_state::errors::InternalCommandError;
 use rush_state::path::Path;
 

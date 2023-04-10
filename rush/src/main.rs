@@ -3,7 +3,7 @@ use colored::Colorize;
 
 use rush_console::reader::Console;
 use rush_eval::dispatcher::Dispatcher;
-use rush_state::context::Context;
+use rush_state::shell::Context;
 use rush_state::errors::ShellError;
 use rush_state::shell::Shell;
 
@@ -12,11 +12,7 @@ fn main() -> Result<()> {
     let mut console = Console::new();
     let dispatcher = Dispatcher::default();
 
-    let mut context = Context::new(
-        &mut shell.environment,
-        &mut shell.config,
-        &mut shell.success,
-    );
+    let mut context = Context::new(&mut shell);
 
     loop {
         let line = console.read(&mut context)?;

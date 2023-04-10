@@ -2,7 +2,7 @@ use std::process::Command as Process;
 
 use anyhow::Result;
 
-use rush_state::context::Context;
+use rush_state::shell::Context;
 use rush_state::errors::ExternalCommandError;
 use rush_state::path::Path;
 
