@@ -11,11 +11,13 @@ use rush_eval::commands::Context;
 
 // Represents a character that can be added to the line buffer, or an ENTER keypress, which will send the line buffer to the shell
 // Keypresses that may have been handled downstream, but should not result in any further behavior, are represented by the Ignored variant
-// ? EventOutput or HandlerOutput?
-enum EventOutput {
+// Reprompt is a special case which will cause the prompt to be reprinted and the line buffer to be cleared, but will not return the buffer to the shell
+// ? Maybe add a "clear linebuffer" switch to Reprompt
+enum HandlerOutput {
     Char(char),
     Delete,
     Return,
+    Reprompt,
     Ignored,
 }
 
@@ -37,45 +39,49 @@ impl Console {
         let mut line_buffer = String::new();
 
         terminal::enable_raw_mode()?;
-        print_prompt(&mut self.stdout, context)?;
+        self.print_prompt(context)?;
         let prompt_boundary = cursor::position()?.0;
 
         loop {
             execute!(self.stdout)?;
             let event = read()?;
             match self.handle_event(&event, prompt_boundary)? {
-                EventOutput::Char(c) => line_buffer.push(c),
-                EventOutput::Delete => { line_buffer.pop(); }
-                EventOutput::Return => {
+                HandlerOutput::Char(c) => line_buffer.push(c),
+                HandlerOutput::Delete => { line_buffer.pop(); }
+                HandlerOutput::Return => {
                     terminal::disable_raw_mode()?;
                     return Ok(line_buffer)
                 }
-                EventOutput::Ignored => (),
+                HandlerOutput::Reprompt => {
+                    line_buffer.clear();
+                    self.print_prompt(context)?;
+                }
+                HandlerOutput::Ignored => (),
             }
         }
     }
 
     // Handles a key event by queueing appropriate commands based on the given keypress
     // $ This is a temporary implementation for testing purposes only
-    fn handle_event(&mut self, event: &Event, prompt_boundary: u16) -> Result<EventOutput> {
+    fn handle_event(&mut self, event: &Event, prompt_boundary: u16) -> Result<HandlerOutput> {
         let output;
         if let Event::Key(event) = event {
             match (event.modifiers, event.code) {
                 (KeyModifiers::NONE | KeyModifiers::SHIFT, KeyCode::Char(c)) => {
                     queue!(self.stdout, Print(c))?;
-                    output = EventOutput::Char(c)
+                    output = HandlerOutput::Char(c)
                 }
                 (KeyModifiers::NONE, KeyCode::Backspace) => {
                     if cursor::position()?.0 == prompt_boundary {
-                        return Ok(EventOutput::Ignored)
+                        return Ok(HandlerOutput::Ignored)
                     }
 
-                    backspace_char(&mut self.stdout)?;
-                    output = EventOutput::Delete
+                    self.backspace_char()?;
+                    output = HandlerOutput::Delete
                 }
                 (KeyModifiers::NONE, KeyCode::Enter) => {
                     queue!(self.stdout, Print("\r\n"))?;
-                    output = EventOutput::Return
+                    output = HandlerOutput::Return
                 }
                 (KeyModifiers::CONTROL, KeyCode::Char('c')) => {
                     queue!(self.stdout, cursor::MoveTo(0, 0), Clear(ClearType::All))?;
@@ -83,14 +89,37 @@ impl Console {
                     terminal::disable_raw_mode()?;
                     std::process::exit(0);
                 }
-                _ => output = EventOutput::Ignored,
+                (KeyModifiers::CONTROL, KeyCode::Char('l')) => {
+                    self.clear_terminal()?;
+                    output = HandlerOutput::Reprompt
+                }
+                _ => output = HandlerOutput::Ignored,
             }
         } else {
-            output = EventOutput::Ignored
+            output = HandlerOutput::Ignored
         }
 
         // ? Error if not an Event::Key?
         Ok(output)
+    }
+
+    // Clears the entire terminal
+    fn clear_terminal(&mut self) -> Result<()> {
+        queue!(self.stdout, cursor::MoveTo(0, 0), Clear(ClearType::All))?;
+        Ok(())
+    }
+
+    // Queues the prompt to be printed
+    fn print_prompt(&mut self, context: &Context) -> Result<()> {
+        queue!(self.stdout, Print(generate_prompt(context)))?;
+        Ok(())
+    }
+
+    // Queues a backspace or delete operation
+    // TODO: Add a delete mode
+    fn backspace_char(&mut self) -> Result<()> {
+        queue!(self.stdout, cursor::MoveLeft(1), Print(' '), cursor::MoveLeft(1))?;
+        Ok(())
     }
 }
 
@@ -109,25 +138,4 @@ fn generate_prompt(context: &Context) -> String {
     let prompt_tick = "❯";
 
     format!("\r\n{} on {}{}{} ", user.dark_blue(), cwd.dark_green(), prompt_delimiter, prompt_tick.green().bold())
-}
-
-// Clears the entire terminal
-#[allow(dead_code)]
-fn clear_terminal(stdout: &mut Stdout) -> Result<()> {
-    queue!(stdout, cursor::MoveTo(0, 0), Clear(ClearType::All))?;
-    execute!(stdout)?;
-    Ok(())
-}
-
-// Queues the prompt to be printed
-fn print_prompt(stdout: &mut Stdout, context: &Context) -> Result<()> {
-    queue!(stdout, Print(generate_prompt(context)))?;
-    Ok(())
-}
-
-// Queues a backspace or delete operation
-// TODO: Add a delete mode
-fn backspace_char(stdout: &mut Stdout) -> Result<()> {
-    queue!(stdout, cursor::MoveLeft(1), Print(' '), cursor::MoveLeft(1))?;
-    Ok(())
 }
