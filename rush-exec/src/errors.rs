@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -15,6 +17,8 @@ pub enum BuiltinError {
 
 #[derive(Error, Debug)]
 pub enum ExecutableError {
+    #[error("Path no longer exists: {0}")]
+    PathNoLongerExists(PathBuf),
     #[error("Executable failed with exit code: {0}")]
     FailedToExecute(isize),
 }

@@ -85,7 +85,8 @@ impl Runnable for Executable {
         let mut executable = Process::new(self.path.path());
         executable.args(arguments);
         // Execute the Process and wait for it to finish
-        let mut handle = executable.spawn()?;
+        // TODO: There may be other types of errors that could happen, they may need handlers
+        let Ok(mut handle) = executable.spawn() else { return Err(ExecutableError::PathNoLongerExists(self.path.path().clone()).into()); };
         let status = handle.wait()?;
 
         if status.success() {
