@@ -5,7 +5,6 @@ Normally, a child process, such as a shell command, does not have direct access 
 However, the builtins are an exception to this rule. They are able to access the data because they are trusted to safely modify it.
 Users are free to create their own builtins if they wish to modify the source code, but it comes with an inherent risk.
 
-You may notice that builtin commands are referenced in commands::Runnable::Internal. An 'Internal' is essentially a function pointer to a builtin command.
 An 'External' will only have access to its arguments and environment variables, but not the shell's state, mostly for security reasons.
  */
 
