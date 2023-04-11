@@ -45,7 +45,7 @@ impl Console {
         loop {
             execute!(self.stdout)?;
             let event = read()?;
-            match self.handle_event(&event, prompt_boundary)? {
+            match self.handle_event(&event, prompt_boundary, prompt_boundary + line_buffer.len() as u16)? {
                 HandlerOutput::Char(c) => line_buffer.push(c),
                 HandlerOutput::Delete => {
                     line_buffer.pop();
@@ -65,7 +65,7 @@ impl Console {
 
     // Handles a key event by queueing appropriate commands based on the given keypress
     // $ This is a temporary implementation for testing purposes only
-    fn handle_event(&mut self, event: &Event, prompt_boundary: u16) -> Result<HandlerOutput> {
+    fn handle_event(&mut self, event: &Event, prompt_boundary: u16, line_boundary: u16) -> Result<HandlerOutput> {
         let output;
         if let Event::Key(event) = event {
             match (event.modifiers, event.code) {
@@ -80,6 +80,22 @@ impl Console {
 
                     self.backspace_char()?;
                     output = HandlerOutput::Delete
+                }
+                (KeyModifiers::NONE, KeyCode::Left) => {
+                    if cursor::position()?.0 == prompt_boundary {
+                        return Ok(HandlerOutput::Ignored);
+                    }
+
+                    queue!(self.stdout, cursor::MoveLeft(1))?;
+                    output = HandlerOutput::Ignored
+                }
+                (KeyModifiers::NONE, KeyCode::Right) => {
+                    if cursor::position()?.0 == line_boundary {
+                        return Ok(HandlerOutput::Ignored);
+                    }
+
+                    queue!(self.stdout, cursor::MoveRight(1))?;
+                    output = HandlerOutput::Ignored
                 }
                 (KeyModifiers::NONE, KeyCode::Enter) => {
                     queue!(self.stdout, Print("\r\n"))?;

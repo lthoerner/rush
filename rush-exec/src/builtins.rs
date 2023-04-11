@@ -68,7 +68,7 @@ fn enter_and_read_path(
 
 // TODO: Break up some of this code into different functions
 pub fn list_directory(context: &mut Context, args: Vec<&str>) -> Result<()> {
-    let mut _show_hidden = false;
+    let mut show_hidden = false;
 
     let files_and_directories = match args.len() {
         // Use the working directory as the default path argument
@@ -78,7 +78,7 @@ pub fn list_directory(context: &mut Context, args: Vec<&str>) -> Result<()> {
             .expect("Failed to read directory"),
         1 => {
             if args[0] == "--show-hidden" {
-                _show_hidden = true;
+                show_hidden = true;
                 fs_err::read_dir(env::current_dir().expect("Failed to get working directory"))
                     .expect("Failed to read directory")
             } else {
@@ -86,8 +86,8 @@ pub fn list_directory(context: &mut Context, args: Vec<&str>) -> Result<()> {
             }
         }
         2 => {
-            if args[1] == "--show-hidden" {
-                _show_hidden = true;
+            if args[1] == "--all" || args[1] == "-a" {
+                show_hidden = true;
             }
 
             enter_and_read_path(context, args)?
@@ -110,7 +110,7 @@ pub fn list_directory(context: &mut Context, args: Vec<&str>) -> Result<()> {
             .expect("Failed to read file name")
             .to_string();
 
-        if fd_name.starts_with('.') && !_show_hidden {
+        if fd_name.starts_with('.') && !show_hidden {
             continue;
         }
 
