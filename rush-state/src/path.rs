@@ -82,7 +82,7 @@ impl Path {
 
                 path_string
             }
-            Err(_) => self.absolute_path.to_string_lossy().to_string(),
+            Err(_) => self.to_string(),
         };
 
         // $ This might cause a bug with non-unicode characters (paths use OsString which is not guaranteed to be valid unicode)
