@@ -50,8 +50,26 @@ pub fn change_directory(context: &mut Context, args: Vec<&str>) -> Result<()> {
         })
 }
 
+fn enter_and_read_path(
+    context: &mut Context,
+    args: Vec<&str>,
+) -> Result<fs_err::ReadDir, BuiltinError> {
+    // Path::from_str() will attempt to expand and canonicalize the path, and return None if the path does not exist
+    let absolute_path = Path::from_str(args[0], context.env().HOME()).map_err(|_| {
+        eprintln!("Invalid path: '{}'", args[0]);
+        BuiltinError::FailedToRun
+    })?;
+
+    fs_err::read_dir(&absolute_path.path()).map_err(|_| {
+        eprintln!("Failed to read directory: '{}'", absolute_path.to_string());
+        BuiltinError::FailedToRun
+    })
+}
+
 // TODO: Break up some of this code into different functions
 pub fn list_directory(context: &mut Context, args: Vec<&str>) -> Result<()> {
+    let mut _show_hidden = false;
+
     let files_and_directories = match args.len() {
         // Use the working directory as the default path argument
         // This uses expect() because it needs to crash if the working directory is invalid,
@@ -59,19 +77,23 @@ pub fn list_directory(context: &mut Context, args: Vec<&str>) -> Result<()> {
         0 => fs_err::read_dir(env::current_dir().expect("Failed to get working directory"))
             .expect("Failed to read directory"),
         1 => {
-            // Path::from_str() will attempt to expand and canonicalize the path, and return None if the path does not exist
-            let absolute_path = Path::from_str(args[0], context.env().HOME()).map_err(|_| {
-                eprintln!("Invalid path: '{}'", args[0]);
-                BuiltinError::FailedToRun
-            })?;
+            if args[0] == "--show-hidden" {
+                _show_hidden = true;
+                fs_err::read_dir(env::current_dir().expect("Failed to get working directory"))
+                    .expect("Failed to read directory")
+            } else {
+                enter_and_read_path(context, args)?
+            }
+        }
+        2 => {
+            if args[1] == "--show-hidden" {
+                _show_hidden = true;
+            }
 
-            fs_err::read_dir(&absolute_path.path()).map_err(|_| {
-                eprintln!("Failed to read directory: '{}'", absolute_path.to_string());
-                BuiltinError::FailedToRun
-            })?
+            enter_and_read_path(context, args)?
         }
         _ => {
-            eprintln!("Usage: list-directory <path>");
+            eprintln!("Usage: list-directory <path> [flags]");
             return Err(BuiltinError::InvalidArgumentCount(args.len()).into());
         }
     };
@@ -88,8 +110,7 @@ pub fn list_directory(context: &mut Context, args: Vec<&str>) -> Result<()> {
             .expect("Failed to read file name")
             .to_string();
 
-        // TODO: Add a flag to show hidden files
-        if fd_name.starts_with('.') {
+        if fd_name.starts_with('.') && !_show_hidden {
             continue;
         }
 
