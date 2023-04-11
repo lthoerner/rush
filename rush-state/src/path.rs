@@ -38,7 +38,7 @@ impl Path {
         // If the file system can canonicalize the path, it should exist,
         // but this is added for extra precaution
         if !absolute_path.exists() {
-            Err(PathError::UnknownDirectory.into())
+            Err(PathError::UnknownDirectory(absolute_path).into())
         } else {
             Ok(Self { absolute_path })
         }
@@ -58,11 +58,7 @@ impl Path {
             }
         }
 
-        // * This is a FailedToAccess error because it is exceedingly unlikely to have an
-        // * invalid directory in the PATH, but it is not uncommon for one or more of the PATH directories
-        // * to require elevated permissions to access
-        // TODO: Map file system errors to get the actual error
-        Err(PathError::FailedToAccess.into())
+        Err(PathError::FailedToCanonicalize(PathBuf::from(name)).into())
     }
 
     // Gets the absolute path, with all directory names included
@@ -114,13 +110,13 @@ impl Path {
 fn expand_home(path: &PathBuf, home_directory: &PathBuf) -> Result<String> {
     let path = path
         .to_str()
-        .ok_or(PathError::FailedToConvertPathBufToString)?;
+        .ok_or(PathError::FailedToConvertPathBufToString(path.clone()))?;
     if path.starts_with("~") {
         Ok(path.replace(
             "~",
             home_directory
                 .to_str()
-                .ok_or(PathError::FailedToConvertPathBufToString)?,
+                .ok_or(PathError::FailedToConvertPathBufToString(home_directory.clone()))?,
         ))
     } else {
         Ok(path.to_string())

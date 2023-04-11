@@ -29,16 +29,19 @@ impl Default for Configuration {
 }
 
 impl Configuration {
+    // Scans a configuration file for settings and updates the configuration accordingly
     pub fn from_file(filename: &str) -> Result<Self> {
+        let filename = filename.to_string();
+
         let mut config = Self::default();
-        let file = File::open(filename).map_err(|_| ShellError::FailedToOpenConfigFile)?;
+        let file = File::open(filename.clone()).map_err(|_| ShellError::FailedToOpenConfigFile(filename.clone()))?;
         let reader = BufReader::new(file);
 
         for line in reader.lines() {
-            let line = line.map_err(|_| ShellError::FailedToReadConfigFile)?;
+            let line = line.map_err(|_| ShellError::FailedToOpenConfigFile(filename.clone()))?;
             let tokens = line.split(": ").collect::<Vec<&str>>();
             if tokens.len() != 2 {
-                return Err(ShellError::FailedToReadConfigFile.into());
+                return Err(ShellError::FailedToReadConfigFile(filename).into());
             }
 
             let (key, value) = (tokens[0], tokens[1]);
@@ -69,7 +72,7 @@ impl Configuration {
                         config.multi_line_prompt = multi_line;
                     }
                 }
-                _ => return Err(ShellError::FailedToReadConfigFile.into()),
+                _ => return Err(ShellError::FailedToReadConfigFile(filename).into()),
             }
         }
 
