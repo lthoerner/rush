@@ -1,4 +1,5 @@
 use std::io::{stdout, Stdout};
+use std::ops::Range;
 
 use anyhow::Result;
 use crossterm::cursor;
@@ -9,16 +10,27 @@ use crossterm::{execute, queue};
 
 use rush_state::shell::Context;
 
+// Represents an action that the handler instructs the REPL (Console.read()) to perform
+// Allows for some actions to be performed in the handler and some to be performed in the REPL
+enum ReplAction {
+    // Instruction to return the line buffer to the shell and perform any necessary cleanup
+    Return,
+    // Instruction to clear the line buffer and re-prompt the user
+    Clear,
+    // Instruction to do nothing
+    Ignore,
+}
+
 // Allows for reading a line of input from the user through the .read() method
 // Handles all the actual terminal interaction between when the method is invoked and
 // when the command is actually returned, such as line buffering etc
 pub struct Console {
     // * Stdout is stored to prevent repeated std::io::stdout() calls
     stdout: Stdout,
-    // * The line buffer is a string that stores the current line of input
-    // * When the user hits ENTER, the line buffer is returned to the shell
+    // A string that stores the current line of input
+    // When the user hits ENTER, the line buffer is returned to the shell
     line_buffer: String,
-    // * The "coordinate" of the cursor is a one-dimensional index of the cursor in the buffer
+    // The "coordinate" of the cursor is a one-dimensional index of the cursor in the buffer
     cursor_coord: usize,
 }
 
@@ -40,15 +52,26 @@ impl Console {
         loop {
             execute!(self.stdout)?;
             let event = read()?;
-            match self.handle_event(event, context)? {
-                true => {
+            let action = self.handle_event(event)?;
+
+            self.print_debug_text(1, format!("Raw buffer: {}", self.line_buffer))?;
+
+            match action {
+                ReplAction::Return => {
                     terminal::disable_raw_mode()?;
                     let line = self.line_buffer.clone();
                     self.line_buffer.clear();
                     self.cursor_coord = 0;
+                    self.clear_debug_text(1..2)?;
                     return Ok(line);
                 }
-                false => self.print_debug_text(1, format!("Raw buffer: {}", self.line_buffer))?,
+                ReplAction::Clear => {
+                    self.line_buffer.clear();
+                    self.cursor_coord = 0;
+                    self.clear_terminal()?;
+                    self.print_prompt(context)?;
+                }
+                ReplAction::Ignore => (),
             }
         }
     }
@@ -56,7 +79,7 @@ impl Console {
     // Handles a key event by queueing appropriate commands based on the given keypress
     // * The bool is essentially a "should return" flag. This will be changed in the future.
     // TODO: Change this return type
-    fn handle_event(&mut self, event: Event, context: &Context) -> Result<bool> {
+    fn handle_event(&mut self, event: Event) -> Result<ReplAction> {
         if let Event::Key(event) = event {
             // TODO: Functionize most of these match arms
             match (event.modifiers, event.code) {
@@ -80,26 +103,22 @@ impl Console {
                 }
                 (KeyModifiers::NONE, KeyCode::Enter) => {
                     queue!(self.stdout, Print("\r\n"))?;
-                    return Ok(true);
+                    return Ok(ReplAction::Return)
                 }
+                // ? Should this be a ReplAction?
                 (KeyModifiers::CONTROL, KeyCode::Char('c')) => {
                     queue!(self.stdout, cursor::MoveTo(0, 0), Clear(ClearType::All))?;
                     execute!(self.stdout)?;
                     terminal::disable_raw_mode()?;
                     std::process::exit(0);
                 }
-                (KeyModifiers::CONTROL, KeyCode::Char('l')) => {
-                    self.clear_terminal()?;
-                    self.line_buffer.clear();
-                    self.cursor_coord = 0;
-                    self.print_prompt(&context)?;
-                }
+                (KeyModifiers::CONTROL, KeyCode::Char('l')) => return Ok(ReplAction::Clear),
                 _ => (),
             }
         }
 
         // ? Error if not an Event::Key?
-        Ok(false)
+        Ok(ReplAction::Ignore)
     }
 
     // Clears the entire terminal
@@ -158,7 +177,7 @@ impl Console {
         Ok(())
     }
 
-    // Prints debug text to the bottom line of the terminal
+    // Prints debug text to the bottom lines of the terminal
     fn print_debug_text(&mut self, line: u16, text: String) -> Result<()> {
         queue!(
             self.stdout,
@@ -168,6 +187,21 @@ impl Console {
             Print(text),
             cursor::RestorePosition,
         )?;
+
+        Ok(())
+    }
+
+    // Clears the bottom lines of the terminal
+    fn clear_debug_text(&mut self, lines: Range<u16>) -> Result<()> {
+        for line in lines {
+            queue!(
+                self.stdout,
+                cursor::SavePosition,
+                cursor::MoveTo(0, terminal::size()?.1 - line),
+                Clear(ClearType::UntilNewLine),
+                cursor::RestorePosition,
+            )?;
+        }
 
         Ok(())
     }
