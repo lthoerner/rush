@@ -1,8 +1,8 @@
-use std::collections::{HashMap, VecDeque};
-use std::path::PathBuf;
-use std::fmt::{Display, Formatter};
-use std::env;
 use std::collections::HashSet;
+use std::collections::{HashMap, VecDeque};
+use std::env;
+use std::fmt::{Display, Formatter};
+use std::path::PathBuf;
 
 use anyhow::Result;
 
@@ -22,12 +22,16 @@ pub enum EnvVar {
 
 impl Display for EnvVar {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", match self {
-            Self::USER => "USER",
-            Self::HOME => "HOME",
-            Self::CWD => "CWD",
-            Self::PATH => "PATH",
-        })
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::USER => "USER",
+                Self::HOME => "HOME",
+                Self::CWD => "CWD",
+                Self::PATH => "PATH",
+            }
+        )
     }
 }
 
@@ -182,7 +186,8 @@ impl Environment {
 
 // Gets the name of the user who invoked the shell (to be used when the shell is first initialized)
 fn get_parent_env_var(variable: EnvVar) -> Result<String> {
-    std::env::var(variable.to_legacy_string()).map_err(|_| ShellError::MissingExternalEnvironmentVariable(variable).into())
+    std::env::var(variable.to_legacy_string())
+        .map_err(|_| ShellError::MissingExternalEnvironmentVariable(variable).into())
 }
 
 // Converts the PATH environment variable from a string to a vector of Paths

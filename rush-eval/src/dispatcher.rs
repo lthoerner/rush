@@ -5,8 +5,8 @@ use rush_exec::commands::{Builtin, Executable, Runnable};
 use rush_state::path::Path;
 use rush_state::shell::Context;
 
-use crate::parser;
 use crate::errors::DispatchError;
+use crate::parser;
 
 // Represents a collection of builtin commands
 // Allows for command resolution and execution through aliases

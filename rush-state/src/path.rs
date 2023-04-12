@@ -116,7 +116,9 @@ fn expand_home(path: &PathBuf, home_directory: &PathBuf) -> Result<String> {
             "~",
             home_directory
                 .to_str()
-                .ok_or(PathError::FailedToConvertPathBufToString(home_directory.clone()))?,
+                .ok_or(PathError::FailedToConvertPathBufToString(
+                    home_directory.clone(),
+                ))?,
         ))
     } else {
         Ok(path.to_string())

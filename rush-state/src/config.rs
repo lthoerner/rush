@@ -34,7 +34,8 @@ impl Configuration {
         let filename = filename.to_string();
 
         let mut config = Self::default();
-        let file = File::open(filename.clone()).map_err(|_| ShellError::FailedToOpenConfigFile(filename.clone()))?;
+        let file = File::open(filename.clone())
+            .map_err(|_| ShellError::FailedToOpenConfigFile(filename.clone()))?;
         let reader = BufReader::new(file);
 
         for line in reader.lines() {
