@@ -13,9 +13,11 @@ pub struct Shell {
 
 impl Shell {
     pub fn new() -> Result<Self> {
+        let config = Configuration::from_file("config/config.rush").unwrap_or(Configuration::default());
+
         Ok(Self {
             environment: Environment::new()?,
-            config: Configuration::from_file("config/config.rush")?,
+            config,
             command_success: true,
         })
     }
