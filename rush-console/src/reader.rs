@@ -54,7 +54,7 @@ impl Console {
             let event = read()?;
             let action = self.handle_event(event)?;
 
-            self.print_debug_text(1, format!("Raw buffer: {}", self.line_buffer))?;
+            // self.print_debug_text(1, format!("Raw buffer: {}", self.line_buffer))?;
 
             match action {
                 ReplAction::Return => {
@@ -178,6 +178,7 @@ impl Console {
     }
 
     // Prints debug text to the bottom lines of the terminal
+    #[allow(dead_code)]
     fn print_debug_text(&mut self, line: u16, text: String) -> Result<()> {
         queue!(
             self.stdout,
