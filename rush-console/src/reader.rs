@@ -119,7 +119,9 @@ impl Console {
         if let Event::Key(event) = event {
             // TODO: Functionize most of these match arms
             match (event.modifiers, event.code) {
-                (KeyModifiers::NONE | KeyModifiers::SHIFT, KeyCode::Char(c)) => self.insert_char(c)?,
+                (KeyModifiers::NONE | KeyModifiers::SHIFT, KeyCode::Char(c)) => {
+                    self.insert_char(c)?
+                }
                 (KeyModifiers::NONE, KeyCode::Backspace) => {
                     if self.cursor_coord != 0 {
                         self.remove_char(RemoveMode::Backspace)?;
@@ -146,9 +148,13 @@ impl Console {
                     if !self.line_buffer.is_empty() {
                         return Ok(ReplAction::Return);
                     }
-                },
-                (KeyModifiers::NONE, KeyCode::Up) => self.scroll_history(HistoryDirection::Up, context)?,
-                (KeyModifiers::NONE, KeyCode::Down) => self.scroll_history(HistoryDirection::Down, context)?,
+                }
+                (KeyModifiers::NONE, KeyCode::Up) => {
+                    self.scroll_history(HistoryDirection::Up, context)?
+                }
+                (KeyModifiers::NONE, KeyCode::Down) => {
+                    self.scroll_history(HistoryDirection::Down, context)?
+                }
                 (KeyModifiers::CONTROL, KeyCode::Char('c')) => return Ok(ReplAction::Exit),
                 (KeyModifiers::CONTROL, KeyCode::Char('l')) => return Ok(ReplAction::Clear),
                 _ => (),
@@ -179,7 +185,11 @@ impl Console {
         let x_pos = cursor::position()?.0;
 
         if x_pos == 0 {
-            queue!(self.stdout, cursor::MoveToPreviousLine(1), cursor::MoveRight(x_size - 1))?;
+            queue!(
+                self.stdout,
+                cursor::MoveToPreviousLine(1),
+                cursor::MoveRight(x_size - 1)
+            )?;
         } else {
             queue!(self.stdout, cursor::MoveLeft(1))?;
         }
@@ -212,7 +222,7 @@ impl Console {
         if mode == Backspace {
             self.move_cursor_left()?;
         }
-        
+
         self.print_buffer_section(true)?;
 
         Ok(())
@@ -285,7 +295,12 @@ impl Console {
     // Reprints the entire line buffer and moves the cursor to the end
     fn reset_line(&mut self) -> Result<()> {
         // $ This will definitely cause a bug when the buffer is multiple lines long
-        queue!(self.stdout, cursor::MoveToColumn(self.prompt_offset), Clear(ClearType::UntilNewLine), Print(&self.line_buffer))?;
+        queue!(
+            self.stdout,
+            cursor::MoveToColumn(self.prompt_offset),
+            Clear(ClearType::UntilNewLine),
+            Print(&self.line_buffer)
+        )?;
         self.cursor_coord = self.line_buffer.len();
         Ok(())
     }
@@ -310,16 +325,19 @@ impl Console {
                     Up => {
                         // Prevent the user from scrolling out of bounds
                         if index == 0 {
-                            return Ok(())
+                            return Ok(());
                         } else {
                             self.history_index = Some(index - 1)
                         }
-                    },
+                    }
                     Down => {
                         // If the user scrolls back past the start of the history, restore the original line buffer
                         if index == history_last_index {
                             // TODO: Change this to an actual error
-                            self.line_buffer = self.history_buffer.clone().expect("History buffer was not found when it should exist");
+                            self.line_buffer = self
+                                .history_buffer
+                                .clone()
+                                .expect("History buffer was not found when it should exist");
                             self.history_buffer = None;
                             self.history_index = None;
                         } else {
@@ -337,17 +355,20 @@ impl Console {
                         // * contains at least one element due to the .is_empty() check
                         self.history_index = Some(history_last_index);
                         self.history_buffer = Some(self.line_buffer.clone());
-                    },
+                    }
                     Down => return Ok(()),
                 }
-            },
+            }
         }
 
         // TODO: Change this to an actual error
         if let Some(index) = self.history_index {
-            self.line_buffer = history.get(index).expect("Tried to access non-existent command history").clone();
+            self.line_buffer = history
+                .get(index)
+                .expect("Tried to access non-existent command history")
+                .clone();
         }
-        
+
         self.reset_line()
     }
 }
