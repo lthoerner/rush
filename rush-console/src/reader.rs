@@ -112,7 +112,11 @@ impl Console {
                         self.cursor_coord += 1;
                     }
                 }
-                (KeyModifiers::NONE, KeyCode::Enter) => return Ok(ReplAction::Return),
+                (KeyModifiers::NONE, KeyCode::Enter) => {
+                    if !self.line_buffer.is_empty() {
+                        return Ok(ReplAction::Return);
+                    }
+                },
                 (KeyModifiers::CONTROL, KeyCode::Char('c')) => return Ok(ReplAction::Exit),
                 (KeyModifiers::CONTROL, KeyCode::Char('l')) => return Ok(ReplAction::Clear),
                 _ => (),
