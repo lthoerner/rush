@@ -9,97 +9,78 @@ use crossterm::{execute, queue};
 
 use rush_state::shell::Context;
 
-// Represents a character that can be added to the line buffer, or an ENTER keypress, which will send the line buffer to the shell
-// Keypresses that may have been handled downstream, but should not result in any further behavior, are represented by the Ignored variant
-// Reprompt is a special case which will cause the prompt to be reprinted and the line buffer to be cleared, but will not return the buffer to the shell
-// ? Maybe add a "clear linebuffer" switch to Reprompt
-enum HandlerOutput {
-    Char(char),
-    Delete,
-    Return,
-    Reprompt,
-    Ignored,
-}
-
 // Allows for reading a line of input from the user through the .read() method
 // Handles all the actual terminal interaction between when the method is invoked and
 // when the command is actually returned, such as line buffering etc
 pub struct Console {
+    // * Stdout is stored to prevent repeated std::io::stdout() calls
     stdout: Stdout,
+    // * The line buffer is a string that stores the current line of input
+    // * When the user hits ENTER, the line buffer is returned to the shell
+    line_buffer: String,
+    // * The "coordinate" of the cursor is a one-dimensional index of the cursor in the buffer
+    cursor_coord: usize,
 }
 
 impl Console {
     pub fn new() -> Self {
-        Self { stdout: stdout() }
+        Self {
+            stdout: stdout(),
+            line_buffer: String::new(),
+            cursor_coord: 0,
+        }
     }
 
     // TODO: Map crossterm errors to custom errors
-    // Runs the REPL, returning as soon as a potential command is entered
+    // Prompts the user and handles all input keypresses/resulting terminal interaction up until a line of input is entered
     pub fn read(&mut self, context: &Context) -> Result<String> {
-        let mut line_buffer = String::new();
-
         terminal::enable_raw_mode()?;
         self.print_prompt(context)?;
-        let prompt_boundary = cursor::position()?.0;
 
         loop {
             execute!(self.stdout)?;
             let event = read()?;
-            match self.handle_event(&event, prompt_boundary, prompt_boundary + line_buffer.len() as u16)? {
-                HandlerOutput::Char(c) => line_buffer.push(c),
-                HandlerOutput::Delete => {
-                    line_buffer.pop();
-                }
-                HandlerOutput::Return => {
+            match self.handle_event(event, context)? {
+                true => {
                     terminal::disable_raw_mode()?;
-                    return Ok(line_buffer);
+                    let line = self.line_buffer.clone();
+                    self.line_buffer.clear();
+                    self.cursor_coord = 0;
+                    return Ok(line);
                 }
-                HandlerOutput::Reprompt => {
-                    line_buffer.clear();
-                    self.print_prompt(context)?;
-                }
-                HandlerOutput::Ignored => (),
+                false => self.print_debug_text(1, format!("Raw buffer: {}", self.line_buffer))?,
             }
         }
     }
 
     // Handles a key event by queueing appropriate commands based on the given keypress
-    // $ This is a temporary implementation for testing purposes only
-    fn handle_event(&mut self, event: &Event, prompt_boundary: u16, line_boundary: u16) -> Result<HandlerOutput> {
-        let output;
+    // * The bool is essentially a "should return" flag. This will be changed in the future.
+    // TODO: Change this return type
+    fn handle_event(&mut self, event: Event, context: &Context) -> Result<bool> {
         if let Event::Key(event) = event {
+            // TODO: Functionize most of these match arms
             match (event.modifiers, event.code) {
-                (KeyModifiers::NONE | KeyModifiers::SHIFT, KeyCode::Char(c)) => {
-                    queue!(self.stdout, Print(c))?;
-                    output = HandlerOutput::Char(c)
-                }
+                (KeyModifiers::NONE | KeyModifiers::SHIFT, KeyCode::Char(c)) => self.insert_char(c)?,
                 (KeyModifiers::NONE, KeyCode::Backspace) => {
-                    if cursor::position()?.0 == prompt_boundary {
-                        return Ok(HandlerOutput::Ignored);
+                    if self.cursor_coord != 0 {
+                        self.backspace_char()?;
                     }
-
-                    self.backspace_char()?;
-                    output = HandlerOutput::Delete
                 }
                 (KeyModifiers::NONE, KeyCode::Left) => {
-                    if cursor::position()?.0 == prompt_boundary {
-                        return Ok(HandlerOutput::Ignored);
+                    if self.cursor_coord != 0 {
+                        queue!(self.stdout, cursor::MoveLeft(1))?;
+                        self.cursor_coord -= 1;
                     }
-
-                    queue!(self.stdout, cursor::MoveLeft(1))?;
-                    output = HandlerOutput::Ignored
                 }
                 (KeyModifiers::NONE, KeyCode::Right) => {
-                    if cursor::position()?.0 == line_boundary {
-                        return Ok(HandlerOutput::Ignored);
+                    if self.cursor_coord != self.line_buffer.len() {
+                        queue!(self.stdout, cursor::MoveRight(1))?;
+                        self.cursor_coord += 1;
                     }
-
-                    queue!(self.stdout, cursor::MoveRight(1))?;
-                    output = HandlerOutput::Ignored
                 }
                 (KeyModifiers::NONE, KeyCode::Enter) => {
                     queue!(self.stdout, Print("\r\n"))?;
-                    output = HandlerOutput::Return
+                    return Ok(true);
                 }
                 (KeyModifiers::CONTROL, KeyCode::Char('c')) => {
                     queue!(self.stdout, cursor::MoveTo(0, 0), Clear(ClearType::All))?;
@@ -109,16 +90,16 @@ impl Console {
                 }
                 (KeyModifiers::CONTROL, KeyCode::Char('l')) => {
                     self.clear_terminal()?;
-                    output = HandlerOutput::Reprompt
+                    self.line_buffer.clear();
+                    self.cursor_coord = 0;
+                    self.print_prompt(&context)?;
                 }
-                _ => output = HandlerOutput::Ignored,
+                _ => (),
             }
-        } else {
-            output = HandlerOutput::Ignored
         }
 
         // ? Error if not an Event::Key?
-        Ok(output)
+        Ok(false)
     }
 
     // Clears the entire terminal
@@ -133,15 +114,59 @@ impl Console {
         Ok(())
     }
 
-    // Queues a backspace or delete operation
-    // TODO: Add a delete mode
+    // Inserts a character into the line buffer at the cursor position
+    fn insert_char(&mut self, char: char) -> Result<()> {
+        // Insert the char and update the buffer after the cursor
+        self.line_buffer.insert(self.cursor_coord, char);
+        self.print_buffer_section(false)?;
+        self.cursor_coord += 1;
+        // Move the cursor right so the text does not get overwritten upon the next insertion
+        queue!(self.stdout, cursor::MoveRight(1))?;
+
+        Ok(())
+    }
+
+    // Removes the character immediately preceding the cursor position from the line buffer
     fn backspace_char(&mut self) -> Result<()> {
+        self.cursor_coord -= 1;
+        self.line_buffer.remove(self.cursor_coord);
+        queue!(self.stdout, cursor::MoveLeft(1))?;
+        self.print_buffer_section(true)?;
+
+        Ok(())
+    }
+
+    // Prints a section of the line buffer starting from the cursor position
+    fn print_buffer_section(&mut self, deletion_mode: bool) -> Result<()> {
+        // If deleting a character, print a space at the end of the buffer to prevent
+        // the last char in the buffer from being duplicated when shifting the line
+        let deletion_char = match deletion_mode {
+            true => " ",
+            false => "",
+        };
+
         queue!(
             self.stdout,
-            cursor::MoveLeft(1),
-            Print(' '),
-            cursor::MoveLeft(1)
+            cursor::SavePosition,
+            Print(&self.line_buffer[self.cursor_coord..]),
+            Print(deletion_char),
+            cursor::RestorePosition,
         )?;
+
+        Ok(())
+    }
+
+    // Prints debug text to the bottom line of the terminal
+    fn print_debug_text(&mut self, line: u16, text: String) -> Result<()> {
+        queue!(
+            self.stdout,
+            cursor::SavePosition,
+            cursor::MoveTo(0, terminal::size()?.1 - line),
+            Clear(ClearType::UntilNewLine),
+            Print(text),
+            cursor::RestorePosition,
+        )?;
+
         Ok(())
     }
 }
