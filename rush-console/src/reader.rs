@@ -140,6 +140,8 @@ impl Console {
     fn print_buffer_section(&mut self, deletion_mode: bool) -> Result<()> {
         // If deleting a character, print a space at the end of the buffer to prevent
         // the last char in the buffer from being duplicated when shifting the line
+        // * This is a better solution than first clearing the line after the cursor
+        // * because clearing the line incurs a more noticeable flicker
         let deletion_char = match deletion_mode {
             true => " ",
             false => "",
