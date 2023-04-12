@@ -55,6 +55,8 @@ impl Console {
             let action = self.handle_event(event)?;
 
             // self.print_debug_text(1, format!("Raw buffer: {}", self.line_buffer))?;
+            // self.print_debug_text(1, format!("Terminal X size: {} | Terminal Y size: {}", terminal::size()?.0, terminal::size()?.1))?;
+            // self.print_debug_text(2, format!("Cursor X: {} | Cursor Y: {}", cursor::position()?.0, cursor::position()?.1))?;
 
             match action {
                 ReplAction::Return => {
@@ -91,13 +93,13 @@ impl Console {
                 }
                 (KeyModifiers::NONE, KeyCode::Left) => {
                     if self.cursor_coord != 0 {
-                        queue!(self.stdout, cursor::MoveLeft(1))?;
+                        self.move_cursor_left()?;
                         self.cursor_coord -= 1;
                     }
                 }
                 (KeyModifiers::NONE, KeyCode::Right) => {
                     if self.cursor_coord != self.line_buffer.len() {
-                        queue!(self.stdout, cursor::MoveRight(1))?;
+                        self.move_cursor_right()?;
                         self.cursor_coord += 1;
                     }
                 }
@@ -121,15 +123,31 @@ impl Console {
         Ok(ReplAction::Ignore)
     }
 
-    // Clears the entire terminal
-    fn clear_terminal(&mut self) -> Result<()> {
-        queue!(self.stdout, cursor::MoveTo(0, 0), Clear(ClearType::All))?;
+    // Moves the cursor to the right, wrapping to the next line if necessary
+    fn move_cursor_right(&mut self) -> Result<()> {
+        let x_size = terminal::size()?.0;
+        let x_pos = cursor::position()?.0;
+
+        if x_pos == x_size - 1 {
+            queue!(self.stdout, cursor::MoveToNextLine(1))?;
+        } else {
+            queue!(self.stdout, cursor::MoveRight(1))?;
+        }
+
         Ok(())
     }
 
-    // Queues the prompt to be printed
-    fn print_prompt(&mut self, context: &Context) -> Result<()> {
-        queue!(self.stdout, Print(generate_prompt(context)))?;
+    // Moves the cursor to the left, wrapping to the previous line if necessary
+    fn move_cursor_left(&mut self) -> Result<()> {
+        let x_size = terminal::size()?.0;
+        let x_pos = cursor::position()?.0;
+
+        if x_pos == 0 {
+            queue!(self.stdout, cursor::MoveToPreviousLine(1), cursor::MoveRight(x_size - 1))?;
+        } else {
+            queue!(self.stdout, cursor::MoveLeft(1))?;
+        }
+
         Ok(())
     }
 
@@ -140,7 +158,7 @@ impl Console {
         self.print_buffer_section(false)?;
         self.cursor_coord += 1;
         // Move the cursor right so the text does not get overwritten upon the next insertion
-        queue!(self.stdout, cursor::MoveRight(1))?;
+        self.move_cursor_right()?;
 
         Ok(())
     }
@@ -149,7 +167,7 @@ impl Console {
     fn backspace_char(&mut self) -> Result<()> {
         self.cursor_coord -= 1;
         self.line_buffer.remove(self.cursor_coord);
-        queue!(self.stdout, cursor::MoveLeft(1))?;
+        self.move_cursor_left()?;
         self.print_buffer_section(true)?;
 
         Ok(())
@@ -204,6 +222,18 @@ impl Console {
             )?;
         }
 
+        Ok(())
+    }
+
+    // Clears the entire terminal
+    fn clear_terminal(&mut self) -> Result<()> {
+        queue!(self.stdout, cursor::MoveTo(0, 0), Clear(ClearType::All))?;
+        Ok(())
+    }
+
+    // Queues the prompt to be printed
+    fn print_prompt(&mut self, context: &Context) -> Result<()> {
+        queue!(self.stdout, Print(generate_prompt(context)))?;
         Ok(())
     }
 }
