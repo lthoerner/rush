@@ -51,11 +51,11 @@ pub fn change_directory(context: &mut Context, args: Vec<&str>) -> Result<()> {
 
 fn enter_and_read_path(
     context: &mut Context,
-    args: Vec<&str>,
+    path: &str,
 ) -> Result<fs_err::ReadDir, BuiltinError> {
     // Path::from_str() will attempt to expand and canonicalize the path, and return None if the path does not exist
-    let absolute_path = Path::from_str(args[0], context.env().HOME()).map_err(|_| {
-        eprintln!("Invalid path: '{}'", args[0]);
+    let absolute_path = Path::from_str(path, context.env().HOME()).map_err(|_| {
+        eprintln!("Invalid path: '{}'", path);
         BuiltinError::FailedToRun
     })?;
 
@@ -67,7 +67,7 @@ fn enter_and_read_path(
 
 // TODO: Break up some of this code into different functions
 pub fn list_directory(context: &mut Context, args: Vec<&str>) -> Result<()> {
-    let mut show_hidden = false;
+    let show_hidden = show_hidden_files(&args);
 
     let files_and_directories = match args.len() {
         // Use the working directory as the default path argument
@@ -76,20 +76,15 @@ pub fn list_directory(context: &mut Context, args: Vec<&str>) -> Result<()> {
         0 => fs_err::read_dir(env::current_dir().expect("Failed to get working directory"))
             .expect("Failed to read directory"),
         1 => {
-            if args[0] == "--show-hidden" {
-                show_hidden = true;
+            if show_hidden  {
                 fs_err::read_dir(env::current_dir().expect("Failed to get working directory"))
                     .expect("Failed to read directory")
             } else {
-                enter_and_read_path(context, args)?
+                enter_and_read_path(context, &args[0])?
             }
         }
         2 => {
-            if args[1] == "--all" || args[1] == "-a" {
-                show_hidden = true;
-            }
-
-            enter_and_read_path(context, args)?
+            enter_and_read_path(context, &args[0])?
         }
         _ => {
             eprintln!("Usage: list-directory <path> [flags]");
@@ -134,6 +129,18 @@ pub fn list_directory(context: &mut Context, args: Vec<&str>) -> Result<()> {
     }
 
     Ok(())
+}
+
+fn show_hidden_files(args: &Vec<&str>) -> bool {
+    let show_all_flags = vec!["--show-hidden", "--all", "-a"];
+
+    if args.len() == 2 {
+        show_all_flags.contains(&args[1])
+    } else if args.len() == 1 {
+        show_all_flags.contains(&args[0])
+    } else {
+        false
+    }
 }
 
 // TODO: Find a better name for this
