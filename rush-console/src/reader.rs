@@ -23,6 +23,13 @@ enum ReplAction {
     Ignore,
 }
 
+// More readable variant of a switch between "backspace" and "delete" keypresses for Console.remove_char()
+#[derive(PartialEq)]
+enum RemoveMode {
+    Backspace,
+    Delete,
+}
+
 // Allows for reading a line of input from the user through the .read() method
 // Handles all the actual terminal interaction between when the method is invoked and
 // when the command is actually returned, such as line buffering etc
@@ -97,7 +104,12 @@ impl Console {
                 (KeyModifiers::NONE | KeyModifiers::SHIFT, KeyCode::Char(c)) => self.insert_char(c)?,
                 (KeyModifiers::NONE, KeyCode::Backspace) => {
                     if self.cursor_coord != 0 {
-                        self.backspace_char()?;
+                        self.remove_char(RemoveMode::Backspace)?;
+                    }
+                }
+                (KeyModifiers::NONE, KeyCode::Delete) => {
+                    if self.cursor_coord != self.line_buffer.len() {
+                        self.remove_char(RemoveMode::Delete)?;
                     }
                 }
                 (KeyModifiers::NONE, KeyCode::Left) => {
@@ -167,11 +179,20 @@ impl Console {
         Ok(())
     }
 
-    // Removes the character immediately preceding the cursor position from the line buffer
-    fn backspace_char(&mut self) -> Result<()> {
-        self.cursor_coord -= 1;
+    // Removes the character either immediately preceding the cursor position or the character at
+    // the cursor position, depending on whether in Backspace or Delete mode, respectively
+    fn remove_char(&mut self, mode: RemoveMode) -> Result<()> {
+        use RemoveMode::*;
+        if mode == Backspace {
+            self.cursor_coord -= 1;
+        }
+
         self.line_buffer.remove(self.cursor_coord);
-        self.move_cursor_left()?;
+
+        if mode == Backspace {
+            self.move_cursor_left()?;
+        }
+        
         self.print_buffer_section(true)?;
 
         Ok(())
