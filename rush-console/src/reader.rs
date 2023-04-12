@@ -30,6 +30,13 @@ enum RemoveMode {
     Delete,
 }
 
+// Represents either a "history up" or "history down" keypress (arrow keys)
+#[derive(PartialEq)]
+enum HistoryDirection {
+    Up,
+    Down,
+}
+
 // Allows for reading a line of input from the user through the .read() method
 // Handles all the actual terminal interaction between when the method is invoked and
 // when the command is actually returned, such as line buffering etc
@@ -39,8 +46,14 @@ pub struct Console {
     // A string that stores the current line of input
     // When the user hits ENTER, the line buffer is returned to the shell
     line_buffer: String,
+    // If the user is scrolling through the command history, this stores the original line buffer so it can be restored if needed
+    history_buffer: Option<String>,
+    // The history index stored when the user is scrolling through the command history
+    history_index: Option<usize>,
     // The "coordinate" of the cursor is a one-dimensional index of the cursor in the buffer
     cursor_coord: usize,
+    // The X-offset of the start of the user input from the prompt
+    prompt_offset: u16,
 }
 
 impl Console {
@@ -48,7 +61,11 @@ impl Console {
         Self {
             stdout: stdout(),
             line_buffer: String::new(),
+            history_buffer: None,
+            history_index: None,
             cursor_coord: 0,
+            // ? Should this be an Option? It would only be None in the constructor but it might make more sense than defaulting to 0...
+            prompt_offset: 0,
         }
     }
 
@@ -57,11 +74,14 @@ impl Console {
     pub fn read(&mut self, context: &Context) -> Result<String> {
         terminal::enable_raw_mode()?;
         self.print_prompt(context)?;
+        // The prompt offset is calculated on the first time the user is prompted by simply checking the cursor's X position
+        // ? Is there a better way to determine this?
+        self.prompt_offset = cursor::position()?.0;
 
         loop {
             execute!(self.stdout)?;
             let event = read()?;
-            let action = self.handle_event(event)?;
+            let action = self.handle_event(event, context)?;
 
             // self.print_debug_text(1, format!("Raw buffer: {}", self.line_buffer))?;
             // self.print_debug_text(1, format!("Terminal X size: {} | Terminal Y size: {}", terminal::size()?.0, terminal::size()?.1))?;
@@ -95,7 +115,7 @@ impl Console {
     }
 
     // Handles a key event by queueing appropriate commands based on the given keypress
-    fn handle_event(&mut self, event: Event) -> Result<ReplAction> {
+    fn handle_event(&mut self, event: Event, context: &Context) -> Result<ReplAction> {
         if let Event::Key(event) = event {
             // TODO: Functionize most of these match arms
             match (event.modifiers, event.code) {
@@ -127,6 +147,8 @@ impl Console {
                         return Ok(ReplAction::Return);
                     }
                 },
+                (KeyModifiers::NONE, KeyCode::Up) => self.scroll_history(HistoryDirection::Up, context)?,
+                (KeyModifiers::NONE, KeyCode::Down) => self.scroll_history(HistoryDirection::Down, context)?,
                 (KeyModifiers::CONTROL, KeyCode::Char('c')) => return Ok(ReplAction::Exit),
                 (KeyModifiers::CONTROL, KeyCode::Char('l')) => return Ok(ReplAction::Clear),
                 _ => (),
@@ -258,6 +280,75 @@ impl Console {
     fn print_prompt(&mut self, context: &Context) -> Result<()> {
         queue!(self.stdout, Print(generate_prompt(context)))?;
         Ok(())
+    }
+
+    // Reprints the entire line buffer and moves the cursor to the end
+    fn reset_line(&mut self) -> Result<()> {
+        // $ This will definitely cause a bug when the buffer is multiple lines long
+        queue!(self.stdout, cursor::MoveToColumn(self.prompt_offset), Clear(ClearType::UntilNewLine), Print(&self.line_buffer))?;
+        self.cursor_coord = self.line_buffer.len();
+        Ok(())
+    }
+
+    // Scrolls through the Shell's command history
+    fn scroll_history(&mut self, direction: HistoryDirection, context: &Context) -> Result<()> {
+        use HistoryDirection::*;
+        let history = context.history();
+        let history_len = history.len();
+        let history_last_index = history_len - 1;
+
+        // If the history is empty, do nothing
+        if history.is_empty() {
+            return Ok(());
+        }
+
+        match self.history_index {
+            // If the user is already scrolling through the history, move the index in the appropriate direction
+            // If they attempt to scroll past the end of the history, restore the original line buffer
+            Some(index) => {
+                match direction {
+                    Up => {
+                        // Prevent the user from scrolling out of bounds
+                        if index == 0 {
+                            return Ok(())
+                        } else {
+                            self.history_index = Some(index - 1)
+                        }
+                    },
+                    Down => {
+                        // If the user scrolls back past the start of the history, restore the original line buffer
+                        if index == history_last_index {
+                            // TODO: Change this to an actual error
+                            self.line_buffer = self.history_buffer.clone().expect("History buffer was not found when it should exist");
+                            self.history_buffer = None;
+                            self.history_index = None;
+                        } else {
+                            self.history_index = Some(index + 1)
+                        }
+                    }
+                }
+            }
+            // If the user is just starting to scroll through the history, start at the most recent history
+            // If they attempt to scroll past the end of the history, do nothing
+            None => {
+                match direction {
+                    Up => {
+                        // * Bounds check is not needed in this case because it is guaranteed that history
+                        // * contains at least one element due to the .is_empty() check
+                        self.history_index = Some(history_last_index);
+                        self.history_buffer = Some(self.line_buffer.clone());
+                    },
+                    Down => return Ok(()),
+                }
+            },
+        }
+
+        // TODO: Change this to an actual error
+        if let Some(index) = self.history_index {
+            self.line_buffer = history.get(index).expect("Tried to access non-existent command history").clone();
+        }
+        
+        self.reset_line()
     }
 }
 

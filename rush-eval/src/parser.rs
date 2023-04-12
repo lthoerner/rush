@@ -1,6 +1,6 @@
 // Splits arguments by spaces, taking quotes into account
 // $ This is a temporary solution, and will be replaced by a proper parser
-pub fn tokenize(line: String) -> (String, Vec<String>) {
+pub fn tokenize(line: &String) -> (String, Vec<String>) {
     let line = line.trim();
     let mut args = Vec::new();
     let mut current_arg = String::new();

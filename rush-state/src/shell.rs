@@ -5,10 +5,12 @@ use crate::environment::Environment;
 
 // Represents the shell, its state, and provides methods for interacting with it
 // ? Should this be called ShellState or something like that?
+// TODO: Miscellaneous shell state like command_success, command_history etc might be better off in some sort of bundle struct
 pub struct Shell {
     environment: Environment,
     config: Configuration,
     command_success: bool,
+    command_history: Vec<String>,
 }
 
 impl Shell {
@@ -19,6 +21,7 @@ impl Shell {
             environment: Environment::new()?,
             config,
             command_success: true,
+            command_history: Vec::new(),
         })
     }
 }
@@ -58,5 +61,13 @@ impl<'a> Context<'a> {
 
     pub fn set_success(&mut self, success: bool) {
         self.shell.command_success = success;
+    }
+
+    pub fn history(&self) -> &Vec<String> {
+        &self.shell.command_history
+    }
+
+    pub fn history_add(&mut self, command: String) {
+        self.shell.command_history.push(command);
     }
 }

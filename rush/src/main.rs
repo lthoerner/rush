@@ -16,9 +16,13 @@ fn main() -> Result<()> {
 
     loop {
         let line = console.read(&mut context)?;
-        let status = dispatcher.eval(&mut context, line);
+        let status = dispatcher.eval(&mut context, &line);
         // ? Should this be done in the Console?
+        // ? Also why is Context being used here instead of Shell?
         handle_error(status, &mut context);
+        if context.success() {
+            context.history_add(line);
+        }
     }
 }
 
