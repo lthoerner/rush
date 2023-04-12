@@ -95,8 +95,6 @@ impl Console {
     }
 
     // Handles a key event by queueing appropriate commands based on the given keypress
-    // * The bool is essentially a "should return" flag. This will be changed in the future.
-    // TODO: Change this return type
     fn handle_event(&mut self, event: Event) -> Result<ReplAction> {
         if let Event::Key(event) = event {
             // TODO: Functionize most of these match arms
