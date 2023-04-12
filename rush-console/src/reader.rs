@@ -2,7 +2,7 @@ use std::io::{stdout, Stdout};
 use std::ops::Range;
 
 use anyhow::Result;
-use crossterm::cursor;
+use crossterm::cursor::{self, MoveToNextLine};
 use crossterm::event::{read, Event, KeyCode, KeyModifiers};
 use crossterm::style::{Print, Stylize};
 use crossterm::terminal::{self, Clear, ClearType};
@@ -17,6 +17,8 @@ enum ReplAction {
     Return,
     // Instruction to clear the line buffer and re-prompt the user
     Clear,
+    // Instruction to exit the shell
+    Exit,
     // Instruction to do nothing
     Ignore,
 }
@@ -60,6 +62,7 @@ impl Console {
 
             match action {
                 ReplAction::Return => {
+                    execute!(self.stdout, MoveToNextLine(1))?;
                     terminal::disable_raw_mode()?;
                     let line = self.line_buffer.clone();
                     self.line_buffer.clear();
@@ -72,6 +75,12 @@ impl Console {
                     self.cursor_coord = 0;
                     self.clear_terminal()?;
                     self.print_prompt(context)?;
+                }
+                ReplAction::Exit => {
+                    self.clear_terminal()?;
+                    execute!(self.stdout)?;
+                    terminal::disable_raw_mode()?;
+                    std::process::exit(0);
                 }
                 ReplAction::Ignore => (),
             }
@@ -103,17 +112,8 @@ impl Console {
                         self.cursor_coord += 1;
                     }
                 }
-                (KeyModifiers::NONE, KeyCode::Enter) => {
-                    queue!(self.stdout, Print("\r\n"))?;
-                    return Ok(ReplAction::Return)
-                }
-                // ? Should this be a ReplAction?
-                (KeyModifiers::CONTROL, KeyCode::Char('c')) => {
-                    queue!(self.stdout, cursor::MoveTo(0, 0), Clear(ClearType::All))?;
-                    execute!(self.stdout)?;
-                    terminal::disable_raw_mode()?;
-                    std::process::exit(0);
-                }
+                (KeyModifiers::NONE, KeyCode::Enter) => return Ok(ReplAction::Return),
+                (KeyModifiers::CONTROL, KeyCode::Char('c')) => return Ok(ReplAction::Exit),
                 (KeyModifiers::CONTROL, KeyCode::Char('l')) => return Ok(ReplAction::Clear),
                 _ => (),
             }
