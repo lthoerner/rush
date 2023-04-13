@@ -18,6 +18,7 @@ pub struct Aliases {
     aliases: Vec<String>,
 }
 
+// * This implementation is here to make it easier to define aliases using string literals
 impl From<Vec<&str>> for Aliases {
     fn from(aliases: Vec<&str>) -> Self {
         Self {
