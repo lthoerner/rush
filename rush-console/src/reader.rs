@@ -116,57 +116,55 @@ impl Console {
 
     // Handles a key event by queueing appropriate commands based on the given keypress
     fn handle_event(&mut self, event: Event, context: &Context) -> Result<ReplAction> {
-        if let Event::Key(event) = event {
-            // TODO: Functionize most of these match arms
-            match (event.modifiers, event.code) {
-                (KeyModifiers::NONE | KeyModifiers::SHIFT, KeyCode::Char(c)) => {
-                    self.insert_char(c)?
+        // TODO: Break up event handling into separate functions for different event categories
+        match event {
+            Event::Key(event) => {
+                match (event.modifiers, event.code) {
+                    (KeyModifiers::NONE | KeyModifiers::SHIFT, KeyCode::Char(c)) => self.insert_char(c)?,
+                    (KeyModifiers::NONE, KeyCode::Backspace) => self.remove_char(RemoveMode::Backspace)?,
+                    (KeyModifiers::NONE, KeyCode::Delete) => self.remove_char(RemoveMode::Delete)?,
+                    (KeyModifiers::NONE, KeyCode::Left) => self.move_cursor_left()?,
+                    (KeyModifiers::NONE, KeyCode::Right) => self.move_cursor_right()?,
+                    (KeyModifiers::NONE, KeyCode::Enter) if !self.line_buffer.is_empty() => return Ok(ReplAction::Return),
+                    (KeyModifiers::NONE, KeyCode::Up) => self.scroll_history(HistoryDirection::Up, context)?,
+                    (KeyModifiers::NONE, KeyCode::Down) => self.scroll_history(HistoryDirection::Down, context)?,
+                    (KeyModifiers::CONTROL, KeyCode::Char('c')) => return Ok(ReplAction::Exit),
+                    (KeyModifiers::CONTROL, KeyCode::Char('l')) => return Ok(ReplAction::Clear),
+                    _ => (),
                 }
-                (KeyModifiers::NONE, KeyCode::Backspace) => {
-                    if self.cursor_coord != 0 {
-                        self.remove_char(RemoveMode::Backspace)?;
-                    }
-                }
-                (KeyModifiers::NONE, KeyCode::Delete) => {
-                    if self.cursor_coord != self.line_buffer.len() {
-                        self.remove_char(RemoveMode::Delete)?;
-                    }
-                }
-                (KeyModifiers::NONE, KeyCode::Left) => {
-                    if self.cursor_coord != 0 {
-                        self.move_cursor_left()?;
-                        self.cursor_coord -= 1;
-                    }
-                }
-                (KeyModifiers::NONE, KeyCode::Right) => {
-                    if self.cursor_coord != self.line_buffer.len() {
-                        self.move_cursor_right()?;
-                        self.cursor_coord += 1;
-                    }
-                }
-                (KeyModifiers::NONE, KeyCode::Enter) => {
-                    if !self.line_buffer.is_empty() {
-                        return Ok(ReplAction::Return);
-                    }
-                }
-                (KeyModifiers::NONE, KeyCode::Up) => {
-                    self.scroll_history(HistoryDirection::Up, context)?
-                }
-                (KeyModifiers::NONE, KeyCode::Down) => {
-                    self.scroll_history(HistoryDirection::Down, context)?
-                }
-                (KeyModifiers::CONTROL, KeyCode::Char('c')) => return Ok(ReplAction::Exit),
-                (KeyModifiers::CONTROL, KeyCode::Char('l')) => return Ok(ReplAction::Clear),
-                _ => (),
             }
+            // Event::Resize(x, y) => {
+            //     self.clear_terminal()?;
+            //     self.print_debug_text(1, format!("X-size: {x} | Y-size: {y}"))?
+            // }
+            _ => (),
         }
 
-        // ? Error if not an Event::Key?
         Ok(ReplAction::Ignore)
     }
 
-    // Moves the cursor to the right, wrapping to the next line if necessary
+    // Moves the cursor to the right in both the terminal and the line buffer, provided the cursor is not at the end of the line
     fn move_cursor_right(&mut self) -> Result<()> {
+        if self.cursor_coord != self.line_buffer.len() {
+            self.move_cursor_terminal_right()?;
+            self.cursor_coord += 1;
+        }
+
+        Ok(())
+    }
+
+    // Moves the cursor to the left in both the terminal and the line buffer, provided the cursor is not at the start of the line
+    fn move_cursor_left(&mut self) -> Result<()> {
+        if self.cursor_coord != 0 {
+            self.move_cursor_terminal_left()?;
+            self.cursor_coord -= 1;
+        }
+
+        Ok(())
+    }
+
+    // Moves the cursor to the right in the terminal, wrapping to the next line if necessary
+    fn move_cursor_terminal_right(&mut self) -> Result<()> {
         let x_size = terminal::size()?.0;
         let x_pos = cursor::position()?.0;
 
@@ -179,8 +177,8 @@ impl Console {
         Ok(())
     }
 
-    // Moves the cursor to the left, wrapping to the previous line if necessary
-    fn move_cursor_left(&mut self) -> Result<()> {
+    // Moves the cursor to the left in the terminal, wrapping to the previous line if necessary
+    fn move_cursor_terminal_left(&mut self) -> Result<()> {
         let x_size = terminal::size()?.0;
         let x_pos = cursor::position()?.0;
 
@@ -204,7 +202,7 @@ impl Console {
         self.print_buffer_section(false)?;
         self.cursor_coord += 1;
         // Move the cursor right so the text does not get overwritten upon the next insertion
-        self.move_cursor_right()?;
+        self.move_cursor_terminal_right()?;
 
         Ok(())
     }
@@ -213,14 +211,25 @@ impl Console {
     // the cursor position, depending on whether in Backspace or Delete mode, respectively
     fn remove_char(&mut self, mode: RemoveMode) -> Result<()> {
         use RemoveMode::*;
-        if mode == Backspace {
-            self.cursor_coord -= 1;
+        match mode {
+            Backspace => {
+                if self.cursor_coord == 0 {
+                    return Ok(())
+                } else {
+                    self.cursor_coord -= 1;
+                }
+            }
+            Delete => {
+                if self.cursor_coord == self.line_buffer.len() {
+                    return Ok(())
+                }
+            }
         }
 
         self.line_buffer.remove(self.cursor_coord);
 
         if mode == Backspace {
-            self.move_cursor_left()?;
+            self.move_cursor_terminal_left()?;
         }
 
         self.print_buffer_section(true)?;
@@ -279,6 +288,14 @@ impl Console {
 
         Ok(())
     }
+
+    // // Reprints all text in stdout after the terminal is resized
+    // fn resize_terminal(&mut self) -> Result<()> {
+    //     // let stdout = self.stdout
+    //     // self.clear_terminal()?;
+    //     // Ok(())
+    //     todo!()
+    // }
 
     // Clears the entire terminal
     fn clear_terminal(&mut self) -> Result<()> {
