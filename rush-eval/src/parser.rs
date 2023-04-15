@@ -34,7 +34,7 @@ fn tokenizer(input: &String) -> Vec<String> {
                     '\\' => {
                         match characters.peek() {
                             Some(peeked_char) => {
-                                if peeked_char == &'n' {
+                                if peeked_char == &'n' || peeked_char == &'0' {
                                     if in_single_quotes || in_double_quotes {
                                         // clear token and push the newline and backslash into the token
                                         tokens.push(curr_token.clone());
