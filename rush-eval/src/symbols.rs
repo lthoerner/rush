@@ -2,7 +2,13 @@
 // Separators
 pub const WHITESPACE: char = ' ';
 pub const SEMI: char = ';';
-pub const AND: char = '&';
+pub const AMP: char = '&';
+pub const GREAT: char = '>';
+pub const LESS: char = '<';
+pub const PIPE: char = '|';
+pub const SINGLE_QUOTE: char = '\'';
+pub const DOUBLE_QUOTE: char = '"';
+pub const BACKSLASH: char = '\\';
 
 //Operators
 pub const AND_IF: &str = "&&";
@@ -36,7 +42,7 @@ impl Symbols<'_> {
 
         let separators = vec![
             WHITESPACE,
-            AND,
+            AMP,
             SEMI
         ];
 
