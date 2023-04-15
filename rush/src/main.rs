@@ -12,9 +12,10 @@ fn main() -> Result<()> {
     let mut console = Console::new()?;
     
     console.enter()?;
-    console.prompt(&context)?;
-
-    std::thread::sleep(std::time::Duration::from_secs(10));
+    
+    loop {
+        console.read_line(&context)?;
+    }
 
     console.close()?;
 

@@ -1,8 +1,9 @@
 use std::io::{stdout, Stdout};
 
 use anyhow::Result;
-use crossterm::terminal::{enable_raw_mode, disable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen};
-use crossterm::event::{DisableMouseCapture, EnableMouseCapture};
+use crossterm::terminal::{enable_raw_mode, disable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen, Clear, ClearType};
+use crossterm::event::{self, Event, KeyCode, KeyModifiers, DisableMouseCapture, EnableMouseCapture};
+use crossterm::cursor;
 use crossterm::execute;
 use ratatui::backend::CrosstermBackend;
 use ratatui::layout::Alignment;
@@ -12,6 +13,21 @@ use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
 use ratatui::Terminal;
 
 use crate::shell::Context;
+
+// Represents an action that the handler instructs the REPL (Console.read()) to perform
+// Allows for some actions to be performed in the handler and some to be performed in the REPL
+enum ReplAction {
+    // Instruction to return the line buffer to the shell and perform any necessary cleanup
+    Return,
+    // Instruction to clear the line buffer and re-prompt the user
+    Clear,
+    // Instruction to exit the shell
+    Exit,
+    // Instruction to do nothing except update the TUI
+    RedrawFrame,
+    // Instruction to do nothing
+    Ignore,
+}
 
 // Represents the TUI console
 pub struct Console<'a> {
@@ -45,13 +61,81 @@ impl<'a> Console<'a> {
     // Closes the TUI console
     pub fn close(&mut self) -> Result<()> {
         disable_raw_mode()?;
-        execute!(self.terminal.backend_mut(), LeaveAlternateScreen, EnableMouseCapture)?;
+        execute!(self.terminal.backend_mut(), LeaveAlternateScreen, EnableMouseCapture, cursor::MoveTo(0, 0), cursor::Show, Clear(ClearType::All))?;
 
         Ok(())
     }
 
+    // Reads a line of input from the user
+    // Handles all TUI interaction between the user and the prompt
+    pub fn read_line(&mut self, context: &Context) -> Result<String> {
+        self.prompt(context)?;
+        self.draw()?;
+
+        loop {
+            let event = event::read()?;
+            let action = self.handle_event(event)?;
+
+            match action {
+                ReplAction::Return => {
+                    let line = self.line_buffer.clone();
+                    self.line_buffer.clear();
+                    return Ok(line)
+                },
+                ReplAction::Clear => {
+                    self.terminal.clear()?;
+                    self.line_buffer.clear();
+                    self.prompt(context)?;
+                },
+                ReplAction::Exit => {
+                    self.close()?;
+                    std::process::exit(0);
+                },
+                ReplAction::RedrawFrame => {
+                    self.draw()?;
+                },
+                ReplAction::Ignore => (),
+            }
+        }
+    }
+
+    // Handles a key event by queueing appropriate commands based on the given keypress
+    fn handle_event(&mut self, event: Event) -> Result<ReplAction> {
+        // TODO: Break up event handling into separate functions for different event categories
+        match event {
+            Event::Key(event) => {
+                match (event.modifiers, event.code) {
+                    (KeyModifiers::NONE | KeyModifiers::SHIFT, KeyCode::Char(c)) => {
+                        self.line_buffer.push(c);
+                        return Ok(ReplAction::RedrawFrame);
+                    },
+                    // * This has to be surrounded by brackets in order to ignore the return value of String.pop()
+                    (KeyModifiers::NONE, KeyCode::Backspace) => {
+                        self.line_buffer.pop();
+                        return Ok(ReplAction::RedrawFrame);
+                    },
+                    // (KeyModifiers::NONE | KeyModifiers::SHIFT, KeyCode::Char(c)) => self.insert_char(c)?,
+                    // (KeyModifiers::NONE, KeyCode::Backspace) => self.remove_char(RemoveMode::Backspace)?,
+                    // (KeyModifiers::NONE, KeyCode::Delete) => self.remove_char(RemoveMode::Delete)?,
+                    // (KeyModifiers::NONE, KeyCode::Left) => self.move_cursor_left()?,
+                    // (KeyModifiers::NONE, KeyCode::Right) => self.move_cursor_right()?,
+                    (KeyModifiers::NONE, KeyCode::Enter) if !self.line_buffer.is_empty() => return Ok(ReplAction::Return),
+                    // (KeyModifiers::NONE, KeyCode::Up) => self.scroll_history(HistoryDirection::Up, context)?,
+                    // (KeyModifiers::NONE, KeyCode::Down) => self.scroll_history(HistoryDirection::Down, context)?,
+                    (KeyModifiers::CONTROL, KeyCode::Char('c')) => return Ok(ReplAction::Exit),
+                    (KeyModifiers::CONTROL, KeyCode::Char('l')) => return Ok(ReplAction::Clear),
+                    _ => (),
+                }
+            }
+            Event::Resize(_, _) => return Ok(ReplAction::RedrawFrame),
+            _ => (),
+        }
+
+        Ok(ReplAction::Ignore)
+    }
+
     // Prompts the user for input
-    pub fn prompt(&mut self, context: &Context) -> Result<()> {
+    fn prompt(&mut self, context: &Context) -> Result<()> {
         self.frame_buffer = generate_prompt(context);
         self.draw()
     }
