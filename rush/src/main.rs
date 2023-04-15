@@ -1,27 +1,40 @@
 use anyhow::Result;
 
-use rush_console::reader::Console;
 use rush_eval::dispatcher::Dispatcher;
 use rush_eval::errors::DispatchError;
+use rush_state::console::Console;
 use rush_state::shell::Context;
 use rush_state::shell::Shell;
 
 fn main() -> Result<()> {
     let mut shell = Shell::new()?;
-    let mut console = Console::new();
-    let dispatcher = Dispatcher::default();
+    let context = Context::new(&mut shell);
+    let mut console = Console::new()?;
+    
+    console.enter()?;
+    console.prompt(&context)?;
 
-    let mut context = Context::new(&mut shell);
+    std::thread::sleep(std::time::Duration::from_secs(10));
 
-    loop {
-        let line = console.read(&mut context)?;
-        let status = dispatcher.eval(&mut context, &line);
-        handle_error(status, &mut context);
+    console.close()?;
+
+    Ok(())
+
+    // let mut shell = Shell::new()?;
+    // let mut console = Console::new();
+    // let dispatcher = Dispatcher::default();
+
+    // let mut context = Context::new(&mut shell);
+
+    // loop {
+    //     let line = console.read(&mut context)?;
+    //     let status = dispatcher.eval(&mut context, &line);
+    //     handle_error(status, &mut context);
         
-        if context.success() {
-            context.history_add(line);
-        }
-    }
+    //     if context.success() {
+    //         context.history_add(line);
+    //     }
+    // }
 }
 
 // Prints an appropriate error message for the given error, if applicable

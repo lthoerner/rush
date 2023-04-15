@@ -390,7 +390,7 @@ impl Console {
     }
 }
 
-// Generates the prompt string used by the REPL
+// Generates the prompt string used by the Console
 fn generate_prompt(context: &Context) -> String {
     let user = context.env().USER().clone();
     let home = context.env().HOME();

@@ -211,7 +211,9 @@ name = "rush-state"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "crossterm",
  "fs-err",
+ "ratatui",
  "thiserror",
 ]
 
