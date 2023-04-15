@@ -77,7 +77,7 @@ impl Dispatcher {
 
     // Evaluates and executes a command from a string
     pub fn eval(&self, context: &mut Context, line: &String) -> Result<()> {
-        let (command_name, command_args) = parser::tokenize(line);
+        let (command_name, command_args) = parser::parse(line);
         // ? Is there a way to avoid this type conversion?
         let command_name = command_name.as_str();
         let command_args = command_args.iter().map(|a| a.as_str()).collect();
