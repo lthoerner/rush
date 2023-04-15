@@ -122,6 +122,8 @@ fn tokenize(input: &String) -> Vec<String> {
         }
     }
 
+    println!("tokens: {:?}", tokens);
+
     return tokens
 }
 
@@ -188,7 +190,7 @@ mod tests {
         let input = String::from("ls && ls -a");
 
         //when
-        let tokens = tokenizer(&input);
+        let tokens = tokenize(&input);
 
         //then
         let expected = vec![
@@ -206,7 +208,7 @@ mod tests {
         let input = String::from("ls || ls -a");
 
         //when
-        let tokens = tokenizer(&input);
+        let tokens = tokenize(&input);
 
         //then
         let expected = vec![
@@ -224,7 +226,7 @@ mod tests {
         let input = String::from("ls ;; ls -a");
 
         //when
-        let tokens = tokenizer(&input);
+        let tokens = tokenize(&input);
 
         //then
         let expected = vec![
@@ -242,7 +244,7 @@ mod tests {
         let input = String::from("ls << ls -a >> mkdir");
 
         //when
-        let tokens = tokenizer(&input);
+        let tokens = tokenize(&input);
 
         //then
         let expected = vec![
@@ -262,7 +264,7 @@ mod tests {
         let input = String::from("print \"print my text\"");
 
         //when
-        let tokens = tokenizer(&input);
+        let tokens = tokenize(&input);
 
         //then
         let expected = vec![
@@ -278,7 +280,7 @@ mod tests {
         let input = String::from("print \"print&&  my text;; with< operators|<\"");
 
         //when
-        let tokens = tokenizer(&input);
+        let tokens = tokenize(&input);
 
         //then
         let expected = vec![
@@ -294,7 +296,7 @@ mod tests {
         let input = String::from("print \"print\n  my\r text\"");
 
         //when
-        let tokens = tokenizer(&input);
+        let tokens = tokenize(&input);
 
         //then
         let expected = vec![
@@ -310,7 +312,7 @@ mod tests {
         let input = String::from("print \"print' my text\"");
 
         //when
-        let tokens = tokenizer(&input);
+        let tokens = tokenize(&input);
 
         //then
         let expected = vec![
@@ -326,7 +328,7 @@ mod tests {
         let input = String::from("print\\nls");
 
         //when
-        let tokens = tokenizer(&input);
+        let tokens = tokenize(&input);
         println!("tokens: {:?}", tokens);
 
         //then
