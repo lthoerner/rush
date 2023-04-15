@@ -9,5 +9,4 @@ edition = "2021"
 rush-state = { path = "../rush-state" }
 thiserror.workspace = true
 anyhow.workspace = true
-colored.workspace = true
 fs-err.workspace = true

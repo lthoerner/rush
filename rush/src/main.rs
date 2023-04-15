@@ -1,5 +1,4 @@
 use anyhow::Result;
-use colored::Colorize;
 
 use rush_console::reader::Console;
 use rush_eval::dispatcher::Dispatcher;
@@ -32,10 +31,10 @@ fn handle_error(error: Result<()>, context: &mut Context) {
         Err(e) => {
             match e.downcast_ref::<DispatchError>() {
                 Some(DispatchError::UnknownCommand(command_name)) => {
-                    eprintln!("Unknown command: {}", command_name.red());
+                    eprintln!("Unknown command: {}", command_name);
                 }
                 _ => if context.shell_config().show_errors {
-                    eprintln!("Error: {}", format!("{:#?}: {}", e, e).red());
+                    eprintln!("Error: {}", format!("{:#?}: {}", e, e));
                 }
             }
 

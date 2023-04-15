@@ -13,7 +13,6 @@ use std::env;
 use std::io::{BufRead, BufReader};
 
 use anyhow::Result;
-use colored::Colorize;
 use rush_state::path::Path;
 use rush_state::shell::Context;
 
@@ -22,7 +21,7 @@ use crate::errors::BuiltinError;
 
 pub fn test(_context: &mut Context, args: Vec<&str>) -> Result<()> {
     check_args(&args, 0, "test")?;
-    println!("{}", "Test command!".yellow());
+    println!("{}", "Test command!");
     Ok(())
 }
 
@@ -110,7 +109,7 @@ pub fn list_directory(context: &mut Context, args: Vec<&str>) -> Result<()> {
 
         if fd.file_type().expect("Failed to read file type").is_dir() {
             // Append a '/' to directories
-            let fd_name = format!("{}/", fd_name).bright_green().to_string();
+            let fd_name = format!("{}/", fd_name).to_string();
             directories.push(fd_name)
         } else {
             files.push(fd_name)
