@@ -80,4 +80,7 @@
             "italic": false
         }
     ],
+    "rust-analyzer.linkedProjects": [
+        "./rush-console/Cargo.toml"
+    ],
 }

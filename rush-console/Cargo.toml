@@ -10,4 +10,5 @@ rush-state = { path = "../rush-state" }
 rush-eval = { path = "../rush-eval" }
 thiserror.workspace = true
 anyhow.workspace = true
+ratatui.workspace = true
 crossterm.workspace = true

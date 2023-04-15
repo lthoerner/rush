@@ -17,9 +17,8 @@ fn main() -> Result<()> {
     loop {
         let line = console.read(&mut context)?;
         let status = dispatcher.eval(&mut context, &line);
-        // ? Should this be done in the Console?
-        // ? Also why is Context being used here instead of Shell?
         handle_error(status, &mut context);
+        
         if context.success() {
             context.history_add(line);
         }
@@ -30,16 +29,17 @@ fn main() -> Result<()> {
 fn handle_error(error: Result<()>, context: &mut Context) {
     match error {
         Ok(_) => context.set_success(true),
-        Err(e) => match e.downcast_ref::<DispatchError>() {
-            Some(DispatchError::UnknownCommand(command_name)) => {
-                eprintln!("Unknown command: {}", command_name.red());
-                context.set_success(false);
-            }
-            _ => {
-                if context.shell_config().show_errors {
+        Err(e) => {
+            match e.downcast_ref::<DispatchError>() {
+                Some(DispatchError::UnknownCommand(command_name)) => {
+                    eprintln!("Unknown command: {}", command_name.red());
+                }
+                _ => if context.shell_config().show_errors {
                     eprintln!("Error: {}", format!("{:#?}: {}", e, e).red());
                 }
             }
+
+            context.set_success(false);
         },
     }
 }
