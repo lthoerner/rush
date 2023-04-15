@@ -17,7 +17,7 @@ use crate::shell::Context;
 pub struct Console<'a> {
     terminal: Terminal<CrosstermBackend<Stdout>>,
     line_buffer: String,
-    frame_buffer: Vec<Vec<Span<'a>>>,
+    frame_buffer: Text<'a>,
 }
 
 impl<'a> Console<'a> {
@@ -28,7 +28,7 @@ impl<'a> Console<'a> {
         Ok(Self {
             terminal,
             line_buffer: String::from("Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed euismod, nunc vel tincidunt lacinia, nunc nisl aliquam nisl, eu aliquam nisl nisl eu nunc. Sed euismod, nunc vel tincidunt lacinia, nunc nisl aliquam nisl, eu aliquam nisl nisl eu nunc. Sed euismod, nunc vel tincidunt lacinia, nunc nisl aliquam nisl, eu aliquam nisl nisl eu nunc. Sed euismod, nunc vel tincidunt lacinia, nunc nisl aliquam nisl, eu aliquam nisl nisl eu nunc. Sed euismod, nunc vel tincidunt lacinia, nunc nisl aliquam nisl, eu aliquam nisl nisl eu nunc. Sed euismod, nunc vel tincidunt lacinia, nunc nisl aliquam nisl, eu aliquam nisl nisl eu nunc. Sed euismod, nunc vel tincidunt lacinia, nunc nisl aliquam nisl, eu aliquam nisl nisl eu nunc. Sed euismod, nunc vel tincidunt lacinia, nunc nisl aliquam nisl, eu aliquam nisl nisl eu nunc. Sed euismod, nunc vel tincidunt lacinia, nunc nisl aliquam nisl, eu aliquam nisl nisl eu nunc. Sed euismod, nunc vel tincidunt lacinia, nunc nisl aliquam nisl, eu aliquam nisl nisl eu nunc. Sed euismod, nunc vel tincidunt lacinia, nunc nisl aliquam nisl, eu aliquam nisl nisl eu nunc. Sed euismod, nunc vel tincidunt lacinia, nunc nisl aliquam nisl, eu aliquam nisl nisl eu nunc. Sed euismod, nunc vel tincidunt lacinia, nunc nisl aliquam nisl, eu aliquam nisl nisl eu nunc. Sed euismod, nunc vel tincidunt lacinia, nunc nisl aliquam nisl, eu aliquam nisl nisl eu nunc."),
-            frame_buffer: Vec::new(),
+            frame_buffer: Text::default(),
         })
     }
 
@@ -60,7 +60,7 @@ impl<'a> Console<'a> {
     fn draw(&mut self) -> Result<()> {
         self.terminal.draw(|f| {
             let size = f.size();
-            let paragraph = Paragraph::new(convert_to_text(&self.frame_buffer, &self.line_buffer))
+            let paragraph = Paragraph::new(append_line(&self.line_buffer, &mut self.frame_buffer))
                 .block(Block::default().borders(Borders::ALL))
                 .style(Style::default())
                 .alignment(Alignment::Left)
@@ -73,18 +73,17 @@ impl<'a> Console<'a> {
 }
 
 // Generates the prompt string used by the Console
-fn generate_prompt<'a>(context: &Context) -> Vec<Vec<Span<'a>>> {
-    let mut result = Vec::new();
-    let mut span_vec = Vec::new();
+fn generate_prompt<'a>(context: &Context) -> Text<'a> {
+    let mut span_list = Vec::new();
 
     let home = context.env().HOME();
     let truncation = context.shell_config().truncation_factor;
     let user = Span::styled(context.env().USER().clone(), Style::default().fg(Color::Blue));
     let cwd = Span::styled(context.env().CWD().collapse(home, truncation), Style::default().fg(Color::Green));
 
-    span_vec.push(user);
-    span_vec.push(Span::from(" on "));
-    span_vec.push(cwd);
+    span_list.push(user);
+    span_list.push(Span::from(" on "));
+    span_list.push(cwd);
 
     // ? What is the actual name for this?
     let prompt_tick = Span::styled("❯ ", Style::default().add_modifier(Modifier::BOLD).fg(match context.success() {
@@ -92,29 +91,30 @@ fn generate_prompt<'a>(context: &Context) -> Vec<Vec<Span<'a>>> {
         false => Color::LightRed,
     }));
 
-    // If the prompt is in multi-line mode, just append it to the first line and return
-    // If the prompt is in single-line mode, create a new line and append it to the result, then return
+    let mut spans = Vec::new();
+
+    // If the prompt is in multi-line mode, create a new line and append it to the result, then return
+    // If the prompt is in single-line mode, just append it to the first line and return
     if context.shell_config().multi_line_prompt {
-        result.push(span_vec);
-        result.push(vec![prompt_tick]);
+        spans.push(Spans::from(span_list));
+        spans.push(Spans::from(prompt_tick))
     } else {
-        span_vec.push(Span::from(" "));
-        span_vec.push(prompt_tick);
-        result.push(span_vec);
+        span_list.push(Span::from(" "));
+        span_list.push(prompt_tick);
+        spans.push(Spans::from(span_list));
     }
 
-    result
+    Text::from(spans)
 }
 
-// Converts a Vec<Vec<Span>> into a Text object which allows Console.draw() to create a frame
-fn convert_to_text<'a>(text: &Vec<Vec<Span<'a>>>, line: &'a str) -> Text<'a> {
-    let mut text = text.clone();
+// Appends the line buffer to the frame buffer so they can be rendered together but stored separately
+// * This is used on frame updates where the line buffer is being edited
+fn append_line<'a>(line: &'a str, buffer: &'a Text) -> Text<'a> {
+    let mut temp_buffer = buffer.clone();
+    
+    if let Some(last_line) = temp_buffer.lines.last_mut() {
+        last_line.0.push(Span::from(line));
+    }
 
-    // Append the line buffer to the last line of the frame buffer text
-    let line = Span::from(line);
-    text.last_mut().unwrap().push(line);
-
-    // Convert the frame buffer text into a Vec<Spans> and then to a Text
-    let spans: Vec<Spans> = text.iter().map(|s| Spans::from(s.clone())).collect();
-    Text::from(spans)
+    temp_buffer
 }
