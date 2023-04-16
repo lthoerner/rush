@@ -198,7 +198,7 @@ fn generate_prompt<'a>(context: &Context) -> Text<'a> {
 }
 
 // Appends a string to the frame buffer
-fn append_str<'a, 'b>(string: &'a str, buffer: &mut Text<'b>) {
+fn append_str(string: &str, buffer: &mut Text<'_>) {
     // The string must be appended to the last Spans object in the Text object,
     // because otherwise it would be rendered on a new line
     if let Some(last_line) = buffer.lines.last_mut() {
@@ -208,7 +208,7 @@ fn append_str<'a, 'b>(string: &'a str, buffer: &mut Text<'b>) {
 
 // Adds a line break to the end of the framebuffer if the last line is not empty
 // This effectively makes sure that the prompt is always rendered one line below the last line
-fn append_newline<'a>(buffer: &mut Text<'a>) {
+fn append_newline(buffer: &mut Text<'_>) {
     if let Some(last_line) = buffer.lines.last_mut() {
         if !last_line.0.is_empty() {
             buffer.extend(Text::from("\n"));
