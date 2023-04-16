@@ -88,7 +88,7 @@ impl<'a> Console<'a> {
                     return Ok(line)
                 },
                 ReplAction::Clear => {
-                    self.terminal.clear()?;
+                    self.frame_buffer = Text::default();
                     self.line_buffer.clear();
                     self.prompt(context)?;
                 },
