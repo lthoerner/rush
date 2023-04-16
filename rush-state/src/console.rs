@@ -78,8 +78,13 @@ impl<'a> Console<'a> {
 
             match action {
                 ReplAction::Return => {
+                    // Save the line buffer for returning and clear it to make way for the next Console.read_line() call
                     let line = self.line_buffer.clone();
                     self.line_buffer.clear();
+                    
+                    // Save the line buffer as part of the frame buffer
+                    append_str(&line, &mut self.frame_buffer);
+                    
                     return Ok(line)
                 },
                 ReplAction::Clear => {
@@ -136,7 +141,8 @@ impl<'a> Console<'a> {
 
     // Prompts the user for input
     fn prompt(&mut self, context: &Context) -> Result<()> {
-        self.frame_buffer = generate_prompt(context);
+        append_newline(&mut self.frame_buffer);
+        self.frame_buffer.extend(generate_prompt(context));
         self.draw()
     }
 
@@ -189,6 +195,25 @@ fn generate_prompt<'a>(context: &Context) -> Text<'a> {
     }
 
     Text::from(spans)
+}
+
+// Appends a string to the frame buffer
+fn append_str<'a, 'b>(string: &'a str, buffer: &mut Text<'b>) {
+    // The string must be appended to the last Spans object in the Text object,
+    // because otherwise it would be rendered on a new line
+    if let Some(last_line) = buffer.lines.last_mut() {
+        last_line.0.push(Span::from(string.to_string()));
+    }
+}
+
+// Adds a line break to the end of the framebuffer if the last line is not empty
+// This effectively makes sure that the prompt is always rendered one line below the last line
+fn append_newline<'a>(buffer: &mut Text<'a>) {
+    if let Some(last_line) = buffer.lines.last_mut() {
+        if !last_line.0.is_empty() {
+            buffer.extend(Text::from("\n"));
+        }
+    }
 }
 
 // Appends the line buffer to the frame buffer so they can be rendered together but stored separately
