@@ -29,11 +29,21 @@ enum ReplAction {
     Ignore,
 }
 
+// More readable variant of a switch between "backspace" and "delete" keypresses for Console.remove_char()
+#[derive(PartialEq)]
+enum RemoveMode {
+    Backspace,
+    Delete,
+}
+
 // Represents the TUI console
 pub struct Console<'a> {
     terminal: Terminal<CrosstermBackend<Stdout>>,
     line_buffer: String,
     frame_buffer: Text<'a>,
+    // The index of the cursor in the line buffer
+    // ? Should this be an Option<usize>?
+    cursor_index: usize,
 }
 
 impl<'a> Console<'a> {
@@ -45,6 +55,7 @@ impl<'a> Console<'a> {
             terminal,
             line_buffer: String::from("Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed euismod, nunc vel tincidunt lacinia, nunc nisl aliquam nisl."),
             frame_buffer: Text::default(),
+            cursor_index: 0,
         })
     }
 
@@ -110,39 +121,30 @@ impl<'a> Console<'a> {
         match event {
             Event::Key(event) => {
                 match (event.modifiers, event.code) {
-                    (KeyModifiers::NONE | KeyModifiers::SHIFT, KeyCode::Char(c)) => {
-                        self.line_buffer.push(c);
-                        return Ok(ReplAction::RedrawFrame);
-                    },
-                    // * This has to be surrounded by brackets in order to ignore the return value of String.pop()
-                    (KeyModifiers::NONE, KeyCode::Backspace) => {
-                        self.line_buffer.pop();
-                        return Ok(ReplAction::RedrawFrame);
-                    },
-                    // (KeyModifiers::NONE | KeyModifiers::SHIFT, KeyCode::Char(c)) => self.insert_char(c)?,
-                    // (KeyModifiers::NONE, KeyCode::Backspace) => self.remove_char(RemoveMode::Backspace)?,
-                    // (KeyModifiers::NONE, KeyCode::Delete) => self.remove_char(RemoveMode::Delete)?,
-                    // (KeyModifiers::NONE, KeyCode::Left) => self.move_cursor_left()?,
-                    // (KeyModifiers::NONE, KeyCode::Right) => self.move_cursor_right()?,
+                    (KeyModifiers::NONE | KeyModifiers::SHIFT, KeyCode::Char(c)) => self.insert_char(c),
+                    (KeyModifiers::NONE, KeyCode::Backspace) => self.remove_char(RemoveMode::Backspace),
+                    (KeyModifiers::NONE, KeyCode::Delete) => self.remove_char(RemoveMode::Delete),
+                    (KeyModifiers::NONE, KeyCode::Left) => self.move_cursor_left(),
+                    (KeyModifiers::NONE, KeyCode::Right) => self.move_cursor_right(),
                     (KeyModifiers::NONE, KeyCode::Enter) if !self.line_buffer.is_empty() => return Ok(ReplAction::Return),
                     // (KeyModifiers::NONE, KeyCode::Up) => self.scroll_history(HistoryDirection::Up, context)?,
                     // (KeyModifiers::NONE, KeyCode::Down) => self.scroll_history(HistoryDirection::Down, context)?,
                     (KeyModifiers::CONTROL, KeyCode::Char('c')) => return Ok(ReplAction::Exit),
                     (KeyModifiers::CONTROL, KeyCode::Char('l')) => return Ok(ReplAction::Clear),
-                    _ => (),
+                    _ => return Ok(ReplAction::Ignore),
                 }
             }
-            Event::Resize(_, _) => return Ok(ReplAction::RedrawFrame),
-            _ => (),
+            _ => return Ok(ReplAction::Ignore),
         }
 
-        Ok(ReplAction::Ignore)
+        Ok(ReplAction::RedrawFrame)
     }
 
     // Prompts the user for input
     fn prompt(&mut self, context: &Context) -> Result<()> {
         append_newline(&mut self.frame_buffer);
         self.frame_buffer.extend(generate_prompt(context));
+        self.cursor_index = self.line_buffer.len();
         self.draw()
     }
 
@@ -150,6 +152,7 @@ impl<'a> Console<'a> {
     fn draw(&mut self) -> Result<()> {
         self.terminal.draw(|f| {
             let size = f.size();
+            // $ This probably should not be appending the line buffer automatically. Not sure if it should be a mode, a separate function, etc.
             let paragraph = Paragraph::new(append_line(&self.line_buffer, &mut self.frame_buffer))
                 .block(Block::default().borders(Borders::ALL))
                 .style(Style::default())
@@ -159,6 +162,43 @@ impl<'a> Console<'a> {
         })?;
         
         Ok(())
+    }
+
+    // Inserts a character at the cursor position
+    fn insert_char(&mut self, c: char) {
+        self.line_buffer.insert(self.cursor_index, c);
+        self.move_cursor_right();
+    }
+
+    // Removes a character from the line buffer at the cursor position
+    fn remove_char(&mut self, mode: RemoveMode) {
+        match mode {
+            RemoveMode::Backspace => {
+                if self.cursor_index > 0 {
+                    self.line_buffer.remove(self.cursor_index - 1);
+                    self.move_cursor_left();
+                }
+            },
+            RemoveMode::Delete => {
+                if self.cursor_index < self.line_buffer.len() {
+                    self.line_buffer.remove(self.cursor_index);
+                }
+            },
+        }
+    }
+
+    // Moves the cursor left by one character, checking for bounds
+    fn move_cursor_left(&mut self) {
+        if self.cursor_index > 0 {
+            self.cursor_index -= 1;
+        }
+    }
+
+    // Moves the cursor right by one character, checking for bounds
+    fn move_cursor_right(&mut self) {
+        if self.cursor_index < self.line_buffer.len() {
+            self.cursor_index += 1;
+        }
     }
 }
 
