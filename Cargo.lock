@@ -168,21 +168,8 @@ name = "rush"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "rush-console",
  "rush-eval",
  "rush-state",
-]
-
-[[package]]
-name = "rush-console"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "crossterm",
- "ratatui",
- "rush-eval",
- "rush-state",
- "thiserror",
 ]
 
 [[package]]

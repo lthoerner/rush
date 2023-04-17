@@ -2,7 +2,6 @@
 members = [
     "rush",
     "rush-state",
-    "rush-console",
     "rush-eval",
     "rush-exec",
 ]
