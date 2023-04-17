@@ -84,6 +84,8 @@
         "./rush-console/Cargo.toml",
         "./rush-state/Cargo.toml",
         "./rush-state/Cargo.toml",
-        "./rush-state/Cargo.toml"
+        "./rush-state/Cargo.toml",
+        "./rush-state/Cargo.toml",
+        "./rush-console/Cargo.toml"
     ],
 }

@@ -3,7 +3,6 @@ use anyhow::Result;
 use rush_eval::dispatcher::Dispatcher;
 use rush_eval::errors::DispatchError;
 use rush_state::console::Console;
-use rush_state::context::Context;
 use rush_state::shell::Shell;
 
 fn main() -> Result<()> {
@@ -13,34 +12,32 @@ fn main() -> Result<()> {
     
     console.enter()?;
 
-    let mut context = Context::new(shell, console);
-    
     loop {
-        let line = context.read_line()?;
-        let status = dispatcher.eval(&mut context, &line);
-        handle_error(status, &mut context);
+        let line = console.read_line(&mut shell)?;
+        let status = dispatcher.eval(&mut shell, &mut console, &line);
+        handle_error(status, &mut shell);
         
-        if context.success() {
-            context.history_add(line);
+        if shell.success() {
+            shell.history_add(line);
         }
     }
 }
 
 // Prints an appropriate error message for the given error, if applicable
-fn handle_error(error: Result<()>, context: &mut Context) {
+fn handle_error(error: Result<()>, shell: &mut Shell) {
     match error {
-        Ok(_) => context.set_success(true),
+        Ok(_) => shell.set_success(true),
         Err(e) => {
             match e.downcast_ref::<DispatchError>() {
                 Some(DispatchError::UnknownCommand(command_name)) => {
                     eprintln!("Unknown command: {}", command_name);
                 }
-                _ => if context.shell_config().show_errors {
+                _ => if shell.config().show_errors {
                     eprintln!("Error: {}", format!("{:#?}: {}", e, e));
                 }
             }
 
-            context.set_success(false);
+            shell.set_success(false);
         },
     }
 }

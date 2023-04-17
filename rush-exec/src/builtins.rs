@@ -8,39 +8,39 @@ Users are free to create their own builtins if they wish to modify the source co
 An 'External' will only have access to its arguments and environment variables, but not the shell's state, mostly for security reasons.
  */
 
-use fs_err;
-use std::env;
+use fs_err::{self, ReadDir};
 use std::io::{BufRead, BufReader};
 
 use anyhow::Result;
 
 use rush_state::path::Path;
-use rush_state::context::Context;
+use rush_state::shell::Shell;
+use rush_state::console::Console;
 
 use crate::commands::{Executable, Runnable};
 use crate::errors::BuiltinError;
 
-pub fn test(_context: &mut Context, args: Vec<&str>) -> Result<()> {
+pub fn test(_shell: &mut Shell, console: &mut Console, args: Vec<&str>) -> Result<()> {
     check_args(&args, 0, "test")?;
     println!("{}", "Test command!");
     Ok(())
 }
 
-pub fn exit(_context: &mut Context, args: Vec<&str>) -> Result<()> {
+pub fn exit(_shell: &mut Shell, console: &mut Console, args: Vec<&str>) -> Result<()> {
     check_args(&args, 0, "exit")?;
     std::process::exit(0);
 }
 
-pub fn working_directory(context: &mut Context, args: Vec<&str>) -> Result<()> {
+pub fn working_directory(shell: &mut Shell, console: &mut Console, args: Vec<&str>) -> Result<()> {
     check_args(&args, 0, "working-directory")?;
-    println!("{}", context.env().CWD());
+    println!("{}", shell.env().CWD());
     Ok(())
 }
 
-pub fn change_directory(context: &mut Context, args: Vec<&str>) -> Result<()> {
+pub fn change_directory(shell: &mut Shell, console: &mut Console, args: Vec<&str>) -> Result<()> {
     check_args(&args, 1, "change-directory <path>")?;
-    let history_limit = context.shell_config_mut().history_limit;
-    context
+    let history_limit = shell.config_mut().history_limit;
+    shell
         .env_mut()
         .set_CWD(args[0], history_limit)
         .map_err(|_| {
@@ -49,42 +49,35 @@ pub fn change_directory(context: &mut Context, args: Vec<&str>) -> Result<()> {
         })
 }
 
-fn enter_and_read_path(
-    context: &mut Context,
-    path: &str,
-) -> Result<fs_err::ReadDir, BuiltinError> {
+fn enter_and_read_path(shell: &mut Shell, console: &mut Console, path: &str) -> Result<ReadDir> {
     // Path::from_str() will attempt to expand and canonicalize the path, and return None if the path does not exist
-    let absolute_path = Path::from_str(path, context.env().HOME()).map_err(|_| {
+    let absolute_path = Path::from_str(path, shell.env().HOME()).map_err(|_| {
         eprintln!("Invalid path: '{}'", path);
         BuiltinError::FailedToRun
     })?;
 
-    fs_err::read_dir(&absolute_path.path()).map_err(|_| {
-        eprintln!("Failed to read directory: '{}'", absolute_path.to_string());
-        BuiltinError::FailedToRun
-    })
+    Ok(fs_err::read_dir(&absolute_path.path()).expect(&format!("Failed to read directory: '{}'", absolute_path.to_string())))
 }
 
 // TODO: Break up some of this code into different functions
-pub fn list_directory(context: &mut Context, args: Vec<&str>) -> Result<()> {
+pub fn list_directory(shell: &mut Shell, console: &mut Console, args: Vec<&str>) -> Result<()> {
     let show_hidden = show_hidden_files(&args);
 
     let files_and_directories = match args.len() {
         // Use the working directory as the default path argument
         // This uses expect() because it needs to crash if the working directory is invalid,
         // though in the future the error should be handled properly
-        0 => fs_err::read_dir(env::current_dir().expect("Failed to get working directory"))
+        0 => fs_err::read_dir(shell.env().CWD().path())
             .expect("Failed to read directory"),
         1 => {
             if show_hidden  {
-                fs_err::read_dir(env::current_dir().expect("Failed to get working directory"))
-                    .expect("Failed to read directory")
+                fs_err::read_dir(shell.env().CWD().path()).expect("Failed to read directory")
             } else {
-                enter_and_read_path(context, &args[0])?
+                enter_and_read_path(shell, console, &args[0])?
             }
         }
         2 => {
-            enter_and_read_path(context, &args[0])?
+            enter_and_read_path(shell, console, &args[0])?
         }
         _ => {
             eprintln!("Usage: list-directory <path> [flags]");
@@ -144,23 +137,23 @@ fn show_hidden_files(args: &Vec<&str>) -> bool {
 }
 
 // TODO: Find a better name for this
-pub fn go_back(context: &mut Context, args: Vec<&str>) -> Result<()> {
+pub fn go_back(shell: &mut Shell, console: &mut Console, args: Vec<&str>) -> Result<()> {
     check_args(&args, 0, "go-back")?;
-    context.env_mut().go_back().map_err(|_| {
+    shell.env_mut().go_back().map_err(|_| {
         eprintln!("Previous directory does not exist or is invalid");
         BuiltinError::FailedToRun.into()
     })
 }
 
-pub fn go_forward(context: &mut Context, args: Vec<&str>) -> Result<()> {
+pub fn go_forward(shell: &mut Shell, console: &mut Console, args: Vec<&str>) -> Result<()> {
     check_args(&args, 0, "go-forward")?;
-    context.env_mut().go_forward().map_err(|_| {
+    shell.env_mut().go_forward().map_err(|_| {
         eprintln!("Next directory does not exist or is invalid");
         BuiltinError::FailedToRun.into()
     })
 }
 
-pub fn clear_terminal(_context: &mut Context, args: Vec<&str>) -> Result<()> {
+pub fn clear_terminal(_shell: &mut Shell, console: &mut Console, args: Vec<&str>) -> Result<()> {
     check_args(&args, 0, "clear-terminal")?;
     // * "Magic" ANSI escape sequence to clear the terminal
     print!("\x1B[2J\x1B[1;1H");
@@ -168,7 +161,7 @@ pub fn clear_terminal(_context: &mut Context, args: Vec<&str>) -> Result<()> {
 }
 
 // TODO: Add prompt to confirm file overwrite
-pub fn make_file(_context: &mut Context, args: Vec<&str>) -> Result<()> {
+pub fn make_file(_shell: &mut Shell, console: &mut Console, args: Vec<&str>) -> Result<()> {
     if args.len() == 1 {
         fs_err::File::create(args[0]).map_err(|_| {
             eprintln!("Failed to create file: '{}'", args[0]);
@@ -181,7 +174,7 @@ pub fn make_file(_context: &mut Context, args: Vec<&str>) -> Result<()> {
     }
 }
 
-pub fn make_directory(_context: &mut Context, args: Vec<&str>) -> Result<()> {
+pub fn make_directory(_shell: &mut Shell, console: &mut Console, args: Vec<&str>) -> Result<()> {
     if args.len() == 1 {
         fs_err::create_dir(args[0]).map_err(|_| {
             eprintln!("Failed to create directory: '{}'", args[0]);
@@ -194,7 +187,7 @@ pub fn make_directory(_context: &mut Context, args: Vec<&str>) -> Result<()> {
     }
 }
 
-pub fn delete_file(_context: &mut Context, args: Vec<&str>) -> Result<()> {
+pub fn delete_file(_shell: &mut Shell, console: &mut Console, args: Vec<&str>) -> Result<()> {
     if args.len() == 1 {
         fs_err::remove_file(args[0]).map_err(|_| {
             eprintln!("Failed to delete file: '{}'", args[0]);
@@ -207,7 +200,7 @@ pub fn delete_file(_context: &mut Context, args: Vec<&str>) -> Result<()> {
     }
 }
 
-pub fn read_file(_context: &mut Context, args: Vec<&str>) -> Result<()> {
+pub fn read_file(_shell: &mut Shell, console: &mut Console, args: Vec<&str>) -> Result<()> {
     check_args(&args, 1, "read-file <path>")?;
     let file_name = args[0].to_string();
     let file = fs_err::File::open(&file_name).map_err(|_| {
@@ -224,18 +217,18 @@ pub fn read_file(_context: &mut Context, args: Vec<&str>) -> Result<()> {
     Ok(())
 }
 
-pub fn run_executable(context: &mut Context, args: Vec<&str>) -> Result<()> {
+pub fn run_executable(shell: &mut Shell, console: &mut Console, args: Vec<&str>) -> Result<()> {
     check_args(&args, 1, "run-executable <path>")?;
     let executable_name = args[0].to_string();
-    let executable_path = Path::from_str(&executable_name, context.env().HOME()).map_err(|_| {
+    let executable_path = Path::from_str(&executable_name, shell.env().HOME()).map_err(|_| {
         eprintln!("Failed to resolve executable path: '{}'", executable_name);
         BuiltinError::FailedToRun
     })?;
 
-    Executable::new(executable_path).run(context, args)
+    Executable::new(executable_path).run(shell, console, args)
 }
 
-pub fn configure(context: &mut Context, args: Vec<&str>) -> Result<()> {
+pub fn configure(shell: &mut Shell, console: &mut Console, args: Vec<&str>) -> Result<()> {
     check_args(&args, 2, "configure <key> <value>")?;
     let key = args[0];
     let value = args[1];
@@ -243,11 +236,11 @@ pub fn configure(context: &mut Context, args: Vec<&str>) -> Result<()> {
     match key {
         "truncation" => {
             if value == "false" {
-                context.shell_config_mut().truncation_factor = None;
+                shell.config_mut().truncation_factor = None;
                 return Ok(());
             }
 
-            context.shell_config_mut().truncation_factor =
+            shell.config_mut().truncation_factor =
                 Some(value.parse::<usize>().map_err(|_| {
                     eprintln!("Invalid truncation length: '{}'", value);
                     BuiltinError::InvalidValue(value.to_string())
@@ -255,24 +248,24 @@ pub fn configure(context: &mut Context, args: Vec<&str>) -> Result<()> {
         }
         "history-limit" => {
             if value == "false" {
-                context.shell_config_mut().history_limit = None;
+                shell.config_mut().history_limit = None;
                 return Ok(());
             }
 
-            context.shell_config_mut().history_limit =
+            shell.config_mut().history_limit =
                 Some(value.parse::<usize>().map_err(|_| {
                     eprintln!("Invalid history limit: '{}'", value);
                     BuiltinError::InvalidValue(value.to_string())
                 })?)
         }
         "show-errors" => {
-            context.shell_config_mut().show_errors = value.parse::<bool>().map_err(|_| {
+            shell.config_mut().show_errors = value.parse::<bool>().map_err(|_| {
                 eprintln!("Invalid value for show-errors: '{}'", value);
                 BuiltinError::InvalidValue(value.to_string())
             })?
         }
         "multi-line-prompt" => {
-            context.shell_config_mut().multi_line_prompt = value.parse::<bool>().map_err(|_| {
+            shell.config_mut().multi_line_prompt = value.parse::<bool>().map_err(|_| {
                 eprintln!("Invalid value for multi-line-prompt: '{}'", value);
                 BuiltinError::InvalidValue(value.to_string())
             })?
@@ -286,17 +279,17 @@ pub fn configure(context: &mut Context, args: Vec<&str>) -> Result<()> {
     Ok(())
 }
 
-pub fn environment_variable(context: &mut Context, args: Vec<&str>) -> Result<()> {
+pub fn environment_variable(shell: &mut Shell, console: &mut Console, args: Vec<&str>) -> Result<()> {
     check_args(&args, 1, "environment-variable <var>")?;
     match args[0].to_uppercase().as_str() {
         "PATH" => {
-            for (i, path) in context.env().PATH().iter().enumerate() {
+            for (i, path) in shell.env().PATH().iter().enumerate() {
                 println!("[{i}]: {path}");
             }
         }
-        "USER" => println!("{}", context.env().USER()),
-        "HOME" => println!("{}", context.env().HOME().display()),
-        "CWD" | "WORKING-DIRECTORY" => println!("{}", context.env().CWD()),
+        "USER" => println!("{}", shell.env().USER()),
+        "HOME" => println!("{}", shell.env().HOME().display()),
+        "CWD" | "WORKING-DIRECTORY" => println!("{}", shell.env().CWD()),
         _ => {
             eprintln!("Invalid environment variable: '{}'", args[0]);
             return Err(BuiltinError::InvalidArgument(args[0].to_string()).into());
@@ -306,17 +299,17 @@ pub fn environment_variable(context: &mut Context, args: Vec<&str>) -> Result<()
     Ok(())
 }
 
-pub fn edit_path(context: &mut Context, args: Vec<&str>) -> Result<()> {
+pub fn edit_path(shell: &mut Shell, console: &mut Console, args: Vec<&str>) -> Result<()> {
     check_args(&args, 2, "edit-path <append | prepend> <path>")?;
     let action = args[0];
-    let path = Path::from_str(args[1], context.env().HOME()).map_err(|_| {
+    let path = Path::from_str(args[1], shell.env().HOME()).map_err(|_| {
         eprintln!("Invalid directory: '{}'", args[1]);
         BuiltinError::FailedToRun
     })?;
 
     match action {
-        "append" => context.env_mut().PATH_mut().push_front(path),
-        "prepend" => context.env_mut().PATH_mut().push_back(path),
+        "append" => shell.env_mut().PATH_mut().push_front(path),
+        "prepend" => shell.env_mut().PATH_mut().push_back(path),
         _ => {
             eprintln!("Invalid action: '{}'", action);
             return Err(BuiltinError::InvalidArgument(args[0].to_string()).into());

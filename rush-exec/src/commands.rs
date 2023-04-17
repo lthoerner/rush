@@ -3,14 +3,15 @@ use std::process::Command as Process;
 use anyhow::Result;
 
 use rush_state::path::Path;
-use rush_state::context::Context;
+use rush_state::shell::Shell;
+use rush_state::console::Console;
 
 use crate::errors::ExecutableError;
 
 // Represents either a builtin (internal command) or an executable (external command)
 // A Runnable may be executed by calling its .run() method
 pub trait Runnable {
-    fn run(&self, context: &mut Context, arguments: Vec<&str>) -> Result<()>;
+    fn run(&self, shell: &mut Shell, console: &mut Console, arguments: Vec<&str>) -> Result<()>;
 }
 
 // Wrapper type for Vec<String> that makes it easier to read code related to Builtins
@@ -37,11 +38,11 @@ impl Aliases {
 pub struct Builtin {
     pub true_name: String,
     pub aliases: Aliases,
-    function: Box<dyn Fn(&mut Context, Vec<&str>) -> Result<()>>,
+    function: Box<dyn Fn(&mut Shell, &mut Console, Vec<&str>) -> Result<()>>,
 }
 
 impl Builtin {
-    pub fn new<F: Fn(&mut Context, Vec<&str>) -> Result<()> + 'static>(
+    pub fn new<F: Fn(&mut Shell, &mut Console, Vec<&str>) -> Result<()> + 'static>(
         true_name: &str,
         aliases: Vec<&str>,
         function: F,
@@ -59,8 +60,8 @@ impl Builtin {
 }
 
 impl Runnable for Builtin {
-    fn run(&self, context: &mut Context, arguments: Vec<&str>) -> Result<()> {
-        (self.function)(context, arguments)
+    fn run(&self, shell: &mut Shell, console: &mut Console, arguments: Vec<&str>) -> Result<()> {
+        (self.function)(shell, console, arguments)
     }
 }
 
@@ -81,7 +82,7 @@ impl Executable {
 
 impl Runnable for Executable {
     // * Executables do not have access to the shell state, but the context argument is required by the Runnable trait
-    fn run(&self, _context: &mut Context, arguments: Vec<&str>) -> Result<()> {
+    fn run(&self, _shell: &mut Shell, _console: &mut Console, arguments: Vec<&str>) -> Result<()> {
         // Create the Process and pass the provided arguments to it
         let mut executable = Process::new(self.path.path());
         executable.args(arguments);

@@ -8,8 +8,6 @@ use crossterm::style::{Print, Stylize};
 use crossterm::terminal::{self, Clear, ClearType};
 use crossterm::{execute, queue};
 
-use rush_state::context::Context;
-
 // Represents an action that the handler instructs the REPL (Console.read()) to perform
 // Allows for some actions to be performed in the handler and some to be performed in the REPL
 enum ReplAction {

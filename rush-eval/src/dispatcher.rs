@@ -3,7 +3,8 @@ use anyhow::Result;
 use rush_exec::builtins;
 use rush_exec::commands::{Builtin, Executable, Runnable};
 use rush_state::path::Path;
-use rush_state::context::Context;
+use rush_state::shell::Shell;
+use rush_state::console::Console;
 
 use crate::errors::DispatchError;
 use crate::parser;
@@ -49,7 +50,7 @@ impl Dispatcher {
     }
 
     // Adds a builtin to the Dispatcher
-    fn add_builtin<F: Fn(&mut Context, Vec<&str>) -> Result<()> + 'static>(
+    fn add_builtin<F: Fn(&mut Shell, &mut Console, Vec<&str>) -> Result<()> + 'static>(
         &mut self,
         true_name: &str,
         aliases: Vec<&str>,
@@ -76,34 +77,29 @@ impl Dispatcher {
     }
 
     // Evaluates and executes a command from a string
-    pub fn eval(&self, context: &mut Context, line: &String) -> Result<()> {
+    pub fn eval(&self, shell: &mut Shell, console: &mut Console, line: &String) -> Result<()> {
         let (command_name, command_args) = parser::tokenize(line);
         // ? Is there a way to avoid this type conversion?
         let command_name = command_name.as_str();
         let command_args = command_args.iter().map(|a| a.as_str()).collect();
 
         // Dispatch the command to the Dispatcher
-        self.dispatch(command_name, command_args, context)
+        self.dispatch(shell, console, command_name, command_args)
     }
 
     // Resolves and dispatches a command to the appropriate function or external binary
     // If the command does not exist, returns None
-    fn dispatch(
-        &self,
-        command_name: &str,
-        command_args: Vec<&str>,
-        context: &mut Context,
-    ) -> Result<()> {
+    fn dispatch(&self, shell: &mut Shell, console: &mut Console, command_name: &str, command_args: Vec<&str>) -> Result<()> {
         // If the command resides in the Dispatcher (generally means it is a builtin) run it
         if let Some(command) = self.resolve(command_name) {
-            let exit_status = command.run(context, command_args);
+            let exit_status = command.run(shell, console, command_args);
             exit_status
         } else {
             // If the command is not in the Dispatcher, try to run it as an executable from the PATH
-            let path = Path::from_path_var(command_name, context.env().PATH());
+            let path = Path::from_path_var(command_name, shell.env().PATH());
             if let Ok(path) = path {
                 // ? Should this check if the file is an executable first?
-                Executable::new(path).run(context, command_args)
+                Executable::new(path).run(shell, console, command_args)
             } else {
                 Err(DispatchError::UnknownCommand(command_name.to_string()).into())
             }

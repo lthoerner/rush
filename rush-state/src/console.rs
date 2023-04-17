@@ -12,7 +12,7 @@ use ratatui::style::{Color, Modifier, Style};
 use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
 use ratatui::Terminal;
 
-use crate::context::ShellContext;
+use crate::shell::Shell;
 
 // Represents an action that the handler instructs the REPL (Console.read()) to perform
 // Allows for some actions to be performed in the handler and some to be performed in the REPL
@@ -79,7 +79,7 @@ impl<'a> Console<'a> {
 
     // Reads a line of input from the user
     // Handles all TUI interaction between the user and the prompt
-    pub fn read_line(&mut self, shell: &ShellContext) -> Result<String> {
+    pub fn read_line(&mut self, shell: &Shell) -> Result<String> {
         self.prompt(shell)?;
         self.draw()?;
 
@@ -141,7 +141,7 @@ impl<'a> Console<'a> {
     }
 
     // Prompts the user for input
-    fn prompt(&mut self, shell: &ShellContext) -> Result<()> {
+    fn prompt(&mut self, shell: &Shell) -> Result<()> {
         enforce_spacing(&mut self.frame_buffer);
         self.frame_buffer.extend(generate_prompt(shell));
         self.cursor_index = self.line_buffer.len();
@@ -203,7 +203,7 @@ impl<'a> Console<'a> {
 }
 
 // Generates the prompt string used by the Console
-fn generate_prompt<'a>(shell: &ShellContext) -> Text<'a> {
+fn generate_prompt<'a>(shell: &Shell) -> Text<'a> {
     let mut span_list = Vec::new();
 
     let home = shell.env().HOME();

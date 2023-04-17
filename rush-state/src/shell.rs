@@ -25,4 +25,36 @@ impl Shell {
             command_history: Vec::new(),
         })
     }
+
+    pub fn env(&self) -> &Environment {
+        &self.environment
+    }
+
+    pub fn env_mut(&mut self) -> &mut Environment {
+        &mut self.environment
+    }
+
+    pub fn config(&self) -> &Configuration {
+        &self.config
+    }
+
+    pub fn config_mut(&mut self) -> &mut Configuration {
+        &mut self.config
+    }
+
+    pub fn success(&self) -> bool {
+        self.command_success
+    }
+
+    pub fn set_success(&mut self, success: bool) {
+        self.command_success = success;
+    }
+
+    pub fn history(&self) -> &Vec<String> {
+        &self.command_history
+    }
+
+    pub fn history_add(&mut self, command: String) {
+        self.command_history.push(command);
+    }
 }
