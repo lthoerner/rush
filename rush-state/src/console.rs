@@ -19,8 +19,6 @@ use crate::shell::Shell;
 enum ReplAction {
     // Instruction to return the line buffer to the shell and perform any necessary cleanup
     Return,
-    // Instruction to clear the line buffer and re-prompt the user
-    Clear,
     // Instruction to exit the shell
     Exit,
     // Instruction to do nothing except update the TUI
@@ -85,7 +83,7 @@ impl<'a> Console<'a> {
 
         loop {
             let event = event::read()?;
-            let action = self.handle_event(event)?;
+            let action = self.handle_event(event, shell)?;
 
             match action {
                 ReplAction::Return => {
@@ -97,11 +95,6 @@ impl<'a> Console<'a> {
                     append(&line, &mut self.frame_buffer);
                     
                     return Ok(line)
-                },
-                ReplAction::Clear => {
-                    self.frame_buffer = Text::default();
-                    self.line_buffer.clear();
-                    self.prompt(shell)?;
                 },
                 ReplAction::Exit => {
                     self.close()?;
@@ -116,7 +109,7 @@ impl<'a> Console<'a> {
     }
 
     // Handles a key event by queueing appropriate commands based on the given keypress
-    fn handle_event(&mut self, event: Event) -> Result<ReplAction> {
+    fn handle_event(&mut self, event: Event, shell: &Shell) -> Result<ReplAction> {
         // TODO: Break up event handling into separate functions for different event categories
         match event {
             Event::Key(event) => {
@@ -130,7 +123,7 @@ impl<'a> Console<'a> {
                     // (KeyModifiers::NONE, KeyCode::Up) => self.scroll_history(HistoryDirection::Up, context)?,
                     // (KeyModifiers::NONE, KeyCode::Down) => self.scroll_history(HistoryDirection::Down, context)?,
                     (KeyModifiers::CONTROL, KeyCode::Char('c')) => return Ok(ReplAction::Exit),
-                    (KeyModifiers::CONTROL, KeyCode::Char('l')) => return Ok(ReplAction::Clear),
+                    (KeyModifiers::CONTROL, KeyCode::Char('l')) => self.clear(shell)?,
                     _ => return Ok(ReplAction::Ignore),
                 }
             }
@@ -142,10 +135,11 @@ impl<'a> Console<'a> {
 
     // Prompts the user for input
     fn prompt(&mut self, shell: &Shell) -> Result<()> {
-        enforce_spacing(&mut self.frame_buffer);
+        self.enforce_spacing();
         self.frame_buffer.extend(generate_prompt(shell));
         self.cursor_index = self.line_buffer.len();
-        self.draw()
+
+        Ok(())
     }
 
     // Draws a TUI frame
@@ -153,15 +147,22 @@ impl<'a> Console<'a> {
         self.terminal.draw(|f| {
             let size = f.size();
             // $ This probably should not be appending the line buffer automatically. Not sure if it should be a mode, a separate function, etc.
-            let paragraph = Paragraph::new(append_line(&self.line_buffer, &mut self.frame_buffer))
+            let main_widget = Paragraph::new(append_line_buffer(&self.line_buffer, &mut self.frame_buffer))
                 .block(Block::default().borders(Borders::ALL))
                 .style(Style::default())
                 .alignment(Alignment::Left)
                 .wrap(Wrap { trim: false });
-            f.render_widget(paragraph, size);
+            f.render_widget(main_widget, size);
+
         })?;
         
         Ok(())
+    }
+
+    // Clears the screen and the line buffer and reprompts the user
+    fn clear(&mut self, shell: &Shell) -> Result<()> {
+        self.frame_buffer = Text::default();
+        self.prompt(shell)
     }
 
     // Inserts a character at the cursor position
@@ -198,6 +199,27 @@ impl<'a> Console<'a> {
     fn move_cursor_right(&mut self) {
         if self.cursor_index < self.line_buffer.len() {
             self.cursor_index += 1;
+        }
+    }
+
+    // Prints a line of text to the console
+    pub fn println(&mut self, text: &String) {
+        self.append_newline(text);
+        _ = self.draw()
+    }
+
+    // Appends a string to the next line of the frame buffer
+    fn append_newline(&mut self, string: &String) {
+        self.frame_buffer.lines.push(Spans::from(string.clone()))
+    }
+
+    // Ensures that there is an empty line at the end of the frame buffer
+    // * This is used to make the prompt always appear one line below the last line of output, just for cosmetic purposes
+    fn enforce_spacing(&mut self) {
+        if let Some(last_line) = self.frame_buffer.lines.last_mut() {
+            if !last_line.0.is_empty() {
+                self.frame_buffer.lines.push(Spans::default());
+            }
         }
     }
 }
@@ -246,29 +268,13 @@ fn append(string: &str, buffer: &mut Text<'_>) {
     }
 }
 
-// Appends a string to the next line of the frame buffer
-pub fn append_newline(string: &str, buffer: &mut Text<'_>) {
-    buffer.extend(Text::default());
-    append(string, buffer);
-}
-
-// Ensures that there is an empty line at the end of the frame buffer
-// * This is used to make the prompt always appear one line below the last line of output, just for cosmetic purposes
-fn enforce_spacing(buffer: &mut Text<'_>) {
-    if let Some(last_line) = buffer.lines.last_mut() {
-        if !last_line.0.is_empty() {
-            buffer.extend(Text::default());
-        }
-    }
-}
-
 // Appends the line buffer to the frame buffer so they can be rendered together but stored separately
 // * This is used on frame updates where the line buffer is being edited
-fn append_line<'a>(line: &'a str, buffer: &'a Text) -> Text<'a> {
-    let mut temp_buffer = buffer.clone();
+fn append_line_buffer<'a>(line_buffer: &'a str, frame_buffer: &'a Text) -> Text<'a> {
+    let mut temp_buffer = frame_buffer.clone();
     
     if let Some(last_line) = temp_buffer.lines.last_mut() {
-        last_line.0.push(Span::from(line));
+        last_line.0.push(Span::from(line_buffer));
     }
 
     temp_buffer
