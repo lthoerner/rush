@@ -13,8 +13,9 @@ use std::env;
 use std::io::{BufRead, BufReader};
 
 use anyhow::Result;
+
 use rush_state::path::Path;
-use rush_state::shell::Context;
+use rush_state::context::Context;
 
 use crate::commands::{Executable, Runnable};
 use crate::errors::BuiltinError;

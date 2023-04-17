@@ -12,7 +12,7 @@ use ratatui::style::{Color, Modifier, Style};
 use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
 use ratatui::Terminal;
 
-use crate::shell::Context;
+use crate::context::ShellContext;
 
 // Represents an action that the handler instructs the REPL (Console.read()) to perform
 // Allows for some actions to be performed in the handler and some to be performed in the REPL
@@ -79,8 +79,8 @@ impl<'a> Console<'a> {
 
     // Reads a line of input from the user
     // Handles all TUI interaction between the user and the prompt
-    pub fn read_line(&mut self, context: &Context) -> Result<String> {
-        self.prompt(context)?;
+    pub fn read_line(&mut self, shell: &ShellContext) -> Result<String> {
+        self.prompt(shell)?;
         self.draw()?;
 
         loop {
@@ -94,14 +94,14 @@ impl<'a> Console<'a> {
                     self.line_buffer.clear();
                     
                     // Save the line buffer as part of the frame buffer
-                    append_str(&line, &mut self.frame_buffer);
+                    append(&line, &mut self.frame_buffer);
                     
                     return Ok(line)
                 },
                 ReplAction::Clear => {
                     self.frame_buffer = Text::default();
                     self.line_buffer.clear();
-                    self.prompt(context)?;
+                    self.prompt(shell)?;
                 },
                 ReplAction::Exit => {
                     self.close()?;
@@ -141,9 +141,9 @@ impl<'a> Console<'a> {
     }
 
     // Prompts the user for input
-    fn prompt(&mut self, context: &Context) -> Result<()> {
-        append_newline(&mut self.frame_buffer);
-        self.frame_buffer.extend(generate_prompt(context));
+    fn prompt(&mut self, shell: &ShellContext) -> Result<()> {
+        enforce_spacing(&mut self.frame_buffer);
+        self.frame_buffer.extend(generate_prompt(shell));
         self.cursor_index = self.line_buffer.len();
         self.draw()
     }
@@ -203,20 +203,20 @@ impl<'a> Console<'a> {
 }
 
 // Generates the prompt string used by the Console
-fn generate_prompt<'a>(context: &Context) -> Text<'a> {
+fn generate_prompt<'a>(shell: &ShellContext) -> Text<'a> {
     let mut span_list = Vec::new();
 
-    let home = context.env().HOME();
-    let truncation = context.shell_config().truncation_factor;
-    let user = Span::styled(context.env().USER().clone(), Style::default().fg(Color::Blue));
-    let cwd = Span::styled(context.env().CWD().collapse(home, truncation), Style::default().fg(Color::Green));
+    let home = shell.env().HOME();
+    let truncation = shell.config().truncation_factor;
+    let user = Span::styled(shell.env().USER().clone(), Style::default().fg(Color::Blue));
+    let cwd = Span::styled(shell.env().CWD().collapse(home, truncation), Style::default().fg(Color::Green));
 
     span_list.push(user);
     span_list.push(Span::from(" on "));
     span_list.push(cwd);
 
     // ? What is the actual name for this?
-    let prompt_tick = Span::styled("❯ ", Style::default().add_modifier(Modifier::BOLD).fg(match context.success() {
+    let prompt_tick = Span::styled("❯ ", Style::default().add_modifier(Modifier::BOLD).fg(match shell.success() {
         true => Color::LightGreen,
         false => Color::LightRed,
     }));
@@ -225,7 +225,7 @@ fn generate_prompt<'a>(context: &Context) -> Text<'a> {
 
     // If the prompt is in multi-line mode, create a new line and append it to the result, then return
     // If the prompt is in single-line mode, just append it to the first line and return
-    if context.shell_config().multi_line_prompt {
+    if shell.config().multi_line_prompt {
         spans.push(Spans::from(span_list));
         spans.push(Spans::from(prompt_tick))
     } else {
@@ -237,8 +237,8 @@ fn generate_prompt<'a>(context: &Context) -> Text<'a> {
     Text::from(spans)
 }
 
-// Appends a string to the frame buffer
-fn append_str(string: &str, buffer: &mut Text<'_>) {
+// Appends a string to the frame buffer without creating a newline
+fn append(string: &str, buffer: &mut Text<'_>) {
     // The string must be appended to the last Spans object in the Text object,
     // because otherwise it would be rendered on a new line
     if let Some(last_line) = buffer.lines.last_mut() {
@@ -246,12 +246,18 @@ fn append_str(string: &str, buffer: &mut Text<'_>) {
     }
 }
 
-// Adds a line break to the end of the framebuffer if the last line is not empty
-// This effectively makes sure that the prompt is always rendered one line below the last line
-fn append_newline(buffer: &mut Text<'_>) {
+// Appends a string to the next line of the frame buffer
+pub fn append_newline(string: &str, buffer: &mut Text<'_>) {
+    buffer.extend(Text::default());
+    append(string, buffer);
+}
+
+// Ensures that there is an empty line at the end of the frame buffer
+// * This is used to make the prompt always appear one line below the last line of output, just for cosmetic purposes
+fn enforce_spacing(buffer: &mut Text<'_>) {
     if let Some(last_line) = buffer.lines.last_mut() {
         if !last_line.0.is_empty() {
-            buffer.extend(Text::from("\n"));
+            buffer.extend(Text::default());
         }
     }
 }

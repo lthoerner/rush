@@ -3,7 +3,7 @@ use std::process::Command as Process;
 use anyhow::Result;
 
 use rush_state::path::Path;
-use rush_state::shell::Context;
+use rush_state::context::Context;
 
 use crate::errors::ExecutableError;
 

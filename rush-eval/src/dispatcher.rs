@@ -3,7 +3,7 @@ use anyhow::Result;
 use rush_exec::builtins;
 use rush_exec::commands::{Builtin, Executable, Runnable};
 use rush_state::path::Path;
-use rush_state::shell::Context;
+use rush_state::context::Context;
 
 use crate::errors::DispatchError;
 use crate::parser;
