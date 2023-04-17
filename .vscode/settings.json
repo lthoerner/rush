@@ -5,34 +5,9 @@
         "**/.hg": true,
         "**/CVS": true,
         "**/.DS_Store": true,
-        "**/Thumbs.db": true,
-        "LICENSE": true,
-        "Cargo.lock": true,
-        "target": true,
-        "rush-shell/Cargo.lock": true,
-        "out": true,
-        "rush-repl/Cargo.lock": true,
-        "samples": true,
-        "rush-eval/Cargo.lock": true,
-        "rush-console/Cargo.lock": true,
-        "config": true,
-        ".vscode": true,
-        ".gitignore": true
+        "**/Thumbs.db": true
     },
-    "hide-files.files": [
-        "LICENSE",
-        "Cargo.lock",
-        "target",
-        "rush-shell/Cargo.lock",
-        "out",
-        "rush-repl/Cargo.lock",
-        "samples",
-        "rush-eval/Cargo.lock",
-        "rush-console/Cargo.lock",
-        "config",
-        ".vscode",
-        ".gitignore"
-    ],
+    "hide-files.files": [],
     "better-comments.tags": [
         {
             "tag": "$",
@@ -81,11 +56,6 @@
         }
     ],
     "rust-analyzer.linkedProjects": [
-        "./rush-console/Cargo.toml",
         "./rush-state/Cargo.toml",
-        "./rush-state/Cargo.toml",
-        "./rush-state/Cargo.toml",
-        "./rush-state/Cargo.toml",
-        "./rush-console/Cargo.toml"
     ],
 }
