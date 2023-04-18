@@ -122,7 +122,7 @@ fn tokenize(input: &String) -> Vec<String> {
         }
     }
 
-    println!("tokens: {:?}", tokens);
+    // println!("tokens: {:?}", tokens);
 
     return tokens
 }
