@@ -77,7 +77,7 @@ impl Dispatcher {
     }
 
     // Evaluates and executes a command from a string
-    pub fn eval(&self, shell: &mut Shell, console: &mut Console, line: &String) -> Result<()> {
+    pub fn eval(&self, shell: &mut Shell, console: &mut Console, line: &str) -> Result<()> {
         let (command_name, command_args) = parser::tokenize(line);
         // ? Is there a way to avoid this type conversion?
         let command_name = command_name.as_str();
@@ -92,8 +92,7 @@ impl Dispatcher {
     fn dispatch(&self, shell: &mut Shell, console: &mut Console, command_name: &str, command_args: Vec<&str>) -> Result<()> {
         // If the command resides in the Dispatcher (generally means it is a builtin) run it
         if let Some(command) = self.resolve(command_name) {
-            let exit_status = command.run(shell, console, command_args);
-            exit_status
+            command.run(shell, console, command_args)
         } else {
             // If the command is not in the Dispatcher, try to run it as an executable from the PATH
             let path = Path::from_path_var(command_name, shell.env().PATH());

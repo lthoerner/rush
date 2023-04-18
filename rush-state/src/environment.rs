@@ -55,7 +55,7 @@ struct EnvVarBundle {
 impl EnvVarBundle {
     fn new(vars: Vec<EnvVar>) -> Self {
         Self {
-            vars: vars.into_iter().map(|v| v.clone()).collect(),
+            vars: vars.into_iter().collect(),
         }
     }
 

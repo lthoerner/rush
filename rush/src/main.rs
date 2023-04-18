@@ -19,7 +19,7 @@ fn main() -> Result<()> {
     console.enter()?;
 
     loop {
-        let line = console.read_line(&mut shell)?;
+        let line = console.read_line(&shell)?;
         let status = dispatcher.eval(&mut shell, &mut console, &line);
         handle_error(status, &mut shell, &mut console);
         
@@ -40,7 +40,7 @@ fn handle_error(error: Result<()>, shell: &mut Shell, console: &mut Console) {
                 }
                 _ => if shell.config().show_errors {
                     // TODO: This is sort of a "magic" formatting string, it should be changed to a method or something
-                    console.println(&format!("Error: {}", format!("{:#?}: {}", e, e)));
+                    console.println(&format!("Error: {:#?}: {}", e, e));
                 }
             }
 

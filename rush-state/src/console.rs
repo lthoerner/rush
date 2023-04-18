@@ -92,7 +92,7 @@ impl<'a> Console<'a> {
                     self.line_buffer.clear();
                     
                     // Save the line buffer as part of the frame buffer
-                    append(&line, &mut self.frame_buffer);
+                    self.append_str(&line);
                     
                     return Ok(line)
                 },
@@ -147,7 +147,7 @@ impl<'a> Console<'a> {
         self.terminal.draw(|f| {
             let size = f.size();
             // $ This probably should not be appending the line buffer automatically. Not sure if it should be a mode, a separate function, etc.
-            let main_widget = Paragraph::new(append_line_buffer(&self.line_buffer, &mut self.frame_buffer))
+            let main_widget = Paragraph::new(append_line_buffer(&self.line_buffer, &self.frame_buffer))
                 .block(Block::default().borders(Borders::ALL))
                 .style(Style::default())
                 .alignment(Alignment::Left)
@@ -203,14 +203,44 @@ impl<'a> Console<'a> {
     }
 
     // Prints a line of text to the console
-    pub fn println(&mut self, text: &String) {
+    // TODO: Probably make this a macro in the future, but for now just make it use &str or String
+    pub fn println(&mut self, text: &str) {
         self.append_newline(text);
         _ = self.draw()
     }
 
+    // Appends a string to the frame buffer, splitting it into Spans by newline characters so it is rendered properly
+    fn append_str(&mut self, string: &str) {
+        // Return early on an empty string to allow for safely unwrapping the first line
+        if string.is_empty() {
+            return
+        }
+
+        // This code is awful so I will try to give my best description of it
+        // First, we have to split the string into lines and convert them into Spans, because the Text type
+        // does not render newline characters; instead, it requires that every line must be a separate Spans
+        let mut spans = string.split('\n').map(str::to_owned).map(Spans::from);
+        // To avoid automatically creating a new line before the text is printed (which would effectively forbid print!()-type behavior),
+        // we have to append directly to the last Spans in the frame buffer
+        // So this line basically grabs the Vec<Span> from the first Spans (first line)
+        let first_spans = spans.next().unwrap().0;
+
+        // If the frame buffer has any lines, we append the first line of the new text to the last line of the frame buffer
+        // Otherwise, we just push the first line of the new text to the frame buffer in the form of a Spans,
+        // so the first line of the new text isn't just skipped on an empty frame buffer
+        if let Some(last_line) = self.frame_buffer.lines.last_mut() {
+            last_line.0.extend(first_spans);
+        } else {
+            self.frame_buffer.lines.push(Spans::from(first_spans));
+        }
+
+        // The rest of the lines (Spans) can then be appended to the frame buffer as normal
+        self.frame_buffer.extend(spans)
+    }
+
     // Appends a string to the next line of the frame buffer
-    fn append_newline(&mut self, string: &String) {
-        self.frame_buffer.lines.push(Spans::from(string.clone()))
+    fn append_newline(&mut self, string: &str) {
+        self.append_str(&format!("\n{}", string))
     }
 
     // Ensures that there is an empty line at the end of the frame buffer
@@ -257,15 +287,6 @@ fn generate_prompt<'a>(shell: &Shell) -> Text<'a> {
     }
 
     Text::from(spans)
-}
-
-// Appends a string to the frame buffer without creating a newline
-fn append(string: &str, buffer: &mut Text<'_>) {
-    // The string must be appended to the last Spans object in the Text object,
-    // because otherwise it would be rendered on a new line
-    if let Some(last_line) = buffer.lines.last_mut() {
-        last_line.0.push(Span::from(string.to_string()));
-    }
 }
 
 // Appends the line buffer to the frame buffer so they can be rendered together but stored separately
