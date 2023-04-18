@@ -9,6 +9,7 @@ pub const PIPE: char = '|';
 pub const SINGLE_QUOTE: char = '\'';
 pub const DOUBLE_QUOTE: char = '"';
 pub const BACKSLASH: char = '\\';
+pub const DOLLAR: char = '$';
 
 //Operators
 pub const AND_IF: &str = "&&";
