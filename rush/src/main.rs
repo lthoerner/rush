@@ -16,7 +16,7 @@ fn main() -> Result<()> {
     // or executables if needed, and then invoking them with the given arguments
     let dispatcher = Dispatcher::default();
     
-    console.enter()?;
+    console.enter(&shell)?;
 
     loop {
         let line = console.read_line(&shell)?;

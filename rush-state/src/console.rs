@@ -1,4 +1,6 @@
 use std::io::{stdout, Stdout};
+use std::collections::HashSet;
+use std::hash::Hash;
 
 use anyhow::Result;
 use crossterm::terminal::{enable_raw_mode, disable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen, Clear, ClearType};
@@ -34,6 +36,38 @@ enum RemoveMode {
     Delete,
 }
 
+// Represents a variety of switchable modes for clearing the TUI console/frame
+// * Not to be confused with crossterm::terminal::ClearType
+#[derive(PartialEq, Eq, Hash)]
+enum ClearMode {
+    // Whether to re-prompt the user after clearing the frame
+    Prompt,
+    // Whether to clear the line buffer
+    ResetLineBuffer,
+    // Whether to set the cursor index to the start of the line
+    ResetCursor,
+}
+
+// Convenience struct for passing around a set of clear modes without duplicates
+// ? Does this actually need to exist? Couldn't we just use [ClearMode; N]?
+struct ClearModeBundle {
+    modes: HashSet<ClearMode>,
+}
+
+impl<const N: usize> From<[ClearMode; N]> for ClearModeBundle {
+    fn from(modes: [ClearMode; N]) -> Self {
+        Self {
+            modes: modes.into_iter().collect(),
+        }
+    }
+}
+
+impl ClearModeBundle {
+    fn contains(&self, mode: ClearMode) -> bool {
+        self.modes.contains(&mode)
+    }
+}
+
 // Represents the TUI console
 pub struct Console<'a> {
     terminal: Terminal<CrosstermBackend<Stdout>>,
@@ -51,33 +85,34 @@ impl<'a> Console<'a> {
 
         Ok(Self {
             terminal,
-            line_buffer: String::from("Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed euismod, nunc vel tincidunt lacinia, nunc nisl aliquam nisl."),
+            line_buffer: String::new(),
             frame_buffer: Text::default(),
             cursor_index: 0,
         })
     }
 
     // Enters the TUI console
-    pub fn enter(&mut self) -> Result<()> {
-        self.terminal.clear()?;
+    pub fn enter(&mut self, shell: &Shell) -> Result<()> {
         enable_raw_mode()?;
         // ? Is mouse capture enabled by default?
         execute!(self.terminal.backend_mut(), EnterAlternateScreen, DisableMouseCapture)?;
 
-        Ok(())
+        use ClearMode::*;
+        self.clear(shell, [ResetLineBuffer, ResetCursor].into())
     }
 
     // Closes the TUI console
     pub fn close(&mut self) -> Result<()> {
         disable_raw_mode()?;
         execute!(self.terminal.backend_mut(), LeaveAlternateScreen, cursor::MoveTo(0, 0), cursor::Show, Clear(ClearType::All))?;
-
         Ok(())
     }
 
     // Reads a line of input from the user
     // Handles all TUI interaction between the user and the prompt
     pub fn read_line(&mut self, shell: &Shell) -> Result<String> {
+        // The line buffer must be reset manually because Console.prompt() does not clear it
+        self.reset_line_buffer();
         self.prompt(shell)?;
         self.draw()?;
 
@@ -110,6 +145,7 @@ impl<'a> Console<'a> {
 
     // Handles a key event by queueing appropriate commands based on the given keypress
     fn handle_event(&mut self, event: Event, shell: &Shell) -> Result<ReplAction> {
+        use ClearMode::*;
         // TODO: Break up event handling into separate functions for different event categories
         match event {
             Event::Key(event) => {
@@ -123,7 +159,7 @@ impl<'a> Console<'a> {
                     // (KeyModifiers::NONE, KeyCode::Up) => self.scroll_history(HistoryDirection::Up, context)?,
                     // (KeyModifiers::NONE, KeyCode::Down) => self.scroll_history(HistoryDirection::Down, context)?,
                     (KeyModifiers::CONTROL, KeyCode::Char('c')) => return Ok(ReplAction::Exit),
-                    (KeyModifiers::CONTROL, KeyCode::Char('l')) => self.clear(shell)?,
+                    (KeyModifiers::CONTROL, KeyCode::Char('l')) => self.clear(shell, [Prompt].into())?,
                     _ => return Ok(ReplAction::Ignore),
                 }
             }
@@ -133,17 +169,16 @@ impl<'a> Console<'a> {
         Ok(ReplAction::RedrawFrame)
     }
 
-    // Prompts the user for input
+    // Appends a new prompt to the frame buffer, but does not perform a frame update,
+    // and does not clear the line buffer or modify the cursor index
     fn prompt(&mut self, shell: &Shell) -> Result<()> {
         self.enforce_spacing();
         self.frame_buffer.extend(generate_prompt(shell));
-        self.cursor_index = self.line_buffer.len();
-
         Ok(())
     }
 
     // Draws a TUI frame
-    fn draw(&mut self) -> Result<()> {
+    pub fn draw(&mut self) -> Result<()> {
         self.terminal.draw(|f| {
             let size = f.size();
             // $ This probably should not be appending the line buffer automatically. Not sure if it should be a mode, a separate function, etc.
@@ -160,9 +195,27 @@ impl<'a> Console<'a> {
     }
 
     // Clears the screen and the line buffer and reprompts the user
-    fn clear(&mut self, shell: &Shell) -> Result<()> {
+    fn clear(&mut self, shell: &Shell, modes: ClearModeBundle) -> Result<()> {
+        use ClearMode::*;
+
+        // Clear the frame buffer
         self.frame_buffer = Text::default();
-        self.prompt(shell)
+
+        if modes.contains(ResetLineBuffer) {
+            // Resetting the line buffer requires the cursor index to also be reset,
+            // regardless of whether the ResetCursor flag is provided or not
+            self.reset_line_buffer();
+        }
+
+        if modes.contains(ResetCursor) {
+            self.cursor_index = 0;
+        }
+
+        if modes.contains(Prompt) {
+            self.prompt(shell)?;
+        }
+
+        Ok(())
     }
 
     // Inserts a character at the cursor position
@@ -173,14 +226,15 @@ impl<'a> Console<'a> {
 
     // Removes a character from the line buffer at the cursor position
     fn remove_char(&mut self, mode: RemoveMode) {
+        use RemoveMode::*;
         match mode {
-            RemoveMode::Backspace => {
+            Backspace => {
                 if self.cursor_index > 0 {
                     self.line_buffer.remove(self.cursor_index - 1);
                     self.move_cursor_left();
                 }
             },
-            RemoveMode::Delete => {
+            Delete => {
                 if self.cursor_index < self.line_buffer.len() {
                     self.line_buffer.remove(self.cursor_index);
                 }
@@ -200,6 +254,12 @@ impl<'a> Console<'a> {
         if self.cursor_index < self.line_buffer.len() {
             self.cursor_index += 1;
         }
+    }
+
+    // Clears the line buffer and resets the cursor position
+    fn reset_line_buffer(&mut self) {
+        self.line_buffer.clear();
+        self.cursor_index = 0;
     }
 
     // Prints a line of text to the console
@@ -255,6 +315,7 @@ impl<'a> Console<'a> {
 }
 
 // Generates the prompt string used by the Console
+// TODO: This will eventually need to not be hard-coded to allow for user customization
 fn generate_prompt<'a>(shell: &Shell) -> Text<'a> {
     let mut span_list = Vec::new();
 
