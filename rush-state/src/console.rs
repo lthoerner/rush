@@ -196,34 +196,13 @@ impl<'a> Console<'a> {
 
     // Draws a TUI frame
     pub fn draw(&mut self) -> Result<()> {
-        self.terminal.draw(|f| Self::generate_frame(f, &self.prompt, &self.prompt_tick, &self.line_buffer, &self.output_buffer, self.scroll))?;
+        self.terminal.draw(|f| Self::generate_frame(f,self.debug_mode, &self.prompt, &self.prompt_tick, &self.line_buffer, &self.output_buffer, self.scroll))?;
         Ok(())
     }
 
     // Generates a TUI frame based on the prompt/line buffer and output buffer
     // ? Is there a way to make this a method to avoid passing in a ton of parameters?
-    fn generate_frame(f: &mut Frame<CrosstermBackend<Stdout>>, prompt: &Spans, prompt_tick: &Span, line_buffer: &str, output_buffer: &Text, scroll: usize) {
-        // TODO: Figure out a better name for the "frame" window
-        // Split the terminal into two windows, one for the command output (the "frame"), and one for the prompt
-        // The frame window takes up the top 80% of the terminal, and the prompt window takes up the bottom 20%
-        // If the debug panel is enabled, the frame window will be split in 60/40 sections
-        let mut frame_window_size = f.size();
-        let mut prompt_window_size = f.size();
-
-        // Set the height ratios
-        frame_window_size.height = (frame_window_size.height as f32 * 0.8).floor() as u16;
-        prompt_window_size.height = (prompt_window_size.height as f32 * 0.2).ceil() as u16;
-        // Make the prompt window render below the frame window
-        // ? Will this cause an issue with floating point rounding?
-        prompt_window_size.y = frame_window_size.height;
-
-        let frame_chunks = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints([Constraint::Percentage(60), Constraint::Percentage(40)])
-            .split(frame_window_size);
-
-        let prompt_chunk = Layout::default().direction(Direction::Vertical).constraints([Constraint::Percentage(100)]).split(prompt_window_size);
-
+    fn generate_frame(f: &mut Frame<CrosstermBackend<Stdout>>, debug_mode: bool, prompt: &Spans, prompt_tick: &Span, line_buffer: &str, output_buffer: &Text, scroll: usize) {
         let prompt_borders = Block::default().borders(Borders::ALL).title(prompt.clone());
         let frame_borders = |title| Block::default().borders(Borders::ALL ^ Borders::BOTTOM).title(Span::styled(title, Style::default().fg(Color::LightCyan).add_modifier(Modifier::BOLD)));
 
@@ -243,17 +222,43 @@ impl<'a> Console<'a> {
             .alignment(Alignment::Left)
             .wrap(Wrap { trim: false });
 
-        // Create a Paragraph widget for the debug panel
-        let debug_widget = Paragraph::new("Debug panel placeholder text")
-            .block(frame_borders("Debug"))
-            .style(Style::default())
-            .alignment(Alignment::Left)
-            .wrap(Wrap { trim: false });
+        // Split the terminal into two windows, one for the command output, and one for the prompt
+        // The output window takes up the top 80% of the terminal, and the prompt window takes up the bottom 20%
+        // If the debug panelt is enabled, the output window will be split in 60/40 sections
+        let (mut output_area, prompt_area) = {
+            let chunks = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([Constraint::Percentage(80), Constraint::Percentage(20)])
+                .split(f.size());
+            (chunks[0], chunks[1])
+        };
 
-        // Render the widgets
-        f.render_widget(prompt_widget, prompt_chunk[0]);
-        f.render_widget(frame_widget.scroll((scroll as u16, 0)), frame_chunks[0]);
-        f.render_widget(debug_widget, frame_chunks[1]);
+        // If the debug panel is enabled, subdivide the output window
+        if debug_mode {
+            let (new_output_area, debug_area) = {
+                let chunks = Layout::default()
+                    .direction(Direction::Horizontal)
+                    .constraints([Constraint::Percentage(60), Constraint::Percentage(40)])
+                    .split(output_area);
+                (chunks[0], chunks[1])
+            };
+
+            output_area = new_output_area;
+
+            // Create a Paragraph widget for the debug panel
+            let debug_widget = Paragraph::new("Debug panel placeholder text")
+                .block(frame_borders("Debug"))
+                .style(Style::default())
+                .alignment(Alignment::Left)
+                .wrap(Wrap { trim: false });
+
+            // Render the debug panel widget
+            if debug_mode { f.render_widget(debug_widget, debug_area) }
+        }
+
+        // Render the default widgets
+        f.render_widget(prompt_widget, prompt_area);
+        f.render_widget(frame_widget.scroll((scroll as u16, 0)), output_area);
     }
 
     // Clears the screen and the line buffer and reprompts the user
