@@ -52,7 +52,7 @@ pub struct Console<'a> {
     // ? What is the actual name of this?
     prompt_tick: Span<'a>,
     line_buffer: String,
-    frame_buffer: Text<'a>,
+    output_buffer: Text<'a>,
     // The index of the cursor in the line buffer
     // ? Should this be an Option<usize>?
     cursor_index: usize,
@@ -70,9 +70,9 @@ impl<'a> Console<'a> {
         Ok(Self {
             terminal,
             prompt: Spans::default(),
-            prompt_tick: Span::styled("❯ ", Style::default().add_modifier(Modifier::BOLD).fg(Color::LightGreen)),
+            prompt_tick: Span::styled("❯ ", Style::default().add_modifier(Modifier::BOLD | Modifier::SLOW_BLINK).fg(Color::LightGreen)),
             line_buffer: String::new(),
-            frame_buffer: Text::default(),
+            output_buffer: Text::default(),
             cursor_index: 0,
             scroll: 0,
             debug_mode: false,
@@ -116,7 +116,7 @@ impl<'a> Console<'a> {
                     let line = self.line_buffer.clone();
                     self.line_buffer.clear();
                     
-                    // Save the line buffer as part of the frame buffer
+                    // Save the line buffer as part of the output buffer
                     self.append_str(&line);
                     
                     return Ok(line)
@@ -164,7 +164,7 @@ impl<'a> Console<'a> {
         Ok(ReplAction::RedrawFrame)
     }
 
-    // Appends a new prompt to the frame buffer, but does not perform a frame update,
+    // Appends a new prompt to the output buffer, but does not perform a frame update,
     // and does not clear the line buffer or modify the cursor index
     fn prompt(&mut self, shell: &Shell) -> Result<()> {
         Ok(self.generate_prompt(shell))
@@ -196,13 +196,13 @@ impl<'a> Console<'a> {
 
     // Draws a TUI frame
     pub fn draw(&mut self) -> Result<()> {
-        self.terminal.draw(|f| Self::generate_frame(f, &self.prompt, &self.prompt_tick, &self.line_buffer, &self.frame_buffer, self.scroll))?;
+        self.terminal.draw(|f| Self::generate_frame(f, &self.prompt, &self.prompt_tick, &self.line_buffer, &self.output_buffer, self.scroll))?;
         Ok(())
     }
 
-    // Generates a TUI frame based on the prompt/line buffer and frame buffer
+    // Generates a TUI frame based on the prompt/line buffer and output buffer
     // ? Is there a way to make this a method to avoid passing in a ton of parameters?
-    fn generate_frame(f: &mut Frame<CrosstermBackend<Stdout>>, prompt: &Spans, prompt_tick: &Span, line_buffer: &str, frame_buffer: &Text, scroll: usize) {
+    fn generate_frame(f: &mut Frame<CrosstermBackend<Stdout>>, prompt: &Spans, prompt_tick: &Span, line_buffer: &str, output_buffer: &Text, scroll: usize) {
         // TODO: Figure out a better name for the "frame" window
         // Split the terminal into two windows, one for the command output (the "frame"), and one for the prompt
         // The frame window takes up the top 80% of the terminal, and the prompt window takes up the bottom 20%
@@ -236,8 +236,8 @@ impl<'a> Console<'a> {
             .alignment(Alignment::Left)
             .wrap(Wrap { trim: false });
 
-        // Create a Paragraph widget for the frame buffer
-        let frame_widget = Paragraph::new(frame_buffer.clone())
+        // Create a Paragraph widget for the output buffer
+        let frame_widget = Paragraph::new(output_buffer.clone())
             .block(frame_borders("Output"))
             .style(Style::default())
             .alignment(Alignment::Left)
@@ -260,7 +260,7 @@ impl<'a> Console<'a> {
     fn clear(&mut self, mode: ClearMode) -> Result<()> {
         // Clear the Output widget
         if mode.contains(ClearMode::OUTPUT) {
-            self.frame_buffer = Text::default();
+            self.output_buffer = Text::default();
         }
 
         if mode.contains(ClearMode::RESET_LINE) {
@@ -329,7 +329,7 @@ impl<'a> Console<'a> {
         _ = self.draw()
     }
 
-    // Appends a string to the frame buffer, splitting it into Spans by newline characters so it is rendered properly
+    // Appends a string to the output buffer, splitting it into Spans by newline characters so it is rendered properly
     fn append_str(&mut self, string: &str) {
         // Return early on an empty string to allow for safely unwrapping the first line
         if string.is_empty() {
@@ -341,34 +341,34 @@ impl<'a> Console<'a> {
         // does not render newline characters; instead, it requires that every line must be a separate Spans
         let mut spans = string.split('\n').map(str::to_owned).map(Spans::from);
         // To avoid automatically creating a new line before the text is printed (which would effectively forbid print!()-type behavior),
-        // we have to append directly to the last Spans in the frame buffer
+        // we have to append directly to the last Spans in the output buffer
         // So this line basically grabs the Vec<Span> from the first Spans (first line)
         let first_spans = spans.next().unwrap().0;
 
-        // If the frame buffer has any lines, we append the first line of the new text to the last line of the frame buffer
-        // Otherwise, we just push the first line of the new text to the frame buffer in the form of a Spans,
-        // so the first line of the new text isn't just skipped on an empty frame buffer
-        if let Some(last_line) = self.frame_buffer.lines.last_mut() {
+        // If the output buffer has any lines, we append the first line of the new text to the last line of the output buffer
+        // Otherwise, we just push the first line of the new text to the output buffer in the form of a Spans,
+        // so the first line of the new text isn't just skipped on an empty output buffer
+        if let Some(last_line) = self.output_buffer.lines.last_mut() {
             last_line.0.extend(first_spans);
         } else {
-            self.frame_buffer.lines.push(Spans::from(first_spans));
+            self.output_buffer.lines.push(Spans::from(first_spans));
         }
 
-        // The rest of the lines (Spans) can then be appended to the frame buffer as normal
-        self.frame_buffer.extend(spans)
+        // The rest of the lines (Spans) can then be appended to the output buffer as normal
+        self.output_buffer.extend(spans)
     }
 
-    // Appends a string to the next line of the frame buffer
+    // Appends a string to the next line of the output buffer
     fn append_newline(&mut self, string: &str) {
         self.append_str(&format!("\n{}", string))
     }
 
-    // Ensures that there is an empty line at the end of the frame buffer
+    // Ensures that there is an empty line at the end of the output buffer
     // * This is used to make the prompt always appear one line below the last line of output, just for cosmetic purposes
     fn enforce_spacing(&mut self) {
-        if let Some(last_line) = self.frame_buffer.lines.last_mut() {
+        if let Some(last_line) = self.output_buffer.lines.last_mut() {
             if !last_line.0.is_empty() {
-                self.frame_buffer.lines.push(Spans::default());
+                self.output_buffer.lines.push(Spans::default());
             }
         }
     }
