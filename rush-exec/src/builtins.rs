@@ -155,9 +155,7 @@ pub fn go_forward(shell: &mut Shell, console: &mut Console, args: Vec<&str>) -> 
 
 pub fn clear_terminal(_shell: &mut Shell, console: &mut Console, args: Vec<&str>) -> Result<()> {
     check_args(&args, 0, "clear-terminal", console)?;
-    // * "Magic" ANSI escape sequence to clear the terminal
-    console.println("\x1B[2J\x1B[1;1H");
-    Ok(())
+    console.clear_output()
 }
 
 // TODO: Add prompt to confirm file overwrite

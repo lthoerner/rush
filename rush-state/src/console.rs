@@ -39,9 +39,8 @@ enum RemoveMode {
 // * Not to be confused with crossterm::terminal::ClearType
 bitflags! {
     struct ClearMode: u8 {
-        const PROMPT = 0b00000001;
-        const RESET_LINE_BUFFER = 0b00000010;
-        const RESET_CURSOR = 0b00000100;
+        const OUTPUT = 0b00000001;
+        const RESET_LINE = 0b00000010;
     }
 }
 
@@ -81,12 +80,12 @@ impl<'a> Console<'a> {
     }
 
     // Enters the TUI console
-    pub fn enter(&mut self, shell: &Shell) -> Result<()> {
+    pub fn enter(&mut self) -> Result<()> {
         enable_raw_mode()?;
         // ? Is mouse capture enabled by default?
         execute!(self.terminal.backend_mut(), EnterAlternateScreen, DisableMouseCapture)?;
 
-        self.clear(shell, ClearMode::RESET_LINE_BUFFER)
+        self.clear(ClearMode::RESET_LINE)
     }
 
     // Closes the TUI console
@@ -106,7 +105,7 @@ impl<'a> Console<'a> {
 
         loop {
             let event = event::read()?;
-            let action = self.handle_event(event, shell)?;
+            let action = self.handle_event(event)?;
 
             match action {
                 ReplAction::Return => {
@@ -135,7 +134,7 @@ impl<'a> Console<'a> {
     }
 
     // Handles a key event by queueing appropriate commands based on the given keypress
-    fn handle_event(&mut self, event: Event, shell: &Shell) -> Result<ReplAction> {
+    fn handle_event(&mut self, event: Event) -> Result<ReplAction> {
         // TODO: Break up event handling into separate functions for different event categories
         match event {
             Event::Key(event) => {
@@ -151,7 +150,7 @@ impl<'a> Console<'a> {
                     // (KeyModifiers::NONE, KeyCode::Up) => self.scroll_history(HistoryDirection::Up, context)?,
                     // (KeyModifiers::NONE, KeyCode::Down) => self.scroll_history(HistoryDirection::Down, context)?,
                     (KeyModifiers::CONTROL, KeyCode::Char('c')) => return Ok(ReplAction::Exit),
-                    (KeyModifiers::CONTROL, KeyCode::Char('l')) => self.clear(shell, ClearMode::PROMPT)?,
+                    (KeyModifiers::CONTROL, KeyCode::Char('l')) => self.clear(ClearMode::OUTPUT)?,
                     // TODO: Make this a toggle method
                     (KeyModifiers::CONTROL, KeyCode::Char('d')) => self.debug_mode = !self.debug_mode,
                     _ => return Ok(ReplAction::Ignore),
@@ -258,25 +257,24 @@ impl<'a> Console<'a> {
     }
 
     // Clears the screen and the line buffer and reprompts the user
-    fn clear(&mut self, shell: &Shell, mode: ClearMode) -> Result<()> {
-        // Clear the frame buffer
-        self.frame_buffer = Text::default();
-
-        if mode.contains(ClearMode::RESET_LINE_BUFFER) {
-            // Resetting the line buffer requires the cursor index to also be reset,
-            // regardless of whether the ResetCursor flag is provided or not
-            self.reset_line_buffer();
+    fn clear(&mut self, mode: ClearMode) -> Result<()> {
+        // Clear the Output widget
+        if mode.contains(ClearMode::OUTPUT) {
+            self.frame_buffer = Text::default();
         }
 
-        if mode.contains(ClearMode::RESET_CURSOR) {
+        if mode.contains(ClearMode::RESET_LINE) {
+            self.reset_line_buffer();
             self.cursor_index = 0;
         }
 
-        if mode.contains(ClearMode::PROMPT) {
-            self.prompt(shell)?;
-        }
-
         Ok(())
+    }
+
+    // Clears the output widget
+    // * This is a public wrapper for the clear() method
+    pub fn clear_output(&mut self) -> Result<()> {
+        self.clear(ClearMode::OUTPUT)
     }
 
     // Inserts a character at the cursor position
