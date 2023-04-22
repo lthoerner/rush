@@ -73,6 +73,8 @@ pub struct Console<'a> {
     terminal: Terminal<CrosstermBackend<Stdout>>,
     // ? Should this be an Option<Spans>?
     prompt: Spans<'a>,
+    // ? What is the actual name of this?
+    prompt_tick: Span<'a>,
     line_buffer: String,
     frame_buffer: Text<'a>,
     // The index of the cursor in the line buffer
@@ -80,6 +82,8 @@ pub struct Console<'a> {
     cursor_index: usize,
     // The number of lines that have been scrolled up
     scroll: usize,
+    // Whether or not to show the debug panel
+    debug_mode: bool,
 }
 
 impl<'a> Console<'a> {
@@ -90,10 +94,12 @@ impl<'a> Console<'a> {
         Ok(Self {
             terminal,
             prompt: Spans::default(),
+            prompt_tick: Span::styled("❯ ", Style::default().add_modifier(Modifier::BOLD).fg(Color::LightGreen)),
             line_buffer: String::new(),
             frame_buffer: Text::default(),
             cursor_index: 0,
             scroll: 0,
+            debug_mode: false,
         })
     }
 
@@ -128,6 +134,9 @@ impl<'a> Console<'a> {
 
             match action {
                 ReplAction::Return => {
+                    // Make sure that there is an extra line of space between the last line of output and the command output
+                    self.enforce_spacing();
+
                     // Save the line buffer for returning and clear it to make way for the next Console.read_line() call
                     let line = self.line_buffer.clone();
                     self.line_buffer.clear();
@@ -162,15 +171,19 @@ impl<'a> Console<'a> {
                     (KeyModifiers::NONE, KeyCode::Left) => self.move_cursor_left(),
                     (KeyModifiers::NONE, KeyCode::Right) => self.move_cursor_right(),
                     (KeyModifiers::NONE, KeyCode::Enter) if !self.line_buffer.is_empty() => return Ok(ReplAction::Return),
-                    (KeyModifiers::NONE, KeyCode::Up) => self.scroll = self.scroll.saturating_sub(1),
-                    (KeyModifiers::NONE, KeyCode::Down) => self.scroll = self.scroll.saturating_add(1),
+                    (KeyModifiers::SHIFT, KeyCode::Up) => self.scroll = self.scroll.saturating_sub(1),
+                    (KeyModifiers::SHIFT, KeyCode::Down) => self.scroll = self.scroll.saturating_add(1),
                     // (KeyModifiers::NONE, KeyCode::Up) => self.scroll_history(HistoryDirection::Up, context)?,
                     // (KeyModifiers::NONE, KeyCode::Down) => self.scroll_history(HistoryDirection::Down, context)?,
                     (KeyModifiers::CONTROL, KeyCode::Char('c')) => return Ok(ReplAction::Exit),
                     (KeyModifiers::CONTROL, KeyCode::Char('l')) => self.clear(shell, [Prompt].into())?,
+                    // TODO: Make this a toggle method
+                    (KeyModifiers::CONTROL, KeyCode::Char('d')) => self.debug_mode = !self.debug_mode,
                     _ => return Ok(ReplAction::Ignore),
                 }
             }
+            // $ This seems like a crappy solution to prevent the Resize event from being ignored
+            Event::Resize(_, _) => (),
             _ => return Ok(ReplAction::Ignore),
         }
 
@@ -180,10 +193,7 @@ impl<'a> Console<'a> {
     // Appends a new prompt to the frame buffer, but does not perform a frame update,
     // and does not clear the line buffer or modify the cursor index
     fn prompt(&mut self, shell: &Shell) -> Result<()> {
-        // $ This needs to be moved, it no longer belongs here
-        self.enforce_spacing();
-        self.generate_prompt(shell);
-        Ok(())
+        Ok(self.generate_prompt(shell))
     }
 
     // Re-generates the prompt widget header
@@ -193,43 +203,57 @@ impl<'a> Console<'a> {
 
         let home = shell.env().HOME();
         let truncation = shell.config().truncation_factor;
-        let user = Span::styled(shell.env().USER().clone(), Style::default().fg(Color::Blue));
-        let cwd = Span::styled(shell.env().CWD().collapse(home, truncation), Style::default().fg(Color::Green));
+        // $ RGB values do not work on some terminals
+        let user = Span::styled(shell.env().USER().clone(), Style::default().fg(Color::Rgb(0, 150, 255)).add_modifier(Modifier::BOLD));
+        let cwd = Span::styled(shell.env().CWD().collapse(home, truncation), Style::default().fg(Color::Rgb(0, 255, 0)).add_modifier(Modifier::BOLD));
 
         span_list.push(user);
         span_list.push(Span::from(" on "));
         span_list.push(cwd);
 
         self.prompt = Spans::from(span_list);
+
+        // Color the prompt tick based on the last shell command's exit status
+        match shell.success() {
+            true => self.prompt_tick.style.fg(Color::LightGreen),
+            false => self.prompt_tick.style.fg(Color::LightRed),
+        };
     }
 
     // Draws a TUI frame
     pub fn draw(&mut self) -> Result<()> {
-        self.terminal.draw(|f| Self::generate_frame(f, &self.prompt, &self.line_buffer, &self.frame_buffer, self.scroll))?;
+        self.terminal.draw(|f| Self::generate_frame(f, &self.prompt, &self.prompt_tick, &self.line_buffer, &self.frame_buffer, self.scroll))?;
         Ok(())
     }
 
     // Generates a TUI frame based on the prompt/line buffer and frame buffer
-    fn generate_frame(f: &mut Frame<CrosstermBackend<Stdout>>, prompt: &Spans, line_buffer: &str, frame_buffer: &Text, scroll: usize) {
-        // Create a Layout for the frame which reserves the bottom 20%
-        // of the terminal for the prompt, and the rest for command output etc
-        let chunks = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([Constraint::Percentage(80), Constraint::Percentage(20)].as_ref())
-            .split(f.size());
+    // ? Is there a way to make this a method to avoid passing in a ton of parameters?
+    fn generate_frame(f: &mut Frame<CrosstermBackend<Stdout>>, prompt: &Spans, prompt_tick: &Span, line_buffer: &str, frame_buffer: &Text, scroll: usize) {
+        // TODO: Figure out a better name for the "frame" window
+        // Split the terminal into two windows, one for the command output (the "frame"), and one for the prompt
+        // The frame window takes up the top 80% of the terminal, and the prompt window takes up the bottom 20%
+        // If the debug panel is enabled, the frame window will be split in 60/40 sections
+        let mut frame_window_size = f.size();
+        let mut prompt_window_size = f.size();
+
+        // Set the height ratios
+        frame_window_size.height = (frame_window_size.height as f32 * 0.8).floor() as u16;
+        prompt_window_size.height = (prompt_window_size.height as f32 * 0.2).ceil() as u16;
+        // Make the prompt window render below the frame window
+        // ? Will this cause an issue with floating point rounding?
+        prompt_window_size.y = frame_window_size.height;
+
+        let frame_chunks = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([Constraint::Percentage(60), Constraint::Percentage(40)])
+            .split(frame_window_size);
+
+        let prompt_chunk = Layout::default().direction(Direction::Vertical).constraints([Constraint::Percentage(100)]).split(prompt_window_size);
 
         let prompt_borders = Block::default().borders(Borders::ALL).title(prompt.clone());
-        let frame_borders = Block::default().borders(Borders::TOP | Borders::LEFT | Borders::RIGHT);
+        let frame_borders = |title| Block::default().borders(Borders::ALL ^ Borders::BOTTOM).title(Span::styled(title, Style::default().fg(Color::LightCyan).add_modifier(Modifier::BOLD)));
 
-        // // ? What is the actual name for this?
-        // let prompt_tick = Span::styled("❯ ", Style::default().add_modifier(Modifier::BOLD).fg(match shell.success() {
-        //     true => Color::LightGreen,
-        //     false => Color::LightRed,
-        // }));
-
-        // TODO: Figure out how to color the prompt tick, Shell cannot easily be passed into this function
-        let prompt_tick = Span::styled("❯ ", Style::default().add_modifier(Modifier::BOLD).fg(Color::LightGreen));
-        let line = Spans::from(vec![prompt_tick, Span::from(line_buffer)]);
+        let line = Spans::from(vec![prompt_tick.clone(), Span::from(line_buffer)]);
         
         // Create a Paragraph widget for the prompt
         let prompt_widget = Paragraph::new(line)
@@ -240,14 +264,22 @@ impl<'a> Console<'a> {
 
         // Create a Paragraph widget for the frame buffer
         let frame_widget = Paragraph::new(frame_buffer.clone())
-            .block(frame_borders)
+            .block(frame_borders("Output"))
+            .style(Style::default())
+            .alignment(Alignment::Left)
+            .wrap(Wrap { trim: false });
+
+        // Create a Paragraph widget for the debug panel
+        let debug_widget = Paragraph::new("Debug panel placeholder text")
+            .block(frame_borders("Debug"))
             .style(Style::default())
             .alignment(Alignment::Left)
             .wrap(Wrap { trim: false });
 
         // Render the widgets
-        f.render_widget(prompt_widget, chunks[1]);
-        f.render_widget(frame_widget.scroll((scroll as u16, 0)), chunks[0]);
+        f.render_widget(prompt_widget, prompt_chunk[0]);
+        f.render_widget(frame_widget.scroll((scroll as u16, 0)), frame_chunks[0]);
+        f.render_widget(debug_widget, frame_chunks[1]);
     }
 
     // Clears the screen and the line buffer and reprompts the user
