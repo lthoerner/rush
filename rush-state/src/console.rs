@@ -1,6 +1,4 @@
 use std::io::{stdout, Stdout};
-use std::collections::HashSet;
-use std::hash::Hash;
 
 use anyhow::Result;
 use crossterm::terminal::{enable_raw_mode, disable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen, Clear, ClearType};
@@ -13,6 +11,7 @@ use ratatui::text::{Span, Spans, Text};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
 use ratatui::{Terminal, Frame};
+use bitflags::bitflags;
 
 use crate::shell::Shell;
 
@@ -38,33 +37,11 @@ enum RemoveMode {
 
 // Represents a variety of switchable modes for clearing the TUI console/frame
 // * Not to be confused with crossterm::terminal::ClearType
-#[derive(PartialEq, Eq, Hash)]
-enum ClearMode {
-    // Whether to re-prompt the user after clearing the frame
-    Prompt,
-    // Whether to clear the line buffer
-    ResetLineBuffer,
-    // Whether to set the cursor index to the start of the line
-    ResetCursor,
-}
-
-// Convenience struct for passing around a set of clear modes without duplicates
-// ? Does this actually need to exist? Couldn't we just use [ClearMode; N]?
-struct ClearModeBundle {
-    modes: HashSet<ClearMode>,
-}
-
-impl<const N: usize> From<[ClearMode; N]> for ClearModeBundle {
-    fn from(modes: [ClearMode; N]) -> Self {
-        Self {
-            modes: modes.into_iter().collect(),
-        }
-    }
-}
-
-impl ClearModeBundle {
-    fn contains(&self, mode: ClearMode) -> bool {
-        self.modes.contains(&mode)
+bitflags! {
+    struct ClearMode: u8 {
+        const PROMPT = 0b00000001;
+        const RESET_LINE_BUFFER = 0b00000010;
+        const RESET_CURSOR = 0b00000100;
     }
 }
 
@@ -109,8 +86,7 @@ impl<'a> Console<'a> {
         // ? Is mouse capture enabled by default?
         execute!(self.terminal.backend_mut(), EnterAlternateScreen, DisableMouseCapture)?;
 
-        use ClearMode::*;
-        self.clear(shell, [ResetLineBuffer, ResetCursor].into())
+        self.clear(shell, ClearMode::RESET_LINE_BUFFER)
     }
 
     // Closes the TUI console
@@ -160,7 +136,6 @@ impl<'a> Console<'a> {
 
     // Handles a key event by queueing appropriate commands based on the given keypress
     fn handle_event(&mut self, event: Event, shell: &Shell) -> Result<ReplAction> {
-        use ClearMode::*;
         // TODO: Break up event handling into separate functions for different event categories
         match event {
             Event::Key(event) => {
@@ -176,7 +151,7 @@ impl<'a> Console<'a> {
                     // (KeyModifiers::NONE, KeyCode::Up) => self.scroll_history(HistoryDirection::Up, context)?,
                     // (KeyModifiers::NONE, KeyCode::Down) => self.scroll_history(HistoryDirection::Down, context)?,
                     (KeyModifiers::CONTROL, KeyCode::Char('c')) => return Ok(ReplAction::Exit),
-                    (KeyModifiers::CONTROL, KeyCode::Char('l')) => self.clear(shell, [Prompt].into())?,
+                    (KeyModifiers::CONTROL, KeyCode::Char('l')) => self.clear(shell, ClearMode::PROMPT)?,
                     // TODO: Make this a toggle method
                     (KeyModifiers::CONTROL, KeyCode::Char('d')) => self.debug_mode = !self.debug_mode,
                     _ => return Ok(ReplAction::Ignore),
@@ -283,23 +258,21 @@ impl<'a> Console<'a> {
     }
 
     // Clears the screen and the line buffer and reprompts the user
-    fn clear(&mut self, shell: &Shell, modes: ClearModeBundle) -> Result<()> {
-        use ClearMode::*;
-
+    fn clear(&mut self, shell: &Shell, mode: ClearMode) -> Result<()> {
         // Clear the frame buffer
         self.frame_buffer = Text::default();
 
-        if modes.contains(ResetLineBuffer) {
+        if mode.contains(ClearMode::RESET_LINE_BUFFER) {
             // Resetting the line buffer requires the cursor index to also be reset,
             // regardless of whether the ResetCursor flag is provided or not
             self.reset_line_buffer();
         }
 
-        if modes.contains(ResetCursor) {
+        if mode.contains(ClearMode::RESET_CURSOR) {
             self.cursor_index = 0;
         }
 
-        if modes.contains(Prompt) {
+        if mode.contains(ClearMode::PROMPT) {
             self.prompt(shell)?;
         }
 
