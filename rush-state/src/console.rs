@@ -53,6 +53,7 @@ pub struct Console<'a> {
     prompt_tick: Span<'a>,
     line_buffer: String,
     output_buffer: Text<'a>,
+    debug_buffer: Text<'a>,
     // The index of the cursor in the line buffer
     // ? Should this be an Option<usize>?
     cursor_index: usize,
@@ -73,6 +74,7 @@ impl<'a> Console<'a> {
             prompt_tick: Span::styled("❯ ", Style::default().add_modifier(Modifier::BOLD | Modifier::SLOW_BLINK).fg(Color::LightGreen)),
             line_buffer: String::new(),
             output_buffer: Text::default(),
+            debug_buffer: Text::default(),
             cursor_index: 0,
             scroll: 0,
             debug_mode: false,
@@ -100,7 +102,8 @@ impl<'a> Console<'a> {
     pub fn read_line(&mut self, shell: &Shell) -> Result<String> {
         // The line buffer must be reset manually because Console.prompt() does not clear it
         self.reset_line_buffer();
-        self.prompt(shell)?;
+        self.update_prompt(shell);
+        self.update_debug(shell);
         self.draw()?;
 
         loop {
@@ -164,15 +167,9 @@ impl<'a> Console<'a> {
         Ok(ReplAction::RedrawFrame)
     }
 
-    // Appends a new prompt to the output buffer, but does not perform a frame update,
-    // and does not clear the line buffer or modify the cursor index
-    fn prompt(&mut self, shell: &Shell) -> Result<()> {
-        Ok(self.generate_prompt(shell))
-    }
-
-    // Re-generates the prompt widget header
+    // Updates the prompt panel header based on the current shell state (USER, CWD, etc)
     // TODO: This will eventually need to not be hard-coded to allow for user customization
-    fn generate_prompt(&mut self, shell: &Shell) {
+    fn update_prompt(&mut self, shell: &Shell) {
         let mut span_list = Vec::new();
 
         let home = shell.env().HOME();
@@ -194,28 +191,34 @@ impl<'a> Console<'a> {
         };
     }
 
+    // Updates the debug panel header based on the current shell state (USER, CWD, etc)
+    fn update_debug(&mut self, shell: &Shell) {
+        let success = Spans::from(format!("Success: {}", shell.success()));
+        self.debug_buffer.extend(Text::from(success));
+    }
+
     // Draws a TUI frame
     pub fn draw(&mut self) -> Result<()> {
-        self.terminal.draw(|f| Self::generate_frame(f,self.debug_mode, &self.prompt, &self.prompt_tick, &self.line_buffer, &self.output_buffer, self.scroll))?;
+        self.terminal.draw(|f| Self::generate_frame(f,self.debug_mode, &self.debug_buffer, &self.prompt, &self.prompt_tick, &self.line_buffer, &self.output_buffer, self.scroll))?;
         Ok(())
     }
 
     // Generates a TUI frame based on the prompt/line buffer and output buffer
     // ? Is there a way to make this a method to avoid passing in a ton of parameters?
-    fn generate_frame(f: &mut Frame<CrosstermBackend<Stdout>>, debug_mode: bool, prompt: &Spans, prompt_tick: &Span, line_buffer: &str, output_buffer: &Text, scroll: usize) {
+    fn generate_frame(f: &mut Frame<CrosstermBackend<Stdout>>, debug_mode: bool, debug_buffer: &Text<'a>, prompt: &Spans, prompt_tick: &Span, line_buffer: &str, output_buffer: &Text, scroll: usize) {
         let prompt_borders = Block::default().borders(Borders::ALL).title(prompt.clone());
         let frame_borders = |title| Block::default().borders(Borders::ALL ^ Borders::BOTTOM).title(Span::styled(title, Style::default().fg(Color::LightCyan).add_modifier(Modifier::BOLD)));
 
         let line = Spans::from(vec![prompt_tick.clone(), Span::from(line_buffer)]);
         
-        // Create a Paragraph widget for the prompt
+        // Create a Paragraph widget for the prompt panel
         let prompt_widget = Paragraph::new(line)
             .block(prompt_borders)
             .style(Style::default())
             .alignment(Alignment::Left)
             .wrap(Wrap { trim: false });
 
-        // Create a Paragraph widget for the output buffer
+        // Create a Paragraph widget for the output panel
         let frame_widget = Paragraph::new(output_buffer.clone())
             .block(frame_borders("Output"))
             .style(Style::default())
@@ -246,7 +249,7 @@ impl<'a> Console<'a> {
             output_area = new_output_area;
 
             // Create a Paragraph widget for the debug panel
-            let debug_widget = Paragraph::new("Debug panel placeholder text")
+            let debug_widget = Paragraph::new(debug_buffer.clone())
                 .block(frame_borders("Debug"))
                 .style(Style::default())
                 .alignment(Alignment::Left)
@@ -263,7 +266,7 @@ impl<'a> Console<'a> {
 
     // Clears the screen and the line buffer and reprompts the user
     fn clear(&mut self, mode: ClearMode) -> Result<()> {
-        // Clear the Output widget
+        // Clear the output panel
         if mode.contains(ClearMode::OUTPUT) {
             self.output_buffer = Text::default();
         }
@@ -276,7 +279,7 @@ impl<'a> Console<'a> {
         Ok(())
     }
 
-    // Clears the output widget
+    // Clears the output panel
     // * This is a public wrapper for the clear() method
     pub fn clear_output(&mut self) -> Result<()> {
         self.clear(ClearMode::OUTPUT)
