@@ -2,9 +2,9 @@ use std::process::Command as Process;
 
 use anyhow::Result;
 
+use rush_state::console::Console;
 use rush_state::path::Path;
 use rush_state::shell::Shell;
-use rush_state::console::Console;
 
 use crate::errors::ExecutableError;
 
@@ -82,23 +82,26 @@ impl Executable {
 
 impl Runnable for Executable {
     // * Executables do not have access to the shell state, but the context argument is required by the Runnable trait
-    fn run(&self, _shell: &mut Shell, _console: &mut Console, arguments: Vec<&str>) -> Result<()> {
+    fn run(&self, _shell: &mut Shell, console: &mut Console, arguments: Vec<&str>) -> Result<()> {
         // Create the Process and pass the provided arguments to it
         let mut executable = Process::new(self.path.path());
         executable.args(arguments);
         // Execute the Process and wait for it to finish
         // TODO: There may be other types of errors that could happen, they may need handlers
-        let Ok(mut handle) = executable.spawn() else { return Err(ExecutableError::PathNoLongerExists(self.path.path().clone()).into()); };
-        let status = handle.wait()?;
+        let Ok(handle) = executable.output() else { return Err(ExecutableError::PathNoLongerExists(self.path.path().clone()).into()); };
 
-        if status.success() {
+        if handle.status.success() {
+            console.println(std::str::from_utf8(&handle.stdout)?);
             Ok(())
         } else {
             // * 126 is a special exit code that means that the command was found but could not be executed
             // * as per https://tldp.org/LDP/abs/html/exitcodes.html
             // * It can be assumed that the command was found here because the External path must have been validated already
             // * Otherwise it could be a 127 for "command not found"
-            Err(ExecutableError::FailedToExecute(status.code().unwrap_or(126) as isize).into())
+            Err(
+                ExecutableError::FailedToExecute(handle.status.code().unwrap_or(126) as isize)
+                    .into(),
+            )
         }
     }
 }
