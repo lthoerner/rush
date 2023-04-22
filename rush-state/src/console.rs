@@ -71,11 +71,14 @@ impl ClearModeBundle {
 // Represents the TUI console
 pub struct Console<'a> {
     terminal: Terminal<CrosstermBackend<Stdout>>,
+    // ? Should this be an Option<Spans>?
+    prompt: Spans<'a>,
     line_buffer: String,
     frame_buffer: Text<'a>,
     // The index of the cursor in the line buffer
     // ? Should this be an Option<usize>?
     cursor_index: usize,
+    // The number of lines that have been scrolled up
     scroll: usize,
 }
 
@@ -86,6 +89,7 @@ impl<'a> Console<'a> {
 
         Ok(Self {
             terminal,
+            prompt: Spans::default(),
             line_buffer: String::new(),
             frame_buffer: Text::default(),
             cursor_index: 0,
@@ -176,19 +180,37 @@ impl<'a> Console<'a> {
     // Appends a new prompt to the frame buffer, but does not perform a frame update,
     // and does not clear the line buffer or modify the cursor index
     fn prompt(&mut self, shell: &Shell) -> Result<()> {
+        // $ This needs to be moved, it no longer belongs here
         self.enforce_spacing();
-        self.frame_buffer.extend(generate_prompt(shell));
+        self.generate_prompt(shell);
         Ok(())
+    }
+
+    // Re-generates the prompt widget header
+    // TODO: This will eventually need to not be hard-coded to allow for user customization
+    fn generate_prompt(&mut self, shell: &Shell) {
+        let mut span_list = Vec::new();
+
+        let home = shell.env().HOME();
+        let truncation = shell.config().truncation_factor;
+        let user = Span::styled(shell.env().USER().clone(), Style::default().fg(Color::Blue));
+        let cwd = Span::styled(shell.env().CWD().collapse(home, truncation), Style::default().fg(Color::Green));
+
+        span_list.push(user);
+        span_list.push(Span::from(" on "));
+        span_list.push(cwd);
+
+        self.prompt = Spans::from(span_list);
     }
 
     // Draws a TUI frame
     pub fn draw(&mut self) -> Result<()> {
-        self.terminal.draw(|f| Self::generate_frame(f, &self.line_buffer, &self.frame_buffer, self.scroll))?;
+        self.terminal.draw(|f| Self::generate_frame(f, &self.prompt, &self.line_buffer, &self.frame_buffer, self.scroll))?;
         Ok(())
     }
 
     // Generates a TUI frame based on the prompt/line buffer and frame buffer
-    fn generate_frame(f: &mut Frame<CrosstermBackend<Stdout>>, line_buffer: &str, frame_buffer: &Text, scroll: usize) {
+    fn generate_frame(f: &mut Frame<CrosstermBackend<Stdout>>, prompt: &Spans, line_buffer: &str, frame_buffer: &Text, scroll: usize) {
         // Create a Layout for the frame which reserves the bottom 20%
         // of the terminal for the prompt, and the rest for command output etc
         let chunks = Layout::default()
@@ -196,11 +218,21 @@ impl<'a> Console<'a> {
             .constraints([Constraint::Percentage(80), Constraint::Percentage(20)].as_ref())
             .split(f.size());
 
-        let prompt_borders = Block::default().borders(Borders::ALL);
+        let prompt_borders = Block::default().borders(Borders::ALL).title(prompt.clone());
         let frame_borders = Block::default().borders(Borders::TOP | Borders::LEFT | Borders::RIGHT);
+
+        // // ? What is the actual name for this?
+        // let prompt_tick = Span::styled("❯ ", Style::default().add_modifier(Modifier::BOLD).fg(match shell.success() {
+        //     true => Color::LightGreen,
+        //     false => Color::LightRed,
+        // }));
+
+        // TODO: Figure out how to color the prompt tick, Shell cannot easily be passed into this function
+        let prompt_tick = Span::styled("❯ ", Style::default().add_modifier(Modifier::BOLD).fg(Color::LightGreen));
+        let line = Spans::from(vec![prompt_tick, Span::from(line_buffer)]);
         
         // Create a Paragraph widget for the prompt
-        let prompt_widget = Paragraph::new(line_buffer)
+        let prompt_widget = Paragraph::new(line)
             .block(prompt_borders)
             .style(Style::default())
             .alignment(Alignment::Left)
@@ -288,6 +320,7 @@ impl<'a> Console<'a> {
 
     // Prints a line of text to the console
     // TODO: Probably make this a macro in the future, but for now just make it use &str or String
+    // TODO: Make lazy execution version of this, or a lazy execution mode
     pub fn println(&mut self, text: &str) {
         self.append_newline(text);
         _ = self.draw()
@@ -336,52 +369,4 @@ impl<'a> Console<'a> {
             }
         }
     }
-}
-
-// Generates the prompt string used by the Console
-// TODO: This will eventually need to not be hard-coded to allow for user customization
-fn generate_prompt<'a>(shell: &Shell) -> Text<'a> {
-    let mut span_list = Vec::new();
-
-    let home = shell.env().HOME();
-    let truncation = shell.config().truncation_factor;
-    let user = Span::styled(shell.env().USER().clone(), Style::default().fg(Color::Blue));
-    let cwd = Span::styled(shell.env().CWD().collapse(home, truncation), Style::default().fg(Color::Green));
-
-    span_list.push(user);
-    span_list.push(Span::from(" on "));
-    span_list.push(cwd);
-
-    // ? What is the actual name for this?
-    let prompt_tick = Span::styled("❯ ", Style::default().add_modifier(Modifier::BOLD).fg(match shell.success() {
-        true => Color::LightGreen,
-        false => Color::LightRed,
-    }));
-
-    let mut spans = Vec::new();
-
-    // If the prompt is in multi-line mode, create a new line and append it to the result, then return
-    // If the prompt is in single-line mode, just append it to the first line and return
-    if shell.config().multi_line_prompt {
-        spans.push(Spans::from(span_list));
-        spans.push(Spans::from(prompt_tick))
-    } else {
-        span_list.push(Span::from(" "));
-        span_list.push(prompt_tick);
-        spans.push(Spans::from(span_list));
-    }
-
-    Text::from(spans)
-}
-
-// Appends the line buffer to the frame buffer so they can be rendered together but stored separately
-// * This is used on frame updates where the line buffer is being edited
-fn append_line_buffer<'a>(line_buffer: &'a str, frame_buffer: &'a Text) -> Text<'a> {
-    let mut temp_buffer = frame_buffer.clone();
-    
-    if let Some(last_line) = temp_buffer.lines.last_mut() {
-        last_line.0.push(Span::from(line_buffer));
-    }
-
-    temp_buffer
 }
