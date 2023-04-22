@@ -8,11 +8,11 @@ use crossterm::event::{self, Event, KeyCode, KeyModifiers, DisableMouseCapture};
 use crossterm::cursor;
 use crossterm::execute;
 use ratatui::backend::CrosstermBackend;
-use ratatui::layout::Alignment;
+use ratatui::layout::{Layout, Direction, Constraint, Alignment};
 use ratatui::text::{Span, Spans, Text};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
-use ratatui::Terminal;
+use ratatui::{Terminal, Frame};
 
 use crate::shell::Shell;
 
@@ -76,6 +76,7 @@ pub struct Console<'a> {
     // The index of the cursor in the line buffer
     // ? Should this be an Option<usize>?
     cursor_index: usize,
+    scroll: usize,
 }
 
 impl<'a> Console<'a> {
@@ -88,6 +89,7 @@ impl<'a> Console<'a> {
             line_buffer: String::new(),
             frame_buffer: Text::default(),
             cursor_index: 0,
+            scroll: 0,
         })
     }
 
@@ -156,6 +158,8 @@ impl<'a> Console<'a> {
                     (KeyModifiers::NONE, KeyCode::Left) => self.move_cursor_left(),
                     (KeyModifiers::NONE, KeyCode::Right) => self.move_cursor_right(),
                     (KeyModifiers::NONE, KeyCode::Enter) if !self.line_buffer.is_empty() => return Ok(ReplAction::Return),
+                    (KeyModifiers::NONE, KeyCode::Up) => self.scroll = self.scroll.saturating_sub(1),
+                    (KeyModifiers::NONE, KeyCode::Down) => self.scroll = self.scroll.saturating_add(1),
                     // (KeyModifiers::NONE, KeyCode::Up) => self.scroll_history(HistoryDirection::Up, context)?,
                     // (KeyModifiers::NONE, KeyCode::Down) => self.scroll_history(HistoryDirection::Down, context)?,
                     (KeyModifiers::CONTROL, KeyCode::Char('c')) => return Ok(ReplAction::Exit),
@@ -179,19 +183,39 @@ impl<'a> Console<'a> {
 
     // Draws a TUI frame
     pub fn draw(&mut self) -> Result<()> {
-        self.terminal.draw(|f| {
-            let size = f.size();
-            // $ This probably should not be appending the line buffer automatically. Not sure if it should be a mode, a separate function, etc.
-            let main_widget = Paragraph::new(append_line_buffer(&self.line_buffer, &self.frame_buffer))
-                .block(Block::default().borders(Borders::ALL))
-                .style(Style::default())
-                .alignment(Alignment::Left)
-                .wrap(Wrap { trim: false });
-            f.render_widget(main_widget, size);
-
-        })?;
-        
+        self.terminal.draw(|f| Self::generate_frame(f, &self.line_buffer, &self.frame_buffer, self.scroll))?;
         Ok(())
+    }
+
+    // Generates a TUI frame based on the prompt/line buffer and frame buffer
+    fn generate_frame(f: &mut Frame<CrosstermBackend<Stdout>>, line_buffer: &str, frame_buffer: &Text, scroll: usize) {
+        // Create a Layout for the frame which reserves the bottom 20%
+        // of the terminal for the prompt, and the rest for command output etc
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Percentage(80), Constraint::Percentage(20)].as_ref())
+            .split(f.size());
+
+        let prompt_borders = Block::default().borders(Borders::ALL);
+        let frame_borders = Block::default().borders(Borders::TOP | Borders::LEFT | Borders::RIGHT);
+        
+        // Create a Paragraph widget for the prompt
+        let prompt_widget = Paragraph::new(line_buffer)
+            .block(prompt_borders)
+            .style(Style::default())
+            .alignment(Alignment::Left)
+            .wrap(Wrap { trim: false });
+
+        // Create a Paragraph widget for the frame buffer
+        let frame_widget = Paragraph::new(frame_buffer.clone())
+            .block(frame_borders)
+            .style(Style::default())
+            .alignment(Alignment::Left)
+            .wrap(Wrap { trim: false });
+
+        // Render the widgets
+        f.render_widget(prompt_widget, chunks[1]);
+        f.render_widget(frame_widget.scroll((scroll as u16, 0)), chunks[0]);
     }
 
     // Clears the screen and the line buffer and reprompts the user
