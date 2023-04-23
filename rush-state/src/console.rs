@@ -120,7 +120,7 @@ impl<'a> Console<'a> {
                     self.line_buffer.clear();
                     
                     // Save the line buffer as part of the output buffer
-                    self.append_str(&line);
+                    self.append_newline(&line);
                     
                     return Ok(line)
                 },
@@ -199,7 +199,7 @@ impl<'a> Console<'a> {
 
     // Draws a TUI frame
     pub fn draw(&mut self) -> Result<()> {
-        self.terminal.draw(|f| Self::generate_frame(f,self.debug_mode, &self.debug_buffer, &self.prompt, &self.prompt_tick, &self.line_buffer, &self.output_buffer, self.scroll))?;
+        self.terminal.draw(|f| Self::generate_frame(f, self.debug_mode, &self.debug_buffer, &self.prompt, &self.prompt_tick, &self.line_buffer, &self.output_buffer, self.scroll))?;
         Ok(())
     }
 
@@ -368,7 +368,7 @@ impl<'a> Console<'a> {
 
     // Appends a string to the next line of the output buffer
     fn append_newline(&mut self, string: &str) {
-        self.append_str(&format!("\n{}", string))
+        self.append_str(&format!("{}\n", string))
     }
 
     // Ensures that there is an empty line at the end of the output buffer
