@@ -6,7 +6,7 @@ use crossterm::event::{self, Event, KeyCode, KeyModifiers, DisableMouseCapture};
 use crossterm::cursor;
 use crossterm::execute;
 use ratatui::backend::CrosstermBackend;
-use ratatui::layout::{Layout, Direction, Constraint, Alignment};
+use ratatui::layout::{Layout, Direction, Constraint, Alignment, Rect};
 use ratatui::text::{Span, Spans, Text};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
@@ -99,6 +99,7 @@ impl<'a> Console<'a> {
         enable_raw_mode()?;
         // ? Is mouse capture enabled by default?
         execute!(self.terminal.backend_mut(), EnterAlternateScreen, DisableMouseCapture)?;
+        self.terminal.show_cursor()?;
 
         self.clear(ClearMode::RESET_LINE)
     }
@@ -214,15 +215,16 @@ impl<'a> Console<'a> {
         self.debug_buffer.extend(Text::from(success));
     }
 
-    // Draws a TUI frame
+    // Updates the TUI frame
     pub fn draw(&mut self) -> Result<()> {
-        self.terminal.draw(|f| Self::generate_frame(f, self.debug_mode, &self.debug_buffer, &self.prompt, &self.prompt_tick, &self.line_buffer, &self.output_buffer, self.scroll))?;
+        // Draw the frame
+        self.terminal.draw(|f| Self::generate_frame(f, self.debug_mode, &self.debug_buffer, &self.prompt, &self.prompt_tick, &self.line_buffer, self.cursor_index, &self.output_buffer, self.scroll))?;
         Ok(())
     }
 
     // Generates a TUI frame based on the prompt/line buffer and output buffer
     // ? Is there a way to make this a method to avoid passing in a ton of parameters?
-    fn generate_frame(f: &mut Frame<CrosstermBackend<Stdout>>, debug_mode: bool, debug_buffer: &Text<'a>, prompt: &Spans, prompt_tick: &Span, line_buffer: &str, output_buffer: &Text, scroll: usize) {
+    fn generate_frame(f: &mut Frame<CrosstermBackend<Stdout>>, debug_mode: bool, debug_buffer: &Text<'a>, prompt: &Spans, prompt_tick: &Span, line_buffer: &str, cursor_index: usize, output_buffer: &Text, scroll: usize) {
         let prompt_borders = Block::default().borders(Borders::ALL).title(prompt.clone());
         let frame_borders = |title| Block::default().borders(Borders::ALL ^ Borders::BOTTOM).title(Span::styled(title, Style::default().fg(Color::LightCyan).add_modifier(Modifier::BOLD)));
 
@@ -279,6 +281,26 @@ impl<'a> Console<'a> {
         // Render the default widgets
         f.render_widget(prompt_widget, prompt_area);
         f.render_widget(frame_widget.scroll((scroll as u16, 0)), output_area);
+
+        // Render the cursor
+        let (cursor_x, cursor_y) = Self::cursor_coord(cursor_index, prompt_area);
+        f.set_cursor(cursor_x, cursor_y);
+    }
+
+    // Given the cursor index and the Rect of the prompt panel, returns the terminal cursor position
+    fn cursor_coord(cursor_index: usize, prompt_area: Rect) -> (u16, u16) {
+        // Get the prompt panel width to determine the starting y-position of the cursor
+        // * The -2 is to account for the left and right borders
+        let prompt_width = prompt_area.width as usize - 2;
+        // * The +1 is to account for the top border
+        let prompt_y_coord = (prompt_area.y + 1) as usize;
+        
+        // Find the x and y offsets based on the cursor index
+        let y_offset = cursor_index / prompt_width + prompt_y_coord;
+        // * The +2 is to account for the prompt tick, and the space after the tick
+        let x = (cursor_index + 3) % prompt_width;
+
+        (x as u16, y_offset as u16)
     }
 
     // Clears the screen and the line buffer and reprompts the user
