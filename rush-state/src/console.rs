@@ -44,6 +44,13 @@ bitflags! {
     }
 }
 
+// Represents either a "history up" or "history down" keypress (arrow keys)
+#[derive(PartialEq)]
+enum HistoryDirection {
+    Up,
+    Down,
+}
+
 // Represents the TUI console
 pub struct Console<'a> {
     terminal: Terminal<CrosstermBackend<Stdout>>,
@@ -57,6 +64,10 @@ pub struct Console<'a> {
     // The index of the cursor in the line buffer
     // ? Should this be an Option<usize>?
     cursor_index: usize,
+    // If the user is scrolling through the command history, this stores the original line buffer so it can be restored if needed
+    history_buffer: Option<String>,
+    // The history index stored when the user is scrolling through the command history
+    history_index: Option<usize>,
     // The number of lines that have been scrolled up
     scroll: usize,
     // Whether or not to show the debug panel
@@ -76,6 +87,8 @@ impl<'a> Console<'a> {
             output_buffer: Text::default(),
             debug_buffer: Text::default(),
             cursor_index: 0,
+            history_buffer: None,
+            history_index: None,
             scroll: 0,
             debug_mode: false,
         })
@@ -108,7 +121,7 @@ impl<'a> Console<'a> {
 
         loop {
             let event = event::read()?;
-            let action = self.handle_event(event)?;
+            let action = self.handle_event(event, shell)?;
 
             match action {
                 ReplAction::Return => {
@@ -118,6 +131,10 @@ impl<'a> Console<'a> {
                     // Save the line buffer for returning and clear it to make way for the next Console.read_line() call
                     let line = self.line_buffer.clone();
                     self.line_buffer.clear();
+
+                    // Clear the history buffer and index
+                    self.history_buffer = None;
+                    self.history_index = None;
                     
                     // Save the line buffer as part of the output buffer
                     self.append_newline(&line);
@@ -137,7 +154,7 @@ impl<'a> Console<'a> {
     }
 
     // Handles a key event by queueing appropriate commands based on the given keypress
-    fn handle_event(&mut self, event: Event) -> Result<ReplAction> {
+    fn handle_event(&mut self, event: Event, shell: &Shell) -> Result<ReplAction> {
         // TODO: Break up event handling into separate functions for different event categories
         match event {
             Event::Key(event) => {
@@ -150,8 +167,8 @@ impl<'a> Console<'a> {
                     (KeyModifiers::NONE, KeyCode::Enter) if !self.line_buffer.is_empty() => return Ok(ReplAction::Return),
                     (KeyModifiers::SHIFT, KeyCode::Up) => self.scroll = self.scroll.saturating_sub(1),
                     (KeyModifiers::SHIFT, KeyCode::Down) => self.scroll = self.scroll.saturating_add(1),
-                    // (KeyModifiers::NONE, KeyCode::Up) => self.scroll_history(HistoryDirection::Up, context)?,
-                    // (KeyModifiers::NONE, KeyCode::Down) => self.scroll_history(HistoryDirection::Down, context)?,
+                    (KeyModifiers::NONE, KeyCode::Up) => self.scroll_history(HistoryDirection::Up, shell)?,
+                    (KeyModifiers::NONE, KeyCode::Down) => self.scroll_history(HistoryDirection::Down, shell)?,
                     (KeyModifiers::CONTROL, KeyCode::Char('c')) => return Ok(ReplAction::Exit),
                     (KeyModifiers::CONTROL, KeyCode::Char('l')) => self.clear(ClearMode::OUTPUT)?,
                     // TODO: Make this a toggle method
@@ -379,5 +396,72 @@ impl<'a> Console<'a> {
                 self.output_buffer.lines.push(Spans::default());
             }
         }
+    }
+
+    // Scrolls through the Shell's command history
+    fn scroll_history(&mut self, direction: HistoryDirection, shell: &Shell) -> Result<()> {
+        use HistoryDirection::*;
+        let history = shell.history();
+        // If the history is empty, do nothing
+        if history.is_empty() {
+            return Ok(());
+        }
+        
+        let history_len = history.len();
+        let history_last_index = history_len - 1;
+        
+        match self.history_index {
+            // If the user is already scrolling through the history, move the index in the appropriate direction
+            // If they attempt to scroll past the end of the history, restore the original line buffer
+            Some(index) => {
+                match direction {
+                    Up => {
+                        // Prevent the user from scrolling out of bounds
+                        if index == 0 {
+                            return Ok(());
+                        } else {
+                            self.history_index = Some(index - 1)
+                        }
+                    }
+                    Down => {
+                        // If the user scrolls back past the start of the history, restore the original line buffer
+                        if index == history_last_index {
+                            // TODO: Change this to an actual error
+                            self.line_buffer = self
+                                .history_buffer
+                                .clone()
+                                .expect("History buffer was not found when it should exist");
+                            self.history_buffer = None;
+                            self.history_index = None;
+                        } else {
+                            self.history_index = Some(index + 1)
+                        }
+                    }
+                }
+            }
+            // If the user is just starting to scroll through the history, start at the most recent history
+            // If they attempt to scroll past the end of the history, do nothing
+            None => {
+                match direction {
+                    Up => {
+                        // * Bounds check is not needed in this case because it is guaranteed that history
+                        // * contains at least one element due to the .is_empty() check
+                        self.history_index = Some(history_last_index);
+                        self.history_buffer = Some(self.line_buffer.clone());
+                    }
+                    Down => return Ok(()),
+                }
+            }
+        }
+
+        // TODO: Change this to an actual error
+        if let Some(index) = self.history_index {
+            self.line_buffer = history
+                .get(index)
+                .expect("Tried to access non-existent command history")
+                .clone();
+        }
+
+        Ok(())
     }
 }
