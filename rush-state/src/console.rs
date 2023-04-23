@@ -186,9 +186,9 @@ impl<'a> Console<'a> {
 
         // Color the prompt tick based on the last shell command's exit status
         match shell.success() {
-            true => self.prompt_tick.style.fg(Color::LightGreen),
-            false => self.prompt_tick.style.fg(Color::LightRed),
-        };
+            true => self.prompt_tick.style = self.prompt_tick.style.fg(Color::LightGreen),
+            false => self.prompt_tick.style = self.prompt_tick.style.fg(Color::LightRed),
+        }
     }
 
     // Updates the debug panel header based on the current shell state (USER, CWD, etc)
