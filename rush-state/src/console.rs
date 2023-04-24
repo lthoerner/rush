@@ -136,7 +136,7 @@ impl<'a> Console<'a> {
         self.reset_line_buffer();
         self.update_prompt(shell);
         self.update_debug(shell);
-        self.draw()?;
+        self.draw_shell_aware(shell)?;
 
         loop {
             let event = event::read()?;
@@ -172,7 +172,7 @@ impl<'a> Console<'a> {
                 }
                 ReplAction::RedrawFrame => {
                     self.update_debug(shell);
-                    self.draw()?;
+                    self.draw_shell_aware(shell)?;
                 }
                 ReplAction::Ignore => (),
             }
@@ -327,9 +327,10 @@ impl<'a> Console<'a> {
         ])
     }
 
-    // Updates the TUI frame
+    // Updates the TUI frame without any data from the Shell
+    // * This is used to prevent Console.print() and Console.println() calls from requiring a Shell reference
+    // TODO: Find a better name for this
     pub fn draw(&mut self) -> Result<()> {
-        // Draw the frame
         self.terminal.draw(|f| {
             Self::generate_frame(
                 f,
@@ -341,6 +342,26 @@ impl<'a> Console<'a> {
                 self.cursor_index,
                 &self.output_buffer,
                 self.scroll,
+                None,
+            )
+        })?;
+        Ok(())
+    }
+
+    // Updates the TUI frame
+    pub fn draw_shell_aware(&mut self, shell: &Shell) -> Result<()> {
+        self.terminal.draw(|f| {
+            Self::generate_frame(
+                f,
+                self.debug_mode,
+                &self.debug_buffer,
+                &self.prompt,
+                &self.prompt_tick,
+                &self.line_buffer,
+                self.cursor_index,
+                &self.output_buffer,
+                self.scroll,
+                Some(&shell.command_history),
             )
         })?;
         Ok(())
@@ -358,6 +379,7 @@ impl<'a> Console<'a> {
         cursor_index: usize,
         output_buffer: &Text,
         scroll: usize,
+        command_history: Option<&Vec<String>>,
     ) {
         let prompt_borders = Block::default().borders(Borders::ALL).title(prompt.clone());
         let frame_borders = |title| {
@@ -371,7 +393,20 @@ impl<'a> Console<'a> {
                 ))
         };
 
-        let line = Spans::from(vec![prompt_tick.clone(), Span::from(line_buffer)]);
+        let mut line = Spans::from(vec![prompt_tick.clone(), Span::from(line_buffer)]);
+        // If the current line buffer matches any of the commands in the history,
+        // show the rest of the command in dark grey text for autocompletion
+        if !line_buffer.is_empty() {
+            if let Some(history) = command_history{
+                for command in history {
+                    if command.starts_with(line_buffer) {
+                        let rest_of_command = command.strip_prefix(line_buffer).unwrap();
+                        line.0.push(Span::styled(rest_of_command, Style::default().add_modifier(Modifier::ITALIC | Modifier::DIM)));
+                        break
+                    }
+                }
+            }
+        }
 
         // Create a Paragraph widget for the prompt panel
         let prompt_widget = Paragraph::new(line)
