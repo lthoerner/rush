@@ -67,8 +67,8 @@ pub struct Console<'a> {
     // The index of the cursor in the line buffer
     // ? Should this be an Option<usize>?
     cursor_index: usize,
-    // If the user is scrolling through the command history, this stores the original line buffer so it can be restored if needed
-    history_buffer: Option<String>,
+    // If the user is scrolling through the command history, this stores the original line buffer and cursor position so they can be restored if needed
+    history_buffer: Option<(String, usize)>,
     // The history index stored when the user is scrolling through the command history
     history_index: Option<usize>,
     // The number of lines that have been scrolled up
@@ -635,6 +635,8 @@ impl<'a> Console<'a> {
             return Ok(());
         }
 
+        let history_get = |index: usize| history.get(index).expect("Tried to access non-existent command history");
+
         let history_len = history.len();
         let history_last_index = history_len - 1;
 
@@ -645,24 +647,24 @@ impl<'a> Console<'a> {
                 match direction {
                     Up => {
                         // Prevent the user from scrolling out of bounds
-                        if index == 0 {
-                            return Ok(());
-                        } else {
-                            self.history_index = Some(index - 1)
-                        }
+                        let new_index = index.saturating_sub(1);
+                        self.history_index = Some(new_index);
+                        self.cursor_index = history_get(new_index).len();
                     }
                     Down => {
                         // If the user scrolls back past the start of the history, restore the original line buffer
+                        // Otherwise, keep scrolling down as normal
                         if index == history_last_index {
                             // TODO: Change this to an actual error
-                            self.line_buffer = self
-                                .history_buffer
-                                .clone()
-                                .expect("History buffer was not found when it should exist");
+                            let history_buffer = self.history_buffer.take().expect("History buffer was not found when it should exist");
+                            self.line_buffer = history_buffer.0;
+                            self.cursor_index = history_buffer.1;
                             self.history_buffer = None;
                             self.history_index = None;
                         } else {
-                            self.history_index = Some(index + 1)
+                            let new_index = index + 1;
+                            self.history_index = Some(new_index);
+                            self.cursor_index = history_get(new_index).len();
                         }
                     }
                 }
@@ -675,7 +677,8 @@ impl<'a> Console<'a> {
                         // * Bounds check is not needed in this case because it is guaranteed that history
                         // * contains at least one element due to the .is_empty() check
                         self.history_index = Some(history_last_index);
-                        self.history_buffer = Some(self.line_buffer.clone());
+                        self.history_buffer = Some((self.line_buffer.clone(), self.cursor_index));
+                        self.cursor_index = history_get(history_last_index).len();
                     }
                     Down => return Ok(()),
                 }
@@ -684,10 +687,7 @@ impl<'a> Console<'a> {
 
         // TODO: Change this to an actual error
         if let Some(index) = self.history_index {
-            self.line_buffer = history
-                .get(index)
-                .expect("Tried to access non-existent command history")
-                .clone();
+            self.line_buffer = history_get(index).to_owned();
         }
 
         Ok(())
