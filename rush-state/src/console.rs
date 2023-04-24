@@ -219,7 +219,14 @@ impl<'a> Console<'a> {
             // Console.history_buffer
             // Console.history_index
             // Console.scroll
-            // Shell.
+
+            // Shell.Configuration.truncation_factor
+            // Shell.Configuration.history_limit
+            // Shell.Configuration.show_errors
+            
+            // Shell.Environment.USER
+            // Shell.Environment.HOME
+            // Shell.Environment.CWD
 
         let key_style = Style::default().add_modifier(Modifier::BOLD);
         let value_style = Style::default().fg(Color::LightGreen);
@@ -232,7 +239,15 @@ impl<'a> Console<'a> {
         let history_index = get_spans("HISTORY INDEX:", Box::new(&self.history_index));
         let scroll = get_spans("SCROLL:", Box::new(&self.scroll));
 
-        self.debug_buffer = Text::from(vec![line_buffer, cursor_index, history_buffer, history_index, scroll])
+        let truncation = get_spans("TRUNCATION FACTOR:", Box::new(&shell.config().truncation_factor));
+        let history_limit = get_spans("HISTORY LIMIT:", Box::new(&shell.config().history_limit));
+        let show_errors = get_spans("SHOW ERRORS:", Box::new(&shell.config().show_errors));
+
+        let user = get_spans("USER:", Box::new(&shell.env().USER()));
+        let home = get_spans("HOME:", Box::new(&shell.env().HOME()));
+        let cwd = get_spans("CWD:", Box::new(&shell.env().CWD()));
+
+        self.debug_buffer = Text::from(vec![line_buffer, cursor_index, history_buffer, history_index, scroll, Spans::default(), truncation, history_limit, show_errors, Spans::default(), user, home, cwd])
     }
 
     // Updates the TUI frame

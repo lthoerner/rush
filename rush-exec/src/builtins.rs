@@ -262,12 +262,6 @@ pub fn configure(shell: &mut Shell, console: &mut Console, args: Vec<&str>) -> R
                 BuiltinError::InvalidValue(value.to_string())
             })?
         }
-        "multi-line-prompt" => {
-            shell.config_mut().multi_line_prompt = value.parse::<bool>().map_err(|_| {
-                console.println(&format!("Invalid value for multi-line-prompt: '{}'", value));
-                BuiltinError::InvalidValue(value.to_string())
-            })?
-        }
         _ => {
             console.println(&format!("Invalid configuration key: '{}'", key));
             return Err(BuiltinError::InvalidArgument(key.to_string()).into());
