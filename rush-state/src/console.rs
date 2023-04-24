@@ -1,4 +1,5 @@
 use std::io::{stdout, Stdout};
+use std::fmt::Debug;
 
 use anyhow::Result;
 use crossterm::terminal::{enable_raw_mode, disable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen, Clear, ClearType};
@@ -147,6 +148,7 @@ impl<'a> Console<'a> {
                     std::process::exit(0);
                 },
                 ReplAction::RedrawFrame => {
+                    self.update_debug(shell);
                     self.draw()?;
                 },
                 ReplAction::Ignore => (),
@@ -211,8 +213,26 @@ impl<'a> Console<'a> {
 
     // Updates the debug panel header based on the current shell state (USER, CWD, etc)
     fn update_debug(&mut self, shell: &Shell) {
-        let success = Spans::from(format!("Success: {}", shell.success()));
-        self.debug_buffer.extend(Text::from(success));
+        // Tracked items:
+            // Console.line_buffer
+            // Console.cursor_index
+            // Console.history_buffer
+            // Console.history_index
+            // Console.scroll
+            // Shell.
+
+        let key_style = Style::default().add_modifier(Modifier::BOLD);
+        let value_style = Style::default().fg(Color::LightGreen);
+
+        let get_spans = |key, value: Box<&dyn Debug>| Spans::from(vec![Span::styled(key, key_style), Span::styled(format!(" {:?}", value), value_style)]);
+
+        let line_buffer = get_spans("LINE BUFFER:", Box::new(&self.line_buffer));
+        let cursor_index = get_spans("CURSOR INDEX:", Box::new(&self.cursor_index));
+        let history_buffer = get_spans("HISTORY BUFFER:", Box::new(&self.history_buffer));
+        let history_index = get_spans("HISTORY INDEX:", Box::new(&self.history_index));
+        let scroll = get_spans("SCROLL:", Box::new(&self.scroll));
+
+        self.debug_buffer = Text::from(vec![line_buffer, cursor_index, history_buffer, history_index, scroll])
     }
 
     // Updates the TUI frame
@@ -246,7 +266,7 @@ impl<'a> Console<'a> {
 
         // Split the terminal into two windows, one for the command output, and one for the prompt
         // The output window takes up the top 80% of the terminal, and the prompt window takes up the bottom 20%
-        // If the debug panelt is enabled, the output window will be split in 60/40 sections
+        // If the debug panel is enabled, the output window will be split in 60/40 sections
         let (mut output_area, prompt_area) = {
             let chunks = Layout::default()
                 .direction(Direction::Vertical)
