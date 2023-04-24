@@ -1,3 +1,4 @@
+use std::env::Args;
 use anyhow::Result;
 
 use rush_exec::builtins;
@@ -5,6 +6,9 @@ use rush_exec::commands::{Builtin, Executable, Runnable};
 use rush_state::path::Path;
 use rush_state::shell::Shell;
 use rush_state::console::Console;
+
+use clap::{Command};
+use clap_builder::{Arg, arg};
 
 use crate::errors::DispatchError;
 use crate::parser;
@@ -79,7 +83,30 @@ impl Dispatcher {
     // Evaluates and executes a command from a string
     pub fn eval(&self, shell: &mut Shell, console: &mut Console, line: &str) -> Result<()> {
         let (command_name, command_args) = parser::tokenize(line);
+
+        let arg_vec = vec!["ld"];
+        let m = Command::new("rush")
+            .no_binary_name(true)
+            .subcommand(Command::new("ls")
+                .arg(arg!(-a --all "shows all files including dotfiles"))
+            )
+            .get_matches_from(&arg_vec);
+
+        println!("{:?}", m.subcommand_matches("ls"));
         // ? Is there a way to avoid this type conversion?
+        // let my_arguments = vec!["ls-clap", "-a"];
+        // let app = App
+
+        // console.println(command_name.as_str());
+        // let cli = Cli::parse();
+        // match &cli.command {
+        //     Some(Commands::LsClap {all}) => {
+        //         console.println(all.to_string().as_str());
+        //         console.println("Hello from the eval");
+        //     },
+        //     None => {}
+        // }
+
         let command_name = command_name.as_str();
         let command_args = command_args.iter().map(|a| a.as_str()).collect();
 
