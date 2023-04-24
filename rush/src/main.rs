@@ -15,14 +15,14 @@ fn main() -> Result<()> {
     // The Dispatcher type is responsible for resolving command names to actual function calls,
     // or executables if needed, and then invoking them with the given arguments
     let dispatcher = Dispatcher::default();
-    
+
     console.enter()?;
 
     loop {
         let line = console.read_line(&shell)?;
         let status = dispatcher.eval(&mut shell, &mut console, &line);
         handle_error(status, &mut shell, &mut console);
-        
+
         if shell.success() {
             shell.history_add(line);
         }
@@ -38,13 +38,15 @@ fn handle_error(error: Result<()>, shell: &mut Shell, console: &mut Console) {
                 Some(DispatchError::UnknownCommand(command_name)) => {
                     console.println(&format!("Unknown command: {}", command_name));
                 }
-                _ => if shell.config().show_errors {
-                    // TODO: This is sort of a "magic" formatting string, it should be changed to a method or something
-                    console.println(&format!("Error: {:#?}: {}", e, e));
+                _ => {
+                    if shell.config().show_errors {
+                        // TODO: This is sort of a "magic" formatting string, it should be changed to a method or something
+                        console.println(&format!("Error: {:#?}: {}", e, e));
+                    }
                 }
             }
 
             shell.set_success(false);
-        },
+        }
     }
 }

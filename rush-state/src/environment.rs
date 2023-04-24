@@ -149,25 +149,25 @@ impl Environment {
     pub fn set_CWD(&mut self, new_directory: &str, history_limit: Option<usize>) -> Result<()> {
         let starting_directory = self.CWD.clone();
         let new_directory = Path::from_str(new_directory, &self.HOME)?;
-        
+
         // Add the old directory to the history, avoiding duplicates
         if new_directory != starting_directory {
             self.CWD = new_directory;
             self.backward_directories.push_back(starting_directory);
             self.forward_directories.clear();
-            
+
             if let Some(limit) = history_limit {
                 while self.backward_directories.len() > limit {
                     self.backward_directories.pop_front();
                 }
             }
-            
+
             self.update_process_env_vars([EnvVar::CWD].into())?;
         }
 
         Ok(())
     }
-        
+
     // Sets the current working directory to the previous working directory
     pub fn go_back(&mut self) -> Result<()> {
         let starting_directory = self.CWD.clone();

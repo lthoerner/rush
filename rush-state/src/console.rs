@@ -1,18 +1,20 @@
-use std::io::{stdout, Stdout};
 use std::fmt::Debug;
+use std::io::{stdout, Stdout};
 
 use anyhow::Result;
-use crossterm::terminal::{enable_raw_mode, disable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen, Clear, ClearType};
-use crossterm::event::{self, Event, KeyCode, KeyModifiers, DisableMouseCapture};
-use crossterm::cursor;
-use crossterm::execute;
-use ratatui::backend::CrosstermBackend;
-use ratatui::layout::{Layout, Direction, Constraint, Alignment, Rect};
-use ratatui::text::{Span, Spans, Text};
-use ratatui::style::{Color, Modifier, Style};
-use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
-use ratatui::{Terminal, Frame};
 use bitflags::bitflags;
+use crossterm::cursor;
+use crossterm::event::{self, DisableMouseCapture, Event, KeyCode, KeyModifiers};
+use crossterm::execute;
+use crossterm::terminal::{
+    disable_raw_mode, enable_raw_mode, Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen,
+};
+use ratatui::backend::CrosstermBackend;
+use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
+use ratatui::style::{Color, Modifier, Style};
+use ratatui::text::{Span, Spans, Text};
+use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
+use ratatui::{Frame, Terminal};
 
 use crate::shell::Shell;
 
@@ -83,7 +85,12 @@ impl<'a> Console<'a> {
         Ok(Self {
             terminal,
             prompt: Spans::default(),
-            prompt_tick: Span::styled("❯ ", Style::default().add_modifier(Modifier::BOLD).fg(Color::LightGreen)),
+            prompt_tick: Span::styled(
+                "❯ ",
+                Style::default()
+                    .add_modifier(Modifier::BOLD)
+                    .fg(Color::LightGreen),
+            ),
             line_buffer: String::new(),
             output_buffer: Text::default(),
             debug_buffer: Text::default(),
@@ -99,7 +106,11 @@ impl<'a> Console<'a> {
     pub fn enter(&mut self) -> Result<()> {
         enable_raw_mode()?;
         // ? Is mouse capture enabled by default?
-        execute!(self.terminal.backend_mut(), EnterAlternateScreen, DisableMouseCapture)?;
+        execute!(
+            self.terminal.backend_mut(),
+            EnterAlternateScreen,
+            DisableMouseCapture
+        )?;
         self.terminal.show_cursor()?;
 
         self.clear(ClearMode::RESET_LINE)
@@ -108,7 +119,13 @@ impl<'a> Console<'a> {
     // Closes the TUI console
     pub fn close(&mut self) -> Result<()> {
         disable_raw_mode()?;
-        execute!(self.terminal.backend_mut(), LeaveAlternateScreen, cursor::MoveTo(0, 0), cursor::Show, Clear(ClearType::All))?;
+        execute!(
+            self.terminal.backend_mut(),
+            LeaveAlternateScreen,
+            cursor::MoveTo(0, 0),
+            cursor::Show,
+            Clear(ClearType::All)
+        )?;
         Ok(())
     }
 
@@ -137,7 +154,7 @@ impl<'a> Console<'a> {
                     // Clear the history buffer and index
                     self.history_buffer = None;
                     self.history_index = None;
-                    
+
                     // Save the line buffer as part of the output buffer
                     let mut line_spans = Spans::from(vec![
                         self.prompt_tick.clone(),
@@ -146,17 +163,17 @@ impl<'a> Console<'a> {
 
                     line_spans.patch_style(Style::default().add_modifier(Modifier::ITALIC));
                     self.append_spans_newline(line_spans);
-                    
-                    return Ok(line)
-                },
+
+                    return Ok(line);
+                }
                 ReplAction::Exit => {
                     self.close()?;
                     std::process::exit(0);
-                },
+                }
                 ReplAction::RedrawFrame => {
                     self.update_debug(shell);
                     self.draw()?;
-                },
+                }
                 ReplAction::Ignore => (),
             }
         }
@@ -168,20 +185,36 @@ impl<'a> Console<'a> {
         match event {
             Event::Key(event) => {
                 match (event.modifiers, event.code) {
-                    (KeyModifiers::NONE | KeyModifiers::SHIFT, KeyCode::Char(c)) => self.insert_char(c),
-                    (KeyModifiers::NONE, KeyCode::Backspace) => self.remove_char(RemoveMode::Backspace),
+                    (KeyModifiers::NONE | KeyModifiers::SHIFT, KeyCode::Char(c)) => {
+                        self.insert_char(c)
+                    }
+                    (KeyModifiers::NONE, KeyCode::Backspace) => {
+                        self.remove_char(RemoveMode::Backspace)
+                    }
                     (KeyModifiers::NONE, KeyCode::Delete) => self.remove_char(RemoveMode::Delete),
                     (KeyModifiers::NONE, KeyCode::Left) => self.move_cursor_left(),
                     (KeyModifiers::NONE, KeyCode::Right) => self.move_cursor_right(),
-                    (KeyModifiers::NONE, KeyCode::Enter) if !self.line_buffer.is_empty() => return Ok(ReplAction::Return),
-                    (KeyModifiers::SHIFT, KeyCode::Up) => self.scroll = self.scroll.saturating_sub(1),
-                    (KeyModifiers::SHIFT, KeyCode::Down) => self.scroll = self.scroll.saturating_add(1),
-                    (KeyModifiers::NONE, KeyCode::Up) => self.scroll_history(HistoryDirection::Up, shell)?,
-                    (KeyModifiers::NONE, KeyCode::Down) => self.scroll_history(HistoryDirection::Down, shell)?,
+                    (KeyModifiers::NONE, KeyCode::Enter) if !self.line_buffer.is_empty() => {
+                        return Ok(ReplAction::Return)
+                    }
+                    (KeyModifiers::SHIFT, KeyCode::Up) => {
+                        self.scroll = self.scroll.saturating_sub(1)
+                    }
+                    (KeyModifiers::SHIFT, KeyCode::Down) => {
+                        self.scroll = self.scroll.saturating_add(1)
+                    }
+                    (KeyModifiers::NONE, KeyCode::Up) => {
+                        self.scroll_history(HistoryDirection::Up, shell)?
+                    }
+                    (KeyModifiers::NONE, KeyCode::Down) => {
+                        self.scroll_history(HistoryDirection::Down, shell)?
+                    }
                     (KeyModifiers::CONTROL, KeyCode::Char('c')) => return Ok(ReplAction::Exit),
                     (KeyModifiers::CONTROL, KeyCode::Char('l')) => self.clear(ClearMode::OUTPUT)?,
                     // TODO: Make this a toggle method
-                    (KeyModifiers::CONTROL, KeyCode::Char('d')) => self.debug_mode = !self.debug_mode,
+                    (KeyModifiers::CONTROL, KeyCode::Char('d')) => {
+                        self.debug_mode = !self.debug_mode
+                    }
                     _ => return Ok(ReplAction::Ignore),
                 }
             }
@@ -201,8 +234,18 @@ impl<'a> Console<'a> {
         let home = shell.env().HOME();
         let truncation = shell.config().truncation_factor;
         // $ RGB values do not work on some terminals
-        let user = Span::styled(shell.env().USER().clone(), Style::default().fg(Color::Rgb(0, 150, 255)).add_modifier(Modifier::BOLD));
-        let cwd = Span::styled(shell.env().CWD().collapse(home, truncation), Style::default().fg(Color::Rgb(0, 255, 0)).add_modifier(Modifier::BOLD));
+        let user = Span::styled(
+            shell.env().USER().clone(),
+            Style::default()
+                .fg(Color::Rgb(0, 150, 255))
+                .add_modifier(Modifier::BOLD),
+        );
+        let cwd = Span::styled(
+            shell.env().CWD().collapse(home, truncation),
+            Style::default()
+                .fg(Color::Rgb(0, 255, 0))
+                .add_modifier(Modifier::BOLD),
+        );
 
         span_list.push(user);
         span_list.push(Span::from(" on "));
@@ -220,34 +263,45 @@ impl<'a> Console<'a> {
     // Updates the debug panel header based on the current shell state (USER, CWD, etc)
     fn update_debug(&mut self, shell: &Shell) {
         // Tracked items:
-            // Console.line_buffer
-            // Console.cursor_index
-            // Console.history_buffer
-            // Console.history_index
-            // Console.output_buffer.length
-            // Console.scroll
+        // Console.line_buffer
+        // Console.cursor_index
+        // Console.history_buffer
+        // Console.history_index
+        // Console.output_buffer.length
+        // Console.scroll
 
-            // Shell.config.truncation_factor
-            // Shell.config.history_limit
-            // Shell.config.show_errors
-            
-            // Shell.environment.USER
-            // Shell.environment.HOME
-            // Shell.environment.CWD
+        // Shell.config.truncation_factor
+        // Shell.config.history_limit
+        // Shell.config.show_errors
+
+        // Shell.environment.USER
+        // Shell.environment.HOME
+        // Shell.environment.CWD
 
         let key_style = Style::default().add_modifier(Modifier::BOLD);
         let value_style = Style::default().fg(Color::LightGreen);
 
-        let get_spans = |key, value: Box<&dyn Debug>| Spans::from(vec![Span::styled(key, key_style), Span::styled(format!(" {:?}", value), value_style)]);
+        let get_spans = |key, value: Box<&dyn Debug>| {
+            Spans::from(vec![
+                Span::styled(key, key_style),
+                Span::styled(format!(" {:?}", value), value_style),
+            ])
+        };
 
         let line_buffer = get_spans("LINE BUFFER:", Box::new(&self.line_buffer));
         let cursor_index = get_spans("CURSOR INDEX:", Box::new(&self.cursor_index));
         let history_buffer = get_spans("HISTORY BUFFER:", Box::new(&self.history_buffer));
         let history_index = get_spans("HISTORY INDEX:", Box::new(&self.history_index));
-        let output_buffer_length = get_spans("OUTPUT BUFFER LENGTH:", Box::new(&self.output_buffer.lines.len()));
+        let output_buffer_length = get_spans(
+            "OUTPUT BUFFER LENGTH:",
+            Box::new(&self.output_buffer.lines.len()),
+        );
         let scroll = get_spans("SCROLL:", Box::new(&self.scroll));
 
-        let truncation = get_spans("TRUNCATION FACTOR:", Box::new(&shell.config().truncation_factor));
+        let truncation = get_spans(
+            "TRUNCATION FACTOR:",
+            Box::new(&shell.config().truncation_factor),
+        );
         let history_limit = get_spans("HISTORY LIMIT:", Box::new(&shell.config().history_limit));
         let show_errors = get_spans("SHOW ERRORS:", Box::new(&shell.config().show_errors));
 
@@ -255,24 +309,70 @@ impl<'a> Console<'a> {
         let home = get_spans("HOME:", Box::new(&shell.env().HOME()));
         let cwd = get_spans("CWD:", Box::new(&shell.env().CWD()));
 
-        self.debug_buffer = Text::from(vec![line_buffer, cursor_index, history_buffer, history_index, output_buffer_length, scroll, Spans::default(), truncation, history_limit, show_errors, Spans::default(), user, home, cwd])
+        self.debug_buffer = Text::from(vec![
+            line_buffer,
+            cursor_index,
+            history_buffer,
+            history_index,
+            output_buffer_length,
+            scroll,
+            Spans::default(),
+            truncation,
+            history_limit,
+            show_errors,
+            Spans::default(),
+            user,
+            home,
+            cwd,
+        ])
     }
 
     // Updates the TUI frame
     pub fn draw(&mut self) -> Result<()> {
         // Draw the frame
-        self.terminal.draw(|f| Self::generate_frame(f, self.debug_mode, &self.debug_buffer, &self.prompt, &self.prompt_tick, &self.line_buffer, self.cursor_index, &self.output_buffer, self.scroll))?;
+        self.terminal.draw(|f| {
+            Self::generate_frame(
+                f,
+                self.debug_mode,
+                &self.debug_buffer,
+                &self.prompt,
+                &self.prompt_tick,
+                &self.line_buffer,
+                self.cursor_index,
+                &self.output_buffer,
+                self.scroll,
+            )
+        })?;
         Ok(())
     }
 
     // Generates a TUI frame based on the prompt/line buffer and output buffer
     // ? Is there a way to make this a method to avoid passing in a ton of parameters?
-    fn generate_frame(f: &mut Frame<CrosstermBackend<Stdout>>, debug_mode: bool, debug_buffer: &Text<'a>, prompt: &Spans, prompt_tick: &Span, line_buffer: &str, cursor_index: usize, output_buffer: &Text, scroll: usize) {
+    fn generate_frame(
+        f: &mut Frame<CrosstermBackend<Stdout>>,
+        debug_mode: bool,
+        debug_buffer: &Text<'a>,
+        prompt: &Spans,
+        prompt_tick: &Span,
+        line_buffer: &str,
+        cursor_index: usize,
+        output_buffer: &Text,
+        scroll: usize,
+    ) {
         let prompt_borders = Block::default().borders(Borders::ALL).title(prompt.clone());
-        let frame_borders = |title| Block::default().borders(Borders::ALL ^ Borders::BOTTOM).title(Span::styled(title, Style::default().fg(Color::LightCyan).add_modifier(Modifier::BOLD)));
+        let frame_borders = |title| {
+            Block::default()
+                .borders(Borders::ALL ^ Borders::BOTTOM)
+                .title(Span::styled(
+                    title,
+                    Style::default()
+                        .fg(Color::LightCyan)
+                        .add_modifier(Modifier::BOLD),
+                ))
+        };
 
         let line = Spans::from(vec![prompt_tick.clone(), Span::from(line_buffer)]);
-        
+
         // Create a Paragraph widget for the prompt panel
         let prompt_widget = Paragraph::new(line)
             .block(prompt_borders)
@@ -318,7 +418,9 @@ impl<'a> Console<'a> {
                 .wrap(Wrap { trim: false });
 
             // Render the debug panel widget
-            if debug_mode { f.render_widget(debug_widget, debug_area) }
+            if debug_mode {
+                f.render_widget(debug_widget, debug_area)
+            }
         }
 
         // Render the default widgets
@@ -338,7 +440,7 @@ impl<'a> Console<'a> {
         let prompt_width = prompt_area.width as usize - 2;
         // * The +1 is to account for the top border
         let prompt_y_coord = (prompt_area.y + 1) as usize;
-        
+
         // Find the x and y offsets based on the cursor index
         let y_offset = cursor_index / prompt_width + prompt_y_coord;
         // * The +2 is to account for the prompt tick, and the space after the tick
@@ -383,12 +485,12 @@ impl<'a> Console<'a> {
                     self.line_buffer.remove(self.cursor_index - 1);
                     self.move_cursor_left();
                 }
-            },
+            }
             Delete => {
                 if self.cursor_index < self.line_buffer.len() {
                     self.line_buffer.remove(self.cursor_index);
                 }
-            },
+            }
         }
     }
 
@@ -430,7 +532,7 @@ impl<'a> Console<'a> {
     fn append_str(&mut self, string: &str) {
         // Return early on an empty string to allow for safely unwrapping the first line
         if string.is_empty() {
-            return
+            return;
         }
 
         // This code is awful so I will try to give my best description of it
@@ -460,16 +562,16 @@ impl<'a> Console<'a> {
         self.append_str(string);
         self.append_newline()
     }
-    
+
     // Appends a Spans to the output buffer
     #[allow(dead_code)]
     fn append_spans(&mut self, spans: Spans<'a>) {
         self.output_buffer.lines.extend([spans]);
     }
-    
+
     // Appends a Spans to the output buffer, adding a newline after it
     fn append_spans_newline(&mut self, spans: Spans<'a>) {
-    // TODO: Come up with a better name for this or merge it with append_newline() somehow
+        // TODO: Come up with a better name for this or merge it with append_newline() somehow
         self.output_buffer.lines.extend([spans, Spans::default()]);
     }
 
@@ -497,10 +599,10 @@ impl<'a> Console<'a> {
         if history.is_empty() {
             return Ok(());
         }
-        
+
         let history_len = history.len();
         let history_last_index = history_len - 1;
-        
+
         match self.history_index {
             // If the user is already scrolling through the history, move the index in the appropriate direction
             // If they attempt to scroll past the end of the history, restore the original line buffer

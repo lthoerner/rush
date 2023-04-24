@@ -13,9 +13,9 @@ use std::io::{BufRead, BufReader};
 
 use anyhow::Result;
 
+use rush_state::console::Console;
 use rush_state::path::Path;
 use rush_state::shell::Shell;
-use rush_state::console::Console;
 
 use crate::commands::{Executable, Runnable};
 use crate::errors::BuiltinError;
@@ -56,7 +56,8 @@ fn enter_and_read_path(shell: &mut Shell, console: &mut Console, path: &str) -> 
         BuiltinError::FailedToRun
     })?;
 
-    Ok(fs_err::read_dir(absolute_path.path()).expect(&format!("Failed to read directory: '{}'", absolute_path)))
+    Ok(fs_err::read_dir(absolute_path.path())
+        .expect(&format!("Failed to read directory: '{}'", absolute_path)))
 }
 
 // TODO: Break up some of this code into different functions
@@ -67,18 +68,15 @@ pub fn list_directory(shell: &mut Shell, console: &mut Console, args: Vec<&str>)
         // Use the working directory as the default path argument
         // This uses expect() because it needs to crash if the working directory is invalid,
         // though in the future the error should be handled properly
-        0 => fs_err::read_dir(shell.env().CWD().path())
-            .expect("Failed to read directory"),
+        0 => fs_err::read_dir(shell.env().CWD().path()).expect("Failed to read directory"),
         1 => {
-            if show_hidden  {
+            if show_hidden {
                 fs_err::read_dir(shell.env().CWD().path()).expect("Failed to read directory")
             } else {
                 enter_and_read_path(shell, console, args[0])?
             }
         }
-        2 => {
-            enter_and_read_path(shell, console, args[0])?
-        }
+        2 => enter_and_read_path(shell, console, args[0])?,
         _ => {
             console.println("Usage: list-directory <path> [flags]");
             return Err(BuiltinError::InvalidArgumentCount(args.len()).into());
@@ -219,7 +217,10 @@ pub fn run_executable(shell: &mut Shell, console: &mut Console, args: Vec<&str>)
     check_args(&args, 1, "run-executable <path>", console)?;
     let executable_name = args[0].to_string();
     let executable_path = Path::from_str(&executable_name, shell.env().HOME()).map_err(|_| {
-        console.println(&format!("Failed to resolve executable path: '{}'", executable_name));
+        console.println(&format!(
+            "Failed to resolve executable path: '{}'",
+            executable_name
+        ));
         BuiltinError::FailedToRun
     })?;
 
@@ -238,11 +239,10 @@ pub fn configure(shell: &mut Shell, console: &mut Console, args: Vec<&str>) -> R
                 return Ok(());
             }
 
-            shell.config_mut().truncation_factor =
-                Some(value.parse::<usize>().map_err(|_| {
-                    console.println(&format!("Invalid truncation length: '{}'", value));
-                    BuiltinError::InvalidValue(value.to_string())
-                })?)
+            shell.config_mut().truncation_factor = Some(value.parse::<usize>().map_err(|_| {
+                console.println(&format!("Invalid truncation length: '{}'", value));
+                BuiltinError::InvalidValue(value.to_string())
+            })?)
         }
         "history-limit" => {
             if value == "false" {
@@ -250,11 +250,10 @@ pub fn configure(shell: &mut Shell, console: &mut Console, args: Vec<&str>) -> R
                 return Ok(());
             }
 
-            shell.config_mut().history_limit =
-                Some(value.parse::<usize>().map_err(|_| {
-                    console.println(&format!("Invalid history limit: '{}'", value));
-                    BuiltinError::InvalidValue(value.to_string())
-                })?)
+            shell.config_mut().history_limit = Some(value.parse::<usize>().map_err(|_| {
+                console.println(&format!("Invalid history limit: '{}'", value));
+                BuiltinError::InvalidValue(value.to_string())
+            })?)
         }
         "show-errors" => {
             shell.config_mut().show_errors = value.parse::<bool>().map_err(|_| {
@@ -271,7 +270,11 @@ pub fn configure(shell: &mut Shell, console: &mut Console, args: Vec<&str>) -> R
     Ok(())
 }
 
-pub fn environment_variable(shell: &mut Shell, console: &mut Console, args: Vec<&str>) -> Result<()> {
+pub fn environment_variable(
+    shell: &mut Shell,
+    console: &mut Console,
+    args: Vec<&str>,
+) -> Result<()> {
     check_args(&args, 1, "environment-variable <var>", console)?;
     match args[0].to_uppercase().as_str() {
         "PATH" => {
@@ -312,7 +315,12 @@ pub fn edit_path(shell: &mut Shell, console: &mut Console, args: Vec<&str>) -> R
 }
 
 // Convenience function for exiting a builtin on invalid argument count
-fn check_args(args: &Vec<&str>, expected_args: usize, usage: &str, console: &mut Console) -> Result<()> {
+fn check_args(
+    args: &Vec<&str>,
+    expected_args: usize,
+    usage: &str,
+    console: &mut Console,
+) -> Result<()> {
     if args.len() == expected_args {
         Ok(())
     } else {
