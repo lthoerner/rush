@@ -91,7 +91,7 @@ impl Runnable for Executable {
         let Ok(handle) = executable.output() else { return Err(ExecutableError::PathNoLongerExists(self.path.path().clone()).into()); };
 
         if handle.status.success() {
-            console.println(std::str::from_utf8(&handle.stdout)?);
+            console.print(std::str::from_utf8(&handle.stdout)?);
             Ok(())
         } else {
             // * 126 is a special exit code that means that the command was found but could not be executed

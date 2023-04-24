@@ -83,7 +83,7 @@ impl<'a> Console<'a> {
         Ok(Self {
             terminal,
             prompt: Spans::default(),
-            prompt_tick: Span::styled("❯ ", Style::default().add_modifier(Modifier::BOLD | Modifier::SLOW_BLINK).fg(Color::LightGreen)),
+            prompt_tick: Span::styled("❯ ", Style::default().add_modifier(Modifier::BOLD).fg(Color::LightGreen)),
             line_buffer: String::new(),
             output_buffer: Text::default(),
             debug_buffer: Text::default(),
@@ -139,7 +139,13 @@ impl<'a> Console<'a> {
                     self.history_index = None;
                     
                     // Save the line buffer as part of the output buffer
-                    self.append_newline(&line);
+                    let mut line_spans = Spans::from(vec![
+                        self.prompt_tick.clone(),
+                        Span::styled(line.clone(), Style::default().fg(Color::LightYellow)),
+                    ]);
+
+                    line_spans.patch_style(Style::default().add_modifier(Modifier::ITALIC));
+                    self.append_spans_newline(line_spans);
                     
                     return Ok(line)
                 },
@@ -218,15 +224,16 @@ impl<'a> Console<'a> {
             // Console.cursor_index
             // Console.history_buffer
             // Console.history_index
+            // Console.output_buffer.length
             // Console.scroll
 
-            // Shell.Configuration.truncation_factor
-            // Shell.Configuration.history_limit
-            // Shell.Configuration.show_errors
+            // Shell.config.truncation_factor
+            // Shell.config.history_limit
+            // Shell.config.show_errors
             
-            // Shell.Environment.USER
-            // Shell.Environment.HOME
-            // Shell.Environment.CWD
+            // Shell.environment.USER
+            // Shell.environment.HOME
+            // Shell.environment.CWD
 
         let key_style = Style::default().add_modifier(Modifier::BOLD);
         let value_style = Style::default().fg(Color::LightGreen);
@@ -237,6 +244,7 @@ impl<'a> Console<'a> {
         let cursor_index = get_spans("CURSOR INDEX:", Box::new(&self.cursor_index));
         let history_buffer = get_spans("HISTORY BUFFER:", Box::new(&self.history_buffer));
         let history_index = get_spans("HISTORY INDEX:", Box::new(&self.history_index));
+        let output_buffer_length = get_spans("OUTPUT BUFFER LENGTH:", Box::new(&self.output_buffer.lines.len()));
         let scroll = get_spans("SCROLL:", Box::new(&self.scroll));
 
         let truncation = get_spans("TRUNCATION FACTOR:", Box::new(&shell.config().truncation_factor));
@@ -247,7 +255,7 @@ impl<'a> Console<'a> {
         let home = get_spans("HOME:", Box::new(&shell.env().HOME()));
         let cwd = get_spans("CWD:", Box::new(&shell.env().CWD()));
 
-        self.debug_buffer = Text::from(vec![line_buffer, cursor_index, history_buffer, history_index, scroll, Spans::default(), truncation, history_limit, show_errors, Spans::default(), user, home, cwd])
+        self.debug_buffer = Text::from(vec![line_buffer, cursor_index, history_buffer, history_index, output_buffer_length, scroll, Spans::default(), truncation, history_limit, show_errors, Spans::default(), user, home, cwd])
     }
 
     // Updates the TUI frame
@@ -323,6 +331,7 @@ impl<'a> Console<'a> {
     }
 
     // Given the cursor index and the Rect of the prompt panel, returns the terminal cursor position
+    // $ This only works on the first line due to soft-wrapping
     fn cursor_coord(cursor_index: usize, prompt_area: Rect) -> (u16, u16) {
         // Get the prompt panel width to determine the starting y-position of the cursor
         // * The -2 is to account for the left and right borders
@@ -407,7 +416,13 @@ impl<'a> Console<'a> {
     // TODO: Probably make this a macro in the future, but for now just make it use &str or String
     // TODO: Make lazy execution version of this, or a lazy execution mode
     pub fn println(&mut self, text: &str) {
-        self.append_newline(text);
+        self.append_str_newline(text);
+        _ = self.draw()
+    }
+
+    // Prints a line of text to the console without a newline
+    pub fn print(&mut self, text: &str) {
+        self.append_str(text);
         _ = self.draw()
     }
 
@@ -441,15 +456,34 @@ impl<'a> Console<'a> {
     }
 
     // Appends a string to the next line of the output buffer
-    fn append_newline(&mut self, string: &str) {
-        self.append_str(&format!("{}\n", string))
+    fn append_str_newline(&mut self, string: &str) {
+        self.append_str(string);
+        self.append_newline()
+    }
+    
+    // Appends a Spans to the output buffer
+    #[allow(dead_code)]
+    fn append_spans(&mut self, spans: Spans<'a>) {
+        self.output_buffer.lines.extend([spans]);
+    }
+    
+    // Appends a Spans to the output buffer, adding a newline after it
+    fn append_spans_newline(&mut self, spans: Spans<'a>) {
+    // TODO: Come up with a better name for this or merge it with append_newline() somehow
+        self.output_buffer.lines.extend([spans, Spans::default()]);
+    }
+
+    // Appends a newline to the output buffer
+    fn append_newline(&mut self) {
+        self.output_buffer.lines.push(Spans::default());
     }
 
     // Ensures that there is an empty line at the end of the output buffer
     // * This is used to make the prompt always appear one line below the last line of output, just for cosmetic purposes
     fn enforce_spacing(&mut self) {
         if let Some(last_line) = self.output_buffer.lines.last_mut() {
-            if !last_line.0.is_empty() {
+            // TODO: Find a less ugly way to do this
+            if !last_line.0.is_empty() && last_line.0.last() != Some(&Span::raw("")) {
                 self.output_buffer.lines.push(Spans::default());
             }
         }
