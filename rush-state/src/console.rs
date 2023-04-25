@@ -156,7 +156,9 @@ impl<'a> Console<'a> {
 
                     // TODO: Change this to line_spans.patch_style() once the ratatui PR is merged
                     for span in &mut line_spans.0 {
-                        span.style = span.style.patch(Style::default().add_modifier(Modifier::ITALIC));
+                        span.style = span
+                            .style
+                            .patch(Style::default().add_modifier(Modifier::ITALIC));
                     }
 
                     self.data.append_spans_newline(line_spans);
@@ -189,7 +191,9 @@ impl<'a> Console<'a> {
                     (KeyModifiers::NONE, KeyCode::Backspace) => {
                         self.data.remove_char(RemoveMode::Backspace)
                     }
-                    (KeyModifiers::NONE, KeyCode::Delete) => self.data.remove_char(RemoveMode::Delete),
+                    (KeyModifiers::NONE, KeyCode::Delete) => {
+                        self.data.remove_char(RemoveMode::Delete)
+                    }
                     (KeyModifiers::NONE, KeyCode::Left) => self.data.move_cursor_left(),
                     (KeyModifiers::NONE, KeyCode::Right) => self.data.move_cursor_right(),
                     (KeyModifiers::NONE, KeyCode::Enter) if !self.data.line_buffer.is_empty() => {
@@ -354,7 +358,8 @@ impl<'a> ConsoleData<'a> {
 
         let line_buffer = get_spans("LINE BUFFER:", Box::new(&self.line_buffer));
         let cursor_index = get_spans("CURSOR INDEX:", Box::new(&self.cursor_index));
-        let autocomplete_buffer = get_spans("AUTOCOMPLETE BUFFER:", Box::new(&self.autocomplete_buffer));
+        let autocomplete_buffer =
+            get_spans("AUTOCOMPLETE BUFFER:", Box::new(&self.autocomplete_buffer));
         let history_buffer = get_spans("HISTORY BUFFER:", Box::new(&self.history_buffer));
         let history_index = get_spans("HISTORY INDEX:", Box::new(&self.history_index));
         let output_buffer_length = get_spans(
@@ -413,7 +418,9 @@ impl<'a> ConsoleData<'a> {
     // Generates a TUI frame based on the prompt/line buffer and output buffer
     // ? Is there a way to make this a method to avoid passing in a ton of parameters?
     fn generate_frame(&mut self, f: &mut Frame<CrosstermBackend<Stdout>>) {
-        let prompt_borders = Block::default().borders(Borders::ALL).title(self.prompt.clone());
+        let prompt_borders = Block::default()
+            .borders(Borders::ALL)
+            .title(self.prompt.clone());
         let frame_borders = |title| {
             Block::default()
                 .borders(Borders::ALL ^ Borders::BOTTOM)
@@ -425,9 +432,15 @@ impl<'a> ConsoleData<'a> {
                 ))
         };
 
-        let mut line = Spans::from(vec![self.prompt_tick.clone(), Span::from(self.line_buffer.clone())]);
+        let mut line = Spans::from(vec![
+            self.prompt_tick.clone(),
+            Span::from(self.line_buffer.clone()),
+        ]);
         if let Some(autocomplete) = &self.autocomplete_buffer {
-            line.0.push(Span::styled(autocomplete.clone(), Style::default().add_modifier(Modifier::ITALIC | Modifier::DIM)));
+            line.0.push(Span::styled(
+                autocomplete.clone(),
+                Style::default().add_modifier(Modifier::ITALIC | Modifier::DIM),
+            ));
         }
 
         // Create a Paragraph widget for the prompt panel
@@ -498,7 +511,11 @@ impl<'a> ConsoleData<'a> {
             return Ok(());
         }
 
-        let history_get = |index: usize| history.get(index).expect("Tried to access non-existent command history");
+        let history_get = |index: usize| {
+            history
+                .get(index)
+                .expect("Tried to access non-existent command history")
+        };
 
         let history_len = history.len();
         let history_last_index = history_len - 1;
@@ -519,7 +536,10 @@ impl<'a> ConsoleData<'a> {
                         // Otherwise, keep scrolling down as normal
                         if index == history_last_index {
                             // TODO: Change this to an actual error
-                            let history_buffer = self.history_buffer.take().expect("History buffer was not found when it should exist");
+                            let history_buffer = self
+                                .history_buffer
+                                .take()
+                                .expect("History buffer was not found when it should exist");
                             self.line_buffer = history_buffer.0;
                             self.cursor_index = history_buffer.1;
                             self.history_buffer = None;
