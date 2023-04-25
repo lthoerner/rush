@@ -18,7 +18,7 @@ use ratatui::{Frame, Terminal};
 
 use crate::shell::Shell;
 
-// Represents an action that the handler instructs the REPL (Console.read()) to perform
+// Represents an action that the handler instructs the REPL (Console.read_line()) to perform
 // Allows for some actions to be performed in the handler and some to be performed in the REPL
 enum ReplAction {
     // Instruction to return the line buffer to the shell and perform any necessary cleanup
@@ -31,7 +31,7 @@ enum ReplAction {
     Ignore,
 }
 
-// More readable variant of a switch between "backspace" and "delete" keypresses for Console.remove_char()
+// Switch between "BACKSPACE" and "DELETE" keypresses for ConsoleData.remove_char()
 #[derive(PartialEq)]
 enum RemoveMode {
     Backspace,
@@ -57,6 +57,12 @@ enum HistoryDirection {
 // Represents the TUI console
 pub struct Console<'a> {
     terminal: Terminal<CrosstermBackend<Stdout>>,
+    data: ConsoleData<'a>,
+}
+
+// Represents all data stored in the TUI console, excluding the Terminal
+// * This is done because most methods do not need to access the Console.terminal and it can cause issues with borrowing
+struct ConsoleData<'a> {
     // ? Should this be an Option<Spans>?
     prompt: Spans<'a>,
     // ? What is the actual name of this?
@@ -67,11 +73,13 @@ pub struct Console<'a> {
     // The index of the cursor in the line buffer
     // ? Should this be an Option<usize>?
     cursor_index: usize,
+    // If the line buffer can autocomplete to a command from the history, this stores the characters that will be added if the user presses TAB
+    autocomplete_buffer: Option<String>,
     // If the user is scrolling through the command history, this stores the original line buffer and cursor position so they can be restored if needed
     history_buffer: Option<(String, usize)>,
     // The history index stored when the user is scrolling through the command history
     history_index: Option<usize>,
-    // The number of lines that have been scrolled up
+    // The number of lines that have been scrolled down in the output panel
     scroll: usize,
     // Whether or not to show the debug panel
     debug_mode: bool,
@@ -84,21 +92,7 @@ impl<'a> Console<'a> {
 
         Ok(Self {
             terminal,
-            prompt: Spans::default(),
-            prompt_tick: Span::styled(
-                "❯ ",
-                Style::default()
-                    .add_modifier(Modifier::BOLD)
-                    .fg(Color::LightGreen),
-            ),
-            line_buffer: String::new(),
-            output_buffer: Text::default(),
-            debug_buffer: Text::default(),
-            cursor_index: 0,
-            history_buffer: None,
-            history_index: None,
-            scroll: 0,
-            debug_mode: false,
+            data: ConsoleData::new(),
         })
     }
 
@@ -132,11 +126,10 @@ impl<'a> Console<'a> {
     // Reads a line of input from the user
     // Handles all TUI interaction between the user and the prompt
     pub fn read_line(&mut self, shell: &Shell) -> Result<String> {
-        // The line buffer must be reset manually because Console.prompt() does not clear it
-        self.reset_line_buffer();
-        self.update_prompt(shell);
-        self.update_debug(shell);
-        self.draw_shell_aware(shell)?;
+        self.data.reset_line_buffer();
+        self.data.update_prompt(shell);
+        self.data.update_debug(shell);
+        self.draw_frame()?;
 
         loop {
             let event = event::read()?;
@@ -145,24 +138,24 @@ impl<'a> Console<'a> {
             match action {
                 ReplAction::Return => {
                     // Make sure that there is an extra line of space between the last line of output and the command output
-                    self.enforce_spacing();
+                    self.data.enforce_spacing();
 
                     // Save the line buffer for returning and clear it to make way for the next Console.read_line() call
-                    let line = self.line_buffer.clone();
-                    self.line_buffer.clear();
+                    let line = self.data.line_buffer.clone();
+                    self.data.line_buffer.clear();
 
                     // Clear the history buffer and index
-                    self.history_buffer = None;
-                    self.history_index = None;
+                    self.data.history_buffer = None;
+                    self.data.history_index = None;
 
                     // Save the line buffer as part of the output buffer
                     let mut line_spans = Spans::from(vec![
-                        self.prompt_tick.clone(),
+                        self.data.prompt_tick.clone(),
                         Span::styled(line.clone(), Style::default().fg(Color::LightYellow)),
                     ]);
 
                     line_spans.patch_style(Style::default().add_modifier(Modifier::ITALIC));
-                    self.append_spans_newline(line_spans);
+                    self.data.append_spans_newline(line_spans);
 
                     return Ok(line);
                 }
@@ -171,8 +164,9 @@ impl<'a> Console<'a> {
                     std::process::exit(0);
                 }
                 ReplAction::RedrawFrame => {
-                    self.update_debug(shell);
-                    self.draw_shell_aware(shell)?;
+                    self.data.update_autocomplete(shell);
+                    self.data.update_debug(shell);
+                    self.draw_frame()?;
                 }
                 ReplAction::Ignore => (),
             }
@@ -186,34 +180,35 @@ impl<'a> Console<'a> {
             Event::Key(event) => {
                 match (event.modifiers, event.code) {
                     (KeyModifiers::NONE | KeyModifiers::SHIFT, KeyCode::Char(c)) => {
-                        self.insert_char(c)
+                        self.data.insert_char(c)
                     }
                     (KeyModifiers::NONE, KeyCode::Backspace) => {
-                        self.remove_char(RemoveMode::Backspace)
+                        self.data.remove_char(RemoveMode::Backspace)
                     }
-                    (KeyModifiers::NONE, KeyCode::Delete) => self.remove_char(RemoveMode::Delete),
-                    (KeyModifiers::NONE, KeyCode::Left) => self.move_cursor_left(),
-                    (KeyModifiers::NONE, KeyCode::Right) => self.move_cursor_right(),
-                    (KeyModifiers::NONE, KeyCode::Enter) if !self.line_buffer.is_empty() => {
+                    (KeyModifiers::NONE, KeyCode::Delete) => self.data.remove_char(RemoveMode::Delete),
+                    (KeyModifiers::NONE, KeyCode::Left) => self.data.move_cursor_left(),
+                    (KeyModifiers::NONE, KeyCode::Right) => self.data.move_cursor_right(),
+                    (KeyModifiers::NONE, KeyCode::Enter) if !self.data.line_buffer.is_empty() => {
                         return Ok(ReplAction::Return)
                     }
                     (KeyModifiers::SHIFT, KeyCode::Up) => {
-                        self.scroll = self.scroll.saturating_sub(1)
+                        self.data.scroll = self.data.scroll.saturating_sub(1)
                     }
                     (KeyModifiers::SHIFT, KeyCode::Down) => {
-                        self.scroll = self.scroll.saturating_add(1)
+                        self.data.scroll = self.data.scroll.saturating_add(1)
                     }
                     (KeyModifiers::NONE, KeyCode::Up) => {
-                        self.scroll_history(HistoryDirection::Up, shell)?
+                        self.data.scroll_history(HistoryDirection::Up, shell)?
                     }
                     (KeyModifiers::NONE, KeyCode::Down) => {
-                        self.scroll_history(HistoryDirection::Down, shell)?
+                        self.data.scroll_history(HistoryDirection::Down, shell)?
                     }
+                    (KeyModifiers::NONE, KeyCode::Tab) => self.data.autocomplete_line(),
                     (KeyModifiers::CONTROL, KeyCode::Char('c')) => return Ok(ReplAction::Exit),
                     (KeyModifiers::CONTROL, KeyCode::Char('l')) => self.clear(ClearMode::OUTPUT)?,
                     // TODO: Make this a toggle method
                     (KeyModifiers::CONTROL, KeyCode::Char('d')) => {
-                        self.debug_mode = !self.debug_mode
+                        self.data.debug_mode = !self.data.debug_mode
                     }
                     _ => return Ok(ReplAction::Ignore),
                 }
@@ -224,6 +219,70 @@ impl<'a> Console<'a> {
         }
 
         Ok(ReplAction::RedrawFrame)
+    }
+
+    // Updates the TUI frame
+    pub fn draw_frame(&mut self) -> Result<()> {
+        self.terminal.draw(|f| self.data.generate_frame(f))?;
+        Ok(())
+    }
+
+    // Clears the screen and the line buffer and reprompts the user
+    fn clear(&mut self, mode: ClearMode) -> Result<()> {
+        // Clear the output panel
+        if mode.contains(ClearMode::OUTPUT) {
+            self.data.output_buffer = Text::default();
+        }
+
+        if mode.contains(ClearMode::RESET_LINE) {
+            self.data.reset_line_buffer();
+            self.data.cursor_index = 0;
+        }
+
+        Ok(())
+    }
+
+    // Clears the output panel
+    // * This is a public wrapper for the clear() method
+    pub fn clear_output(&mut self) -> Result<()> {
+        self.clear(ClearMode::OUTPUT)
+    }
+
+    // Prints a line of text to the console
+    // TODO: Probably make this a macro in the future, but for now just make it use &str or String
+    // TODO: Make lazy execution version of this, or a lazy execution mode
+    pub fn println(&mut self, text: &str) {
+        self.data.append_str_newline(text);
+        _ = self.draw_frame()
+    }
+
+    // Prints a line of text to the console without a newline
+    pub fn print(&mut self, text: &str) {
+        self.data.append_str(text);
+        _ = self.draw_frame()
+    }
+}
+
+impl<'a> ConsoleData<'a> {
+    fn new() -> Self {
+        Self {
+            prompt: Spans::default(),
+            prompt_tick: Span::styled(
+                "❯ ",
+                Style::default()
+                    .add_modifier(Modifier::BOLD)
+                    .fg(Color::LightGreen),
+            ),
+            line_buffer: String::new(),
+            output_buffer: Text::default(),
+            debug_buffer: Text::default(),
+            cursor_index: 0,
+            autocomplete_buffer: None,
+            history_buffer: None,
+            history_index: None,
+            scroll: 0,
+            debug_mode: false,
+        }
     }
 
     // Updates the prompt panel header based on the current shell state (USER, CWD, etc)
@@ -265,6 +324,7 @@ impl<'a> Console<'a> {
         // Tracked items:
         // Console.line_buffer
         // Console.cursor_index
+        // Console.autocomplete_buffer
         // Console.history_buffer
         // Console.history_index
         // Console.output_buffer.length
@@ -290,6 +350,7 @@ impl<'a> Console<'a> {
 
         let line_buffer = get_spans("LINE BUFFER:", Box::new(&self.line_buffer));
         let cursor_index = get_spans("CURSOR INDEX:", Box::new(&self.cursor_index));
+        let autocomplete_buffer = get_spans("AUTOCOMPLETE BUFFER:", Box::new(&self.autocomplete_buffer));
         let history_buffer = get_spans("HISTORY BUFFER:", Box::new(&self.history_buffer));
         let history_index = get_spans("HISTORY INDEX:", Box::new(&self.history_index));
         let output_buffer_length = get_spans(
@@ -299,7 +360,7 @@ impl<'a> Console<'a> {
         let scroll = get_spans("SCROLL:", Box::new(&self.scroll));
 
         let truncation = get_spans(
-            "TRUNCATION FACTOR:",
+            "PROMPT TRUNCATION:",
             Box::new(&shell.config().truncation_factor),
         );
         let history_limit = get_spans("HISTORY LIMIT:", Box::new(&shell.config().history_limit));
@@ -312,6 +373,7 @@ impl<'a> Console<'a> {
         self.debug_buffer = Text::from(vec![
             line_buffer,
             cursor_index,
+            autocomplete_buffer,
             history_buffer,
             history_index,
             output_buffer_length,
@@ -327,61 +389,27 @@ impl<'a> Console<'a> {
         ])
     }
 
-    // Updates the TUI frame without any data from the Shell
-    // * This is used to prevent Console.print() and Console.println() calls from requiring a Shell reference
-    // TODO: Find a better name for this
-    pub fn draw(&mut self) -> Result<()> {
-        self.terminal.draw(|f| {
-            Self::generate_frame(
-                f,
-                self.debug_mode,
-                &self.debug_buffer,
-                &self.prompt,
-                &self.prompt_tick,
-                &self.line_buffer,
-                self.cursor_index,
-                &self.output_buffer,
-                self.scroll,
-                None,
-            )
-        })?;
-        Ok(())
-    }
+    // Updates the autocomplete buffer based on the current line buffer and the command history
+    fn update_autocomplete(&mut self, shell: &Shell) {
+        // If the current line buffer matches any of the commands in the history, put the rest of the command in the autocomplete buffer
+        // Otherwise, clear the autocomplete buffer
+        if !self.line_buffer.is_empty() {
+            for command in &shell.command_history {
+                if command.starts_with(&self.line_buffer) && command != &self.line_buffer {
+                    let rest_of_command = command.strip_prefix(&self.line_buffer).unwrap();
+                    self.autocomplete_buffer = Some(rest_of_command.to_string());
+                    return;
+                }
+            }
+        }
 
-    // Updates the TUI frame
-    pub fn draw_shell_aware(&mut self, shell: &Shell) -> Result<()> {
-        self.terminal.draw(|f| {
-            Self::generate_frame(
-                f,
-                self.debug_mode,
-                &self.debug_buffer,
-                &self.prompt,
-                &self.prompt_tick,
-                &self.line_buffer,
-                self.cursor_index,
-                &self.output_buffer,
-                self.scroll,
-                Some(&shell.command_history),
-            )
-        })?;
-        Ok(())
+        self.autocomplete_buffer = None;
     }
 
     // Generates a TUI frame based on the prompt/line buffer and output buffer
     // ? Is there a way to make this a method to avoid passing in a ton of parameters?
-    fn generate_frame(
-        f: &mut Frame<CrosstermBackend<Stdout>>,
-        debug_mode: bool,
-        debug_buffer: &Text<'a>,
-        prompt: &Spans,
-        prompt_tick: &Span,
-        line_buffer: &str,
-        cursor_index: usize,
-        output_buffer: &Text,
-        scroll: usize,
-        command_history: Option<&Vec<String>>,
-    ) {
-        let prompt_borders = Block::default().borders(Borders::ALL).title(prompt.clone());
+    fn generate_frame(&mut self, f: &mut Frame<CrosstermBackend<Stdout>>) {
+        let prompt_borders = Block::default().borders(Borders::ALL).title(self.prompt.clone());
         let frame_borders = |title| {
             Block::default()
                 .borders(Borders::ALL ^ Borders::BOTTOM)
@@ -393,19 +421,9 @@ impl<'a> Console<'a> {
                 ))
         };
 
-        let mut line = Spans::from(vec![prompt_tick.clone(), Span::from(line_buffer)]);
-        // If the current line buffer matches any of the commands in the history,
-        // show the rest of the command in dark grey text for autocompletion
-        if !line_buffer.is_empty() {
-            if let Some(history) = command_history{
-                for command in history {
-                    if command.starts_with(line_buffer) {
-                        let rest_of_command = command.strip_prefix(line_buffer).unwrap();
-                        line.0.push(Span::styled(rest_of_command, Style::default().add_modifier(Modifier::ITALIC | Modifier::DIM)));
-                        break
-                    }
-                }
-            }
+        let mut line = Spans::from(vec![self.prompt_tick.clone(), Span::from(self.line_buffer.clone())]);
+        if let Some(autocomplete) = &self.autocomplete_buffer {
+            line.0.push(Span::styled(autocomplete.clone(), Style::default().add_modifier(Modifier::ITALIC | Modifier::DIM)));
         }
 
         // Create a Paragraph widget for the prompt panel
@@ -416,7 +434,7 @@ impl<'a> Console<'a> {
             .wrap(Wrap { trim: false });
 
         // Create a Paragraph widget for the output panel
-        let frame_widget = Paragraph::new(output_buffer.clone())
+        let frame_widget = Paragraph::new(self.output_buffer.clone())
             .block(frame_borders("Output"))
             .style(Style::default())
             .alignment(Alignment::Left)
@@ -434,7 +452,7 @@ impl<'a> Console<'a> {
         };
 
         // If the debug panel is enabled, subdivide the output window
-        if debug_mode {
+        if self.debug_mode {
             let (new_output_area, debug_area) = {
                 let chunks = Layout::default()
                     .direction(Direction::Horizontal)
@@ -446,184 +464,25 @@ impl<'a> Console<'a> {
             output_area = new_output_area;
 
             // Create a Paragraph widget for the debug panel
-            let debug_widget = Paragraph::new(debug_buffer.clone())
+            let debug_widget = Paragraph::new(self.debug_buffer.clone())
                 .block(frame_borders("Debug"))
                 .style(Style::default())
                 .alignment(Alignment::Left)
                 .wrap(Wrap { trim: false });
 
             // Render the debug panel widget
-            if debug_mode {
+            if self.debug_mode {
                 f.render_widget(debug_widget, debug_area)
             }
         }
 
         // Render the default widgets
         f.render_widget(prompt_widget, prompt_area);
-        f.render_widget(frame_widget.scroll((scroll as u16, 0)), output_area);
+        f.render_widget(frame_widget.scroll((self.scroll as u16, 0)), output_area);
 
         // Render the cursor
-        let (cursor_x, cursor_y) = Self::cursor_coord(cursor_index, prompt_area);
+        let (cursor_x, cursor_y) = Self::cursor_coord(self.cursor_index, prompt_area);
         f.set_cursor(cursor_x, cursor_y);
-    }
-
-    // Given the cursor index and the Rect of the prompt panel, returns the terminal cursor position
-    // $ This only works on the first line due to soft-wrapping
-    fn cursor_coord(cursor_index: usize, prompt_area: Rect) -> (u16, u16) {
-        // Get the prompt panel width to determine the starting y-position of the cursor
-        // * The -2 is to account for the left and right borders
-        let prompt_width = prompt_area.width as usize - 2;
-        // * The +1 is to account for the top border
-        let prompt_y_coord = (prompt_area.y + 1) as usize;
-
-        // Find the x and y offsets based on the cursor index
-        let y_offset = cursor_index / prompt_width + prompt_y_coord;
-        // * The +2 is to account for the prompt tick, and the space after the tick
-        let x = (cursor_index + 3) % prompt_width;
-
-        (x as u16, y_offset as u16)
-    }
-
-    // Clears the screen and the line buffer and reprompts the user
-    fn clear(&mut self, mode: ClearMode) -> Result<()> {
-        // Clear the output panel
-        if mode.contains(ClearMode::OUTPUT) {
-            self.output_buffer = Text::default();
-        }
-
-        if mode.contains(ClearMode::RESET_LINE) {
-            self.reset_line_buffer();
-            self.cursor_index = 0;
-        }
-
-        Ok(())
-    }
-
-    // Clears the output panel
-    // * This is a public wrapper for the clear() method
-    pub fn clear_output(&mut self) -> Result<()> {
-        self.clear(ClearMode::OUTPUT)
-    }
-
-    // Inserts a character at the cursor position
-    fn insert_char(&mut self, c: char) {
-        self.line_buffer.insert(self.cursor_index, c);
-        self.move_cursor_right();
-    }
-
-    // Removes a character from the line buffer at the cursor position
-    fn remove_char(&mut self, mode: RemoveMode) {
-        use RemoveMode::*;
-        match mode {
-            Backspace => {
-                if self.cursor_index > 0 {
-                    self.line_buffer.remove(self.cursor_index - 1);
-                    self.move_cursor_left();
-                }
-            }
-            Delete => {
-                if self.cursor_index < self.line_buffer.len() {
-                    self.line_buffer.remove(self.cursor_index);
-                }
-            }
-        }
-    }
-
-    // Moves the cursor left by one character, checking for bounds
-    fn move_cursor_left(&mut self) {
-        if self.cursor_index > 0 {
-            self.cursor_index -= 1;
-        }
-    }
-
-    // Moves the cursor right by one character, checking for bounds
-    fn move_cursor_right(&mut self) {
-        if self.cursor_index < self.line_buffer.len() {
-            self.cursor_index += 1;
-        }
-    }
-
-    // Clears the line buffer and resets the cursor position
-    fn reset_line_buffer(&mut self) {
-        self.line_buffer.clear();
-        self.cursor_index = 0;
-    }
-
-    // Prints a line of text to the console
-    // TODO: Probably make this a macro in the future, but for now just make it use &str or String
-    // TODO: Make lazy execution version of this, or a lazy execution mode
-    pub fn println(&mut self, text: &str) {
-        self.append_str_newline(text);
-        _ = self.draw()
-    }
-
-    // Prints a line of text to the console without a newline
-    pub fn print(&mut self, text: &str) {
-        self.append_str(text);
-        _ = self.draw()
-    }
-
-    // Appends a string to the output buffer, splitting it into Spans by newline characters so it is rendered properly
-    fn append_str(&mut self, string: &str) {
-        // Return early on an empty string to allow for safely unwrapping the first line
-        if string.is_empty() {
-            return;
-        }
-
-        // This code is awful so I will try to give my best description of it
-        // First, we have to split the string into lines and convert them into Spans, because the Text type
-        // does not render newline characters; instead, it requires that every line must be a separate Spans
-        let mut spans = string.split('\n').map(str::to_owned).map(Spans::from);
-        // To avoid automatically creating a new line before the text is printed (which would effectively forbid print!()-type behavior),
-        // we have to append directly to the last Spans in the output buffer
-        // So this line basically grabs the Vec<Span> from the first Spans (first line)
-        let first_spans = spans.next().unwrap().0;
-
-        // If the output buffer has any lines, we append the first line of the new text to the last line of the output buffer
-        // Otherwise, we just push the first line of the new text to the output buffer in the form of a Spans,
-        // so the first line of the new text isn't just skipped on an empty output buffer
-        if let Some(last_line) = self.output_buffer.lines.last_mut() {
-            last_line.0.extend(first_spans);
-        } else {
-            self.output_buffer.lines.push(Spans::from(first_spans));
-        }
-
-        // The rest of the lines (Spans) can then be appended to the output buffer as normal
-        self.output_buffer.extend(spans)
-    }
-
-    // Appends a string to the next line of the output buffer
-    fn append_str_newline(&mut self, string: &str) {
-        self.append_str(string);
-        self.append_newline()
-    }
-
-    // Appends a Spans to the output buffer
-    #[allow(dead_code)]
-    fn append_spans(&mut self, spans: Spans<'a>) {
-        self.output_buffer.lines.extend([spans]);
-    }
-
-    // Appends a Spans to the output buffer, adding a newline after it
-    fn append_spans_newline(&mut self, spans: Spans<'a>) {
-        // TODO: Come up with a better name for this or merge it with append_newline() somehow
-        self.output_buffer.lines.extend([spans, Spans::default()]);
-    }
-
-    // Appends a newline to the output buffer
-    fn append_newline(&mut self) {
-        self.output_buffer.lines.push(Spans::default());
-    }
-
-    // Ensures that there is an empty line at the end of the output buffer
-    // * This is used to make the prompt always appear one line below the last line of output, just for cosmetic purposes
-    fn enforce_spacing(&mut self) {
-        if let Some(last_line) = self.output_buffer.lines.last_mut() {
-            // TODO: Find a less ugly way to do this
-            if !last_line.0.is_empty() && last_line.0.last() != Some(&Span::raw("")) {
-                self.output_buffer.lines.push(Spans::default());
-            }
-        }
     }
 
     // Scrolls through the Shell's command history
@@ -691,5 +550,138 @@ impl<'a> Console<'a> {
         }
 
         Ok(())
+    }
+
+    // Inserts a character at the cursor position
+    fn insert_char(&mut self, c: char) {
+        self.line_buffer.insert(self.cursor_index, c);
+        self.move_cursor_right();
+    }
+
+    // Removes a character from the line buffer at the cursor position
+    fn remove_char(&mut self, mode: RemoveMode) {
+        use RemoveMode::*;
+        match mode {
+            Backspace => {
+                if self.cursor_index > 0 {
+                    self.line_buffer.remove(self.cursor_index - 1);
+                    self.move_cursor_left();
+                }
+            }
+            Delete => {
+                if self.cursor_index < self.line_buffer.len() {
+                    self.line_buffer.remove(self.cursor_index);
+                }
+            }
+        }
+    }
+
+    // Moves the cursor left by one character, checking for bounds
+    fn move_cursor_left(&mut self) {
+        if self.cursor_index > 0 {
+            self.cursor_index -= 1;
+        }
+    }
+
+    // Moves the cursor right by one character, checking for bounds
+    fn move_cursor_right(&mut self) {
+        if self.cursor_index < self.line_buffer.len() {
+            self.cursor_index += 1;
+        }
+    }
+
+    // Clears the line buffer and resets the cursor position
+    fn reset_line_buffer(&mut self) {
+        self.line_buffer.clear();
+        self.cursor_index = 0;
+    }
+
+    // Appends a string to the output buffer, splitting it into Spans by newline characters so it is rendered properly
+    fn append_str(&mut self, string: &str) {
+        // Return early on an empty string to allow for safely unwrapping the first line
+        if string.is_empty() {
+            return;
+        }
+
+        // This code is awful so I will try to give my best description of it
+        // First, we have to split the string into lines and convert them into Spans, because the Text type
+        // does not render newline characters; instead, it requires that every line must be a separate Spans
+        let mut spans = string.split('\n').map(str::to_owned).map(Spans::from);
+        // To avoid automatically creating a new line before the text is printed (which would effectively forbid print!()-type behavior),
+        // we have to append directly to the last Spans in the output buffer
+        // So this line basically grabs the Vec<Span> from the first Spans (first line)
+        let first_spans = spans.next().unwrap().0;
+
+        // If the output buffer has any lines, we append the first line of the new text to the last line of the output buffer
+        // Otherwise, we just push the first line of the new text to the output buffer in the form of a Spans,
+        // so the first line of the new text isn't just skipped on an empty output buffer
+        if let Some(last_line) = self.output_buffer.lines.last_mut() {
+            last_line.0.extend(first_spans);
+        } else {
+            self.output_buffer.lines.push(Spans::from(first_spans));
+        }
+
+        // The rest of the lines (Spans) can then be appended to the output buffer as normal
+        self.output_buffer.extend(spans)
+    }
+
+    // Appends a string to the next line of the output buffer
+    fn append_str_newline(&mut self, string: &str) {
+        self.append_str(string);
+        self.append_newline()
+    }
+
+    // Appends a Spans to the output buffer
+    #[allow(dead_code)]
+    fn append_spans(&mut self, spans: Spans<'a>) {
+        self.output_buffer.lines.extend([spans]);
+    }
+
+    // Appends a Spans to the output buffer, adding a newline after it
+    fn append_spans_newline(&mut self, spans: Spans<'a>) {
+        // TODO: Come up with a better name for this or merge it with append_newline() somehow
+        self.output_buffer.lines.extend([spans, Spans::default()]);
+    }
+
+    // Appends a newline to the output buffer
+    fn append_newline(&mut self) {
+        self.output_buffer.lines.push(Spans::default());
+    }
+
+    // Ensures that there is an empty line at the end of the output buffer
+    // * This is used to make the prompt always appear one line below the last line of output, just for cosmetic purposes
+    fn enforce_spacing(&mut self) {
+        if let Some(last_line) = self.output_buffer.lines.last_mut() {
+            // TODO: Find a less ugly way to do this
+            if !last_line.0.is_empty() && last_line.0.last() != Some(&Span::raw("")) {
+                self.output_buffer.lines.push(Spans::default());
+            }
+        }
+    }
+
+    // Autocompletes the line buffer
+    fn autocomplete_line(&mut self) {
+        if let Some(autocompletion) = &self.autocomplete_buffer {
+            self.line_buffer.push_str(&autocompletion);
+            self.cursor_index = self.line_buffer.len();
+            self.autocomplete_buffer = None;
+        }
+    }
+
+    // Given the cursor index and the Rect of the prompt panel, returns the terminal cursor position
+    // $ This only works on the first line due to soft-wrapping
+    fn cursor_coord(cursor_index: usize, prompt_area: Rect) -> (u16, u16) {
+        // Get the prompt panel width to determine the starting y-position of the cursor
+        // * The -2 is to account for the left and right borders
+        let prompt_width = prompt_area.width as usize - 2;
+        // * The +1 is to account for the top border
+        let prompt_y_coord = (prompt_area.y + 1) as usize;
+
+        // Find the x and y offsets based on the cursor index
+        let y_offset = cursor_index / prompt_width + prompt_y_coord;
+        // * The +2 is to account for the prompt tick, and the space after the tick
+        let x = (cursor_index + 3) % prompt_width;
+
+        (x as u16, y_offset as u16)
     }
 }
