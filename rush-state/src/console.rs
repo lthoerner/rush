@@ -71,7 +71,6 @@ struct ConsoleData<'a> {
     output_buffer: Text<'a>,
     debug_buffer: Text<'a>,
     // The index of the cursor in the line buffer
-    // ? Should this be an Option<usize>?
     cursor_index: usize,
     // If the line buffer can autocomplete to a command from the history, this stores the characters that will be added if the user presses TAB
     autocomplete_buffer: Option<String>,
@@ -129,7 +128,7 @@ impl<'a> Console<'a> {
         self.data.reset_line_buffer();
         self.data.update_prompt(shell);
         self.data.update_debug(shell);
-        self.draw_frame()?;
+        self.draw_frame(true)?;
 
         loop {
             let event = event::read()?;
@@ -172,7 +171,7 @@ impl<'a> Console<'a> {
                 ReplAction::RedrawFrame => {
                     self.data.update_autocomplete(shell);
                     self.data.update_debug(shell);
-                    self.draw_frame()?;
+                    self.draw_frame(false)?;
                 }
                 ReplAction::Ignore => (),
             }
@@ -230,8 +229,9 @@ impl<'a> Console<'a> {
     }
 
     // Updates the TUI frame
-    pub fn draw_frame(&mut self) -> Result<()> {
-        self.terminal.draw(|f| self.data.generate_frame(f))?;
+    // ? Should the autoscroll parameter use a custom type for readability?
+    pub fn draw_frame(&mut self, autoscroll: bool) -> Result<()> {
+        self.terminal.draw(|f| self.data.generate_frame(f, autoscroll))?;
         Ok(())
     }
 
@@ -261,13 +261,13 @@ impl<'a> Console<'a> {
     // TODO: Make lazy execution version of this, or a lazy execution mode
     pub fn println(&mut self, text: &str) {
         self.data.append_str_newline(text);
-        _ = self.draw_frame()
+        _ = self.draw_frame(true)
     }
 
     // Prints a line of text to the console without a newline
     pub fn print(&mut self, text: &str) {
         self.data.append_str(text);
-        _ = self.draw_frame()
+        _ = self.draw_frame(true)
     }
 }
 
@@ -417,7 +417,7 @@ impl<'a> ConsoleData<'a> {
 
     // Generates a TUI frame based on the prompt/line buffer and output buffer
     // ? Is there a way to make this a method to avoid passing in a ton of parameters?
-    fn generate_frame(&mut self, f: &mut Frame<CrosstermBackend<Stdout>>) {
+    fn generate_frame(&mut self, f: &mut Frame<CrosstermBackend<Stdout>>, autoscroll: bool) {
         let prompt_borders = Block::default()
             .borders(Borders::ALL)
             .title(self.prompt.clone());
@@ -468,6 +468,9 @@ impl<'a> ConsoleData<'a> {
             (chunks[0], chunks[1])
         };
 
+        // If autoscroll is enabled, scroll to the bottom of the output buffer
+        if autoscroll { self.scroll_to_bottom(output_area.height as usize) }
+
         // If the debug panel is enabled, subdivide the output window
         if self.debug_mode {
             let (new_output_area, debug_area) = {
@@ -502,7 +505,16 @@ impl<'a> ConsoleData<'a> {
         f.set_cursor(cursor_x, cursor_y);
     }
 
+    // Automatically scrolls to the bottom of the output panel text
+    fn scroll_to_bottom(&mut self, output_panel_height: usize) {
+        // * The -3 for is a bottom margin
+        // TODO: Make the bottom margin configurable
+        let output_panel_height = output_panel_height.saturating_sub(3);
+        self.scroll = self.output_buffer.lines.len().saturating_sub(output_panel_height);
+    }
+
     // Scrolls through the Shell's command history
+    // $ This might be confused with scrolling the output panel, so maybe rename it?
     fn scroll_history(&mut self, direction: HistoryDirection, shell: &Shell) -> Result<()> {
         use HistoryDirection::*;
         let history = shell.history();
