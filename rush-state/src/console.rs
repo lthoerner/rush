@@ -147,6 +147,9 @@ impl<'a> Console<'a> {
                     self.data.history_buffer = None;
                     self.data.history_index = None;
 
+                    // Clear the autocomplete buffer
+                    self.data.autocomplete_buffer = None;
+
                     // Save the line buffer as part of the output buffer
                     let mut line_spans = Spans::from(vec![
                         self.data.prompt_tick.clone(),
