@@ -1,7 +1,5 @@
 use std::fmt::Debug;
 use std::io::{stdout, Stdout};
-use std::rc::Rc;
-use std::cell::RefCell;
 
 use anyhow::Result;
 use bitflags::bitflags;
