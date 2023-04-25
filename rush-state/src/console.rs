@@ -154,7 +154,11 @@ impl<'a> Console<'a> {
                         Span::styled(line.clone(), Style::default().fg(Color::LightYellow)),
                     ]);
 
-                    line_spans.patch_style(Style::default().add_modifier(Modifier::ITALIC));
+                    // TODO: Change this to line_spans.patch_style() once the ratatui PR is merged
+                    for span in &mut line_spans.0 {
+                        span.style = span.style.patch(Style::default().add_modifier(Modifier::ITALIC));
+                    }
+
                     self.data.append_spans_newline(line_spans);
 
                     return Ok(line);
