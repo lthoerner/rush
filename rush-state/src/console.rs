@@ -1,5 +1,7 @@
 use std::fmt::Debug;
 use std::io::{stdout, Stdout};
+use std::rc::Rc;
+use std::cell::RefCell;
 
 use anyhow::Result;
 use bitflags::bitflags;
@@ -67,8 +69,15 @@ struct ConsoleData<'a> {
     prompt: Spans<'a>,
     // ? What is the actual name of this?
     prompt_tick: Span<'a>,
+    // An index to the Span of the tick next to the most recently executed command
+    // Used to recolor the tick based on the success of the command
+    // * If the tick index is None, then no command has been executed yet
+    success_tick_index: Option<usize>,
+    // The line buffer for the prompt panel
     line_buffer: String,
+    // The framebuffer for the output panel
     output_buffer: Text<'a>,
+    // The framebuffer for the debug panel
     debug_buffer: Text<'a>,
     // The index of the cursor in the line buffer
     cursor_index: usize,
@@ -125,9 +134,8 @@ impl<'a> Console<'a> {
     // Reads a line of input from the user
     // Handles all TUI interaction between the user and the prompt
     pub fn read_line(&mut self, shell: &Shell) -> Result<String> {
-        self.data.reset_line_buffer();
+        self.data.update_output_tick(shell);
         self.data.update_prompt(shell);
-        self.data.update_debug(shell);
         self.draw_frame(true)?;
 
         loop {
@@ -139,9 +147,9 @@ impl<'a> Console<'a> {
                     // Make sure that there is an extra line of space between the last line of output and the command output
                     self.data.enforce_spacing();
 
-                    // Save the line buffer for returning and clear it to make way for the next Console.read_line() call
+                    // Save the line buffer for returning and reset it to make way for the next Console.read_line() call
                     let line = self.data.line_buffer.clone();
-                    self.data.line_buffer.clear();
+                    self.data.reset_line_buffer();
 
                     // Clear the history buffer and index
                     self.data.history_buffer = None;
@@ -150,9 +158,11 @@ impl<'a> Console<'a> {
                     // Clear the autocomplete buffer
                     self.data.autocomplete_buffer = None;
 
-                    // Save the line buffer as part of the output buffer
+                    // Save the line buffer as part of the output buffer, along with a tick which will be colored grey at first
+                    // while the command is executing, and then green or red depending on the eventual success or failure of the command
+                    self.data.success_tick_index = Some(self.data.output_buffer.lines.len());
                     let mut line_spans = Spans::from(vec![
-                        self.data.prompt_tick.clone(),
+                        Span::styled("❯ ", Style::default().fg(Color::DarkGray).add_modifier(Modifier::BOLD)),
                         Span::styled(line.clone(), Style::default().fg(Color::LightYellow)),
                     ]);
 
@@ -164,6 +174,10 @@ impl<'a> Console<'a> {
                     }
 
                     self.data.append_spans_newline(line_spans);
+
+                    // Draw the frame with the new output
+                    self.data.update_debug(shell);
+                    self.draw_frame(true)?;
 
                     return Ok(line);
                 }
@@ -284,6 +298,7 @@ impl<'a> ConsoleData<'a> {
                     .add_modifier(Modifier::BOLD)
                     .fg(Color::LightGreen),
             ),
+            success_tick_index: None,
             line_buffer: String::new(),
             output_buffer: Text::default(),
             debug_buffer: Text::default(),
@@ -293,6 +308,33 @@ impl<'a> ConsoleData<'a> {
             history_index: None,
             scroll: 0,
             debug_mode: false,
+        }
+    }
+
+    // Recolors the command output tick based on the command's exit status
+    fn update_output_tick(&mut self, shell: &Shell) {
+        // Get the tick from the output buffer
+        // If the tick exists, it will be the first Span in the indexed Spans
+        let tick = {
+            if let Some(index) = self.success_tick_index {
+                if let Some(line) = self.output_buffer.lines.get_mut(index) {
+                    line.0.first_mut()
+                } else {
+                    return;
+                }
+            } else {
+                return;
+            }
+        };
+
+        let color = match shell.success() {
+            true => Color::LightGreen,
+            false => Color::LightRed,
+        };
+
+        // * If the tick is None, this is an extraneous call made before a command has been executed, and should be ignored
+        if let Some(tick) = tick {
+            tick.style = tick.style.fg(color);
         }
     }
 
@@ -424,7 +466,7 @@ impl<'a> ConsoleData<'a> {
         let prompt_borders = Block::default()
             .borders(Borders::ALL)
             .title(self.prompt.clone());
-        let frame_borders = |title| {
+        let output_borders = |title| {
             Block::default()
                 .borders(Borders::ALL ^ Borders::BOTTOM)
                 .title(Span::styled(
@@ -454,8 +496,8 @@ impl<'a> ConsoleData<'a> {
             .wrap(Wrap { trim: false });
 
         // Create a Paragraph widget for the output panel
-        let frame_widget = Paragraph::new(self.output_buffer.clone())
-            .block(frame_borders("Output"))
+        let output_widget = Paragraph::new(self.output_buffer.clone())
+            .block(output_borders("Output"))
             .style(Style::default())
             .alignment(Alignment::Left)
             .wrap(Wrap { trim: false });
@@ -488,7 +530,7 @@ impl<'a> ConsoleData<'a> {
 
             // Create a Paragraph widget for the debug panel
             let debug_widget = Paragraph::new(self.debug_buffer.clone())
-                .block(frame_borders("Debug"))
+                .block(output_borders("Debug"))
                 .style(Style::default())
                 .alignment(Alignment::Left)
                 .wrap(Wrap { trim: false });
@@ -501,7 +543,7 @@ impl<'a> ConsoleData<'a> {
 
         // Render the default widgets
         f.render_widget(prompt_widget, prompt_area);
-        f.render_widget(frame_widget.scroll((self.scroll as u16, 0)), output_area);
+        f.render_widget(output_widget.scroll((self.scroll as u16, 0)), output_area);
 
         // Render the cursor
         let (cursor_x, cursor_y) = Self::cursor_coord(self.cursor_index, prompt_area);
