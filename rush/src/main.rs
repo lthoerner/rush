@@ -23,9 +23,7 @@ fn main() -> Result<()> {
         let status = dispatcher.eval(&mut shell, &mut console, &line);
         handle_error(status, &mut shell, &mut console);
 
-        if shell.success() {
-            shell.history_add(line);
-        }
+        shell.history_add(line);
     }
 }
 

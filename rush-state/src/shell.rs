@@ -54,7 +54,17 @@ impl Shell {
         &self.command_history
     }
 
+    // Adds a line of input to the command history
+    // If it already exists in the history, brings the previous occurrence to the front
     pub fn history_add(&mut self, command: String) {
-        self.command_history.push(command);
+        match self.command_history.contains(&command) {
+            true => {
+                let index = self.command_history.iter().position(|c| c == &command).unwrap();
+                self.command_history.remove(index);
+            }
+            false => (),
+        }
+
+        self.command_history.push(command)
     }
 }
