@@ -134,6 +134,7 @@ impl<'a> Console<'a> {
     pub fn read_line(&mut self, shell: &Shell) -> Result<String> {
         self.data.update_output_tick(shell);
         self.data.update_prompt(shell);
+        self.data.update_debug(shell);
         self.draw_frame(true)?;
 
         loop {
