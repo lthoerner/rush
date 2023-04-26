@@ -1,5 +1,5 @@
-use std::process::{Stdio, Command as Process};
 use std::io::{BufRead, BufReader, Read};
+use std::process::{Command as Process, Stdio};
 use std::sync::Mutex;
 
 use anyhow::Result;
@@ -89,7 +89,7 @@ impl Runnable for Executable {
         let Ok(mut process) = Process::new(self.path.path()).args(arguments).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn() else { return Err(ExecutableError::PathNoLongerExists(self.path.path().clone()).into()) };
         let stdout = process.stdout.take().unwrap();
         let stderr = process.stderr.take().unwrap();
-        
+
         fn read_lines_to_console(console: &Mutex<&mut Console>, file: Box<dyn Read + Send>) {
             std::thread::scope(|s| {
                 s.spawn(|| {
@@ -100,7 +100,7 @@ impl Runnable for Executable {
                 });
             });
         }
-        
+
         // Concurrently display the stdout and stderr of the process to the console
         let console = Mutex::new(console);
         read_lines_to_console(&console, Box::new(stdout));
@@ -117,10 +117,7 @@ impl Runnable for Executable {
                 // * as per https://tldp.org/LDP/abs/html/exitcodes.html
                 // * It can be assumed that the command was found here because the External path must have been validated already
                 // * Otherwise it could be a 127 for "command not found"
-                Err(
-                    ExecutableError::FailedToExecute(status.code().unwrap_or(126) as isize)
-                        .into(),
-                )
+                Err(ExecutableError::FailedToExecute(status.code().unwrap_or(126) as isize).into())
             }
         }
     }

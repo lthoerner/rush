@@ -59,7 +59,11 @@ impl Shell {
     pub fn history_add(&mut self, command: String) {
         match self.command_history.contains(&command) {
             true => {
-                let index = self.command_history.iter().position(|c| c == &command).unwrap();
+                let index = self
+                    .command_history
+                    .iter()
+                    .position(|c| c == &command)
+                    .unwrap();
                 self.command_history.remove(index);
             }
             false => (),

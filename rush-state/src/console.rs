@@ -161,7 +161,12 @@ impl<'a> Console<'a> {
                     // while the command is executing, and then green or red depending on the eventual success or failure of the command
                     self.data.success_tick_index = Some(self.data.output_buffer.lines.len());
                     let mut line_spans = Spans::from(vec![
-                        Span::styled("❯ ", Style::default().fg(Color::DarkGray).add_modifier(Modifier::BOLD)),
+                        Span::styled(
+                            "❯ ",
+                            Style::default()
+                                .fg(Color::DarkGray)
+                                .add_modifier(Modifier::BOLD),
+                        ),
                         Span::styled(line.clone(), Style::default().fg(Color::LightYellow)),
                     ]);
 
@@ -247,7 +252,8 @@ impl<'a> Console<'a> {
     // Updates the TUI frame
     // ? Should the autoscroll parameter use a custom type for readability?
     pub fn draw_frame(&mut self, autoscroll: bool) -> Result<()> {
-        self.terminal.draw(|f| self.data.generate_frame(f, autoscroll))?;
+        self.terminal
+            .draw(|f| self.data.generate_frame(f, autoscroll))?;
         Ok(())
     }
 
@@ -513,7 +519,9 @@ impl<'a> ConsoleData<'a> {
         };
 
         // If autoscroll is enabled, scroll to the bottom of the output buffer
-        if autoscroll { self.scroll_to_bottom(output_area.height as usize) }
+        if autoscroll {
+            self.scroll_to_bottom(output_area.height as usize)
+        }
 
         // If the debug panel is enabled, subdivide the output window
         if self.debug_mode {
@@ -554,7 +562,11 @@ impl<'a> ConsoleData<'a> {
         // * The -3 for is a bottom margin
         // TODO: Make the bottom margin configurable
         let output_panel_height = output_panel_height.saturating_sub(3);
-        self.scroll = self.output_buffer.lines.len().saturating_sub(output_panel_height);
+        self.scroll = self
+            .output_buffer
+            .lines
+            .len()
+            .saturating_sub(output_panel_height);
     }
 
     // Scrolls through the Shell's command history
