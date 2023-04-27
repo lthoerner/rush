@@ -1,5 +1,5 @@
-use std::collections::VecDeque;
 use crate::tokenizer::tokenize;
+use std::collections::VecDeque;
 
 pub fn parse(input: &String) -> Vec<(String, VecDeque<String>)> {
     let tokens_binding = tokenize(input);
@@ -21,11 +21,11 @@ pub fn parse(input: &String) -> Vec<(String, VecDeque<String>)> {
             aggregated_tokens.push(curr_command.clone());
             curr_command.clear()
         }
-    };
+    }
 
     for mut vec_token in aggregated_tokens {
         commands.push((vec_token.pop_front().unwrap(), vec_token))
-    };
+    }
 
     return commands;
 }
@@ -48,7 +48,6 @@ mod tests {
 
         let second_command = &commands.get(1).unwrap().0;
         let second_command_args = commands.get(1).unwrap().1.get(0).is_none();
-
 
         assert_eq!(first_command, &String::from("ls"));
         assert_eq!(first_command_args, &String::from("-a"));

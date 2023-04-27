@@ -1,4 +1,7 @@
-use crate::symbols::{WHITESPACE, AMP, SEMI, PIPE, LESS, GREAT, SINGLE_QUOTE, DOUBLE_QUOTE, BACKSLASH, Symbols, DOLLAR};
+use crate::symbols::{
+    Symbols, AMP, BACKSLASH, DOLLAR, DOUBLE_QUOTE, GREAT, LESS, PIPE, SEMI, SINGLE_QUOTE,
+    WHITESPACE,
+};
 
 pub fn tokenize(input: &String) -> Vec<String> {
     let symbols = Symbols::new();
@@ -24,7 +27,9 @@ pub fn tokenize(input: &String) -> Vec<String> {
 
                         match characters.peek() {
                             Some(peeked_char) => {
-                                if (peeked_char == &SEMI && v == SEMI) || (peeked_char == &AMP && v == AMP)  {
+                                if (peeked_char == &SEMI && v == SEMI)
+                                    || (peeked_char == &AMP && v == AMP)
+                                {
                                     // clear token, push the operator into the token and advance to the next character
                                     delimit_token(&mut tokens, &mut curr_token);
 
@@ -36,12 +41,12 @@ pub fn tokenize(input: &String) -> Vec<String> {
                                 } else {
                                     delimit_token(&mut tokens, &mut curr_token);
                                 }
-                            },
+                            }
                             None => {
                                 continue;
                             }
                         }
-                    },
+                    }
                     PIPE | LESS | GREAT => {
                         if in_single_quotes || in_double_quotes {
                             curr_token.push(v);
@@ -50,7 +55,11 @@ pub fn tokenize(input: &String) -> Vec<String> {
 
                         match characters.peek() {
                             Some(peeked_char) => {
-                                if symbols.operators.iter().any(|&i| i == format!("{v}{peeked_char}")) {
+                                if symbols
+                                    .operators
+                                    .iter()
+                                    .any(|&i| i == format!("{v}{peeked_char}"))
+                                {
                                     // clear token, push the operator into the token and advance to the next character
                                     delimit_token(&mut tokens, &mut curr_token);
 
@@ -60,19 +69,18 @@ pub fn tokenize(input: &String) -> Vec<String> {
 
                                     delimit_token(&mut tokens, &mut curr_token);
                                 }
-                            },
+                            }
                             None => {
                                 continue;
                             }
                         }
-                    },
+                    }
                     SINGLE_QUOTE => {
                         if !in_double_quotes {
                             in_single_quotes = !in_single_quotes;
                         } else {
                             curr_token.push(v);
                         }
-
                     }
                     DOUBLE_QUOTE => {
                         if !in_single_quotes {
@@ -95,22 +103,26 @@ pub fn tokenize(input: &String) -> Vec<String> {
                             Some(peeked_char) => {
                                 if peeked_char == &'n' {
                                     curr_token.push(v);
-                                } else if peeked_char == &SINGLE_QUOTE || peeked_char == &DOLLAR || peeked_char == &DOUBLE_QUOTE || peeked_char == &BACKSLASH {
+                                } else if peeked_char == &SINGLE_QUOTE
+                                    || peeked_char == &DOLLAR
+                                    || peeked_char == &DOUBLE_QUOTE
+                                    || peeked_char == &BACKSLASH
+                                {
                                     curr_token.push(*peeked_char);
                                     characters.next();
                                     continue;
                                 } else {
                                     curr_token.push(v);
                                 }
-                            },
+                            }
                             None => {
                                 continue;
                             }
                         }
-                    },
-                    _ => curr_token.push(v)
+                    }
+                    _ => curr_token.push(v),
                 }
-            },
+            }
             None => {
                 delimit_token(&mut tokens, &mut curr_token);
                 break;
@@ -118,7 +130,7 @@ pub fn tokenize(input: &String) -> Vec<String> {
         }
     }
 
-    return tokens
+    return tokens;
 }
 
 fn delimit_token(tokens: &mut Vec<String>, curr_token: &mut String) {
@@ -141,10 +153,7 @@ mod tests {
         let tokens = tokenize(&input);
 
         //then
-        let expected = vec![
-            String::from("print"),
-            String::from("test$test"),
-        ];
+        let expected = vec![String::from("print"), String::from("test$test")];
 
         assert_eq!(tokens, expected);
     }
@@ -158,9 +167,7 @@ mod tests {
         let tokens = tokenize(&input);
 
         //then
-        let expected = vec![
-            String::from("0"),
-        ];
+        let expected = vec![String::from("0")];
 
         assert_eq!(tokens, expected);
     }
@@ -178,7 +185,7 @@ mod tests {
             String::from("ls"),
             String::from("&&"),
             String::from("ls"),
-            String::from("-a")
+            String::from("-a"),
         ];
         assert_eq!(tokens, expected);
     }
@@ -196,7 +203,7 @@ mod tests {
             String::from("ls"),
             String::from("||"),
             String::from("ls"),
-            String::from("-a")
+            String::from("-a"),
         ];
         assert_eq!(tokens, expected);
     }
@@ -214,7 +221,7 @@ mod tests {
             String::from("ls"),
             String::from(";;"),
             String::from("ls"),
-            String::from("-a")
+            String::from("-a"),
         ];
         assert_eq!(tokens, expected);
     }
@@ -234,7 +241,7 @@ mod tests {
             String::from("ls"),
             String::from("-a"),
             String::from(">>"),
-            String::from("mkdir")
+            String::from("mkdir"),
         ];
         assert_eq!(tokens, expected);
     }
@@ -248,10 +255,7 @@ mod tests {
         let tokens = tokenize(&input);
 
         //then
-        let expected = vec![
-            String::from("print"),
-            String::from("print my text")
-        ];
+        let expected = vec![String::from("print"), String::from("print my text")];
         assert_eq!(tokens, expected);
     }
 
@@ -266,7 +270,7 @@ mod tests {
         //then
         let expected = vec![
             String::from("print"),
-            String::from("print&&  my text;; with< operators|<")
+            String::from("print&&  my text;; with< operators|<"),
         ];
         assert_eq!(tokens, expected);
     }
@@ -280,10 +284,7 @@ mod tests {
         let tokens = tokenize(&input);
 
         //then
-        let expected = vec![
-            String::from("print"),
-            String::from("print\n  my\r text")
-        ];
+        let expected = vec![String::from("print"), String::from("print\n  my\r text")];
         assert_eq!(tokens, expected);
     }
 
@@ -296,10 +297,7 @@ mod tests {
         let tokens = tokenize(&input);
 
         //then
-        let expected = vec![
-            String::from("print"),
-            String::from("print' my text")
-        ];
+        let expected = vec![String::from("print"), String::from("print' my text")];
         assert_eq!(tokens, expected);
     }
 
@@ -313,9 +311,7 @@ mod tests {
         println!("tokens: {:?}", tokens);
 
         //then
-        let expected = vec![
-            String::from("printnls")
-        ];
+        let expected = vec![String::from("printnls")];
         assert_eq!(tokens, expected);
     }
 }

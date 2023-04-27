@@ -1,4 +1,3 @@
-
 // Separators
 pub const WHITESPACE: char = ' ';
 pub const SEMI: char = ';';
@@ -30,28 +29,14 @@ pub struct Symbols<'a> {
 impl Symbols<'_> {
     pub fn new() -> Self {
         let operators = vec![
-            AND_IF,
-            OR_IF,
-            DSEMI,
-            DLESS,
-            DGREAT,
-            LESSAND,
-            GREATAND,
-            LESSGREAT,
-            CLOBBER
+            AND_IF, OR_IF, DSEMI, DLESS, DGREAT, LESSAND, GREATAND, LESSGREAT, CLOBBER,
         ];
 
-        let separators = vec![
-            WHITESPACE,
-            AMP,
-            SEMI
-        ];
+        let separators = vec![WHITESPACE, AMP, SEMI];
 
         Symbols {
             operators,
-            separators
+            separators,
         }
     }
 }
-
-

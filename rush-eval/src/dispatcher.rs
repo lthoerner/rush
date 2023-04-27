@@ -78,7 +78,7 @@ impl Dispatcher {
     }
 
     // Evaluates and executes a command from a string
-    pub fn eval(&self, context: &mut Context, line: &String) -> Result<()> {
+    pub fn eval(&self, shell: &mut Shell, console: &mut Console, line: &String) -> Result<()> {
         let commands = parser::parse(line);
         let mut results: Vec<Result<()>> = Vec::new();
 
@@ -88,15 +88,15 @@ impl Dispatcher {
             let command_args = command_args.iter().map(|a| a.as_str()).collect();
 
             // Dispatch the command to the Dispatcher
-            let result = self.dispatch(command_name, command_args, context);
+            let result = self.dispatch(shell, console, command_name, command_args);
             results.push(result);
-        };
+        }
 
         for result in results {
-             if result.is_err() {
-                 return Err(result.err().unwrap())
-             }
-        };
+            if result.is_err() {
+                return Err(result.err().unwrap());
+            }
+        }
 
         Ok(())
     }

@@ -20,7 +20,7 @@ pub enum BuiltinError {
     #[error("Unable to read file name from path: {0}")]
     FailedReadingFileName(PathBuf),
     #[error("Unable to read dir: {0}")]
-    FailedReadingDir(PathBuf)
+    FailedReadingDir(PathBuf),
 }
 
 #[derive(Error, Debug)]

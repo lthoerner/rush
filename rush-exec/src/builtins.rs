@@ -8,22 +8,23 @@ Users are free to create their own builtins if they wish to modify the source co
 An 'External' will only have access to its arguments and environment variables, but not the shell's state, mostly for security reasons.
  */
 
+use clap::Parser;
 use fs_err::{self};
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
-use clap::Parser;
 
 use anyhow::Result;
 
+use crate::builtin_arguments::ListDirectoryArguments;
 use rush_state::console::Console;
 use rush_state::path::Path;
 use rush_state::shell::Shell;
-use crate::builtin_arguments::ListDirectoryArguments;
 
 use crate::commands::{Executable, Runnable};
 use crate::errors::BuiltinError;
-use crate::errors::BuiltinError::{FailedReadingDir, FailedReadingFileName, FailedReadingFileType, FailedReadingPath};
-
+use crate::errors::BuiltinError::{
+    FailedReadingDir, FailedReadingFileName, FailedReadingFileType, FailedReadingPath,
+};
 
 pub fn test(_shell: &mut Shell, console: &mut Console, args: Vec<&str>) -> Result<()> {
     check_args(&args, 0, "test", console)?;
@@ -59,12 +60,12 @@ pub fn list_directory(shell: &mut Shell, console: &mut Console, args: Vec<&str>)
     let show_hidden = arguments.all;
     let path_to_read = match arguments.path {
         Some(path) => PathBuf::from(path),
-        None => shell.env().CWD().path().to_path_buf()
+        None => shell.env().CWD().path().to_path_buf(),
     };
 
     let read_dir_result = match fs_err::read_dir(&path_to_read) {
         Ok(v) => v,
-        Err(_) => return Err(FailedReadingPath(path_to_read.clone()).into())
+        Err(_) => return Err(FailedReadingPath(path_to_read.clone()).into()),
     };
 
     let mut directories = Vec::new();
@@ -73,17 +74,17 @@ pub fn list_directory(shell: &mut Shell, console: &mut Console, args: Vec<&str>)
     for dir_entry in read_dir_result {
         let fs_object = match dir_entry {
             Ok(v) => v,
-            Err(_) => return Err(FailedReadingDir(path_to_read.clone()).into())
+            Err(_) => return Err(FailedReadingDir(path_to_read.clone()).into()),
         };
 
         let fs_object_name = match fs_object.file_name().to_str().clone() {
             Some(v) => String::from(v),
-            None => return Err(FailedReadingFileName(path_to_read.clone()).into())
+            None => return Err(FailedReadingFileName(path_to_read.clone()).into()),
         };
 
         let fs_object_type = match fs_object.file_type() {
             Ok(v) => v,
-            Err(_) => return Err(FailedReadingFileType(path_to_read.clone()).into())
+            Err(_) => return Err(FailedReadingFileType(path_to_read.clone()).into()),
         };
 
         if fs_object_name.starts_with('.') && !show_hidden {
