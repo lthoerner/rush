@@ -55,7 +55,4 @@
             "italic": false
         }
     ],
-    "rust-analyzer.linkedProjects": [
-        "./rush-state/Cargo.toml",
-    ],
 }
