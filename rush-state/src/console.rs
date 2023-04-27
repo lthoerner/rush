@@ -508,12 +508,12 @@ impl<'a> ConsoleData<'a> {
             .wrap(Wrap { trim: false });
 
         // Split the terminal into two windows, one for the command output, and one for the prompt
-        // The output window takes up the top 80% of the terminal, and the prompt window takes up the bottom 20%
+        // The output window takes up the top 85% of the terminal, and the prompt window takes up the bottom 15%
         // If the debug panel is enabled, the output window will be split in 60/40 sections
         let (mut output_area, prompt_area) = {
             let chunks = Layout::default()
                 .direction(Direction::Vertical)
-                .constraints([Constraint::Percentage(80), Constraint::Percentage(20)])
+                .constraints([Constraint::Percentage(85), Constraint::Percentage(15)])
                 .split(f.size());
             (chunks[0], chunks[1])
         };
