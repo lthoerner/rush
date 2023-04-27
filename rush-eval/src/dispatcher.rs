@@ -1,4 +1,5 @@
 use anyhow::Result;
+extern crate clap;
 
 use rush_exec::builtins;
 use rush_exec::commands::{Builtin, Executable, Runnable};
@@ -79,7 +80,21 @@ impl Dispatcher {
     // Evaluates and executes a command from a string
     pub fn eval(&self, shell: &mut Shell, console: &mut Console, line: &str) -> Result<()> {
         let (command_name, command_args) = parser::tokenize(line);
+
         // ? Is there a way to avoid this type conversion?
+        // let my_arguments = vec!["ls-clap", "-a"];
+        // let app = App
+
+        // console.println(command_name.as_str());
+        // let cli = Cli::parse();
+        // match &cli.command {
+        //     Some(Commands::LsClap {all}) => {
+        //         console.println(all.to_string().as_str());
+        //         console.println("Hello from the eval");
+        //     },
+        //     None => {}
+        // }
+
         let command_name = command_name.as_str();
         let command_args = command_args.iter().map(|a| a.as_str()).collect();
 
