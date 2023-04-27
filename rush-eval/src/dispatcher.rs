@@ -78,28 +78,27 @@ impl Dispatcher {
     }
 
     // Evaluates and executes a command from a string
-    pub fn eval(&self, shell: &mut Shell, console: &mut Console, line: &str) -> Result<()> {
-        let (command_name, command_args) = parser::tokenize(line);
+    pub fn eval(&self, context: &mut Context, line: &String) -> Result<()> {
+        let commands = parser::parse(line);
+        let mut results: Vec<Result<()>> = Vec::new();
 
-        // ? Is there a way to avoid this type conversion?
-        // let my_arguments = vec!["ls-clap", "-a"];
-        // let app = App
+        for (command_name, command_args) in commands {
+            // ? Is there a way to avoid this type conversion?
+            let command_name = command_name.as_str();
+            let command_args = command_args.iter().map(|a| a.as_str()).collect();
 
-        // console.println(command_name.as_str());
-        // let cli = Cli::parse();
-        // match &cli.command {
-        //     Some(Commands::LsClap {all}) => {
-        //         console.println(all.to_string().as_str());
-        //         console.println("Hello from the eval");
-        //     },
-        //     None => {}
-        // }
+            // Dispatch the command to the Dispatcher
+            let result = self.dispatch(command_name, command_args, context);
+            results.push(result);
+        };
 
-        let command_name = command_name.as_str();
-        let command_args = command_args.iter().map(|a| a.as_str()).collect();
+        for result in results {
+             if result.is_err() {
+                 return Err(result.err().unwrap())
+             }
+        };
 
-        // Dispatch the command to the Dispatcher
-        self.dispatch(shell, console, command_name, command_args)
+        Ok(())
     }
 
     // Resolves and dispatches a command to the appropriate function or external binary
