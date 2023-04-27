@@ -34,7 +34,8 @@ pub fn test(_shell: &mut Shell, console: &mut Console, args: Vec<&str>) -> Resul
 
 pub fn exit(_shell: &mut Shell, console: &mut Console, args: Vec<&str>) -> Result<()> {
     check_args(&args, 0, "exit", console)?;
-    std::process::exit(0);
+    console.exit(0);
+    Ok(())
 }
 
 pub fn working_directory(shell: &mut Shell, console: &mut Console, args: Vec<&str>) -> Result<()> {

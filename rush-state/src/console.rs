@@ -116,17 +116,20 @@ impl<'a> Console<'a> {
         self.clear(ClearMode::RESET_LINE)
     }
 
-    // Closes the TUI console
-    pub fn close(&mut self) -> Result<()> {
-        disable_raw_mode()?;
+    // Closes the TUI console and exits the program
+    // * Error handling here is unnecessary because the program is exiting
+    // TODO: This assumption may need to be reevaluated in the future
+    pub fn exit(&mut self, code: i32) {
+        disable_raw_mode().unwrap();
         execute!(
             self.terminal.backend_mut(),
             LeaveAlternateScreen,
             cursor::MoveTo(0, 0),
             cursor::Show,
             Clear(ClearType::All)
-        )?;
-        Ok(())
+        ).unwrap();
+
+        std::process::exit(code);
     }
 
     // Reads a line of input from the user
@@ -185,10 +188,7 @@ impl<'a> Console<'a> {
 
                     return Ok(line);
                 }
-                ReplAction::Exit => {
-                    self.close()?;
-                    std::process::exit(0);
-                }
+                ReplAction::Exit => self.exit(0),
                 ReplAction::RedrawFrame => {
                     self.data.update_autocomplete(shell);
                     self.data.update_debug(shell);
