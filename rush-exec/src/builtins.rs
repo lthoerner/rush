@@ -22,7 +22,7 @@ use crate::builtin_arguments::ListDirectoryArguments;
 
 use crate::commands::{Executable, Runnable};
 use crate::errors::BuiltinError;
-use crate::errors::BuiltinError::{FailedReadingDir, FailedReadingFileName, FailedReadingFileType};
+use crate::errors::BuiltinError::{FailedReadingDir, FailedReadingFileName, FailedReadingFileType, FailedReadingPath};
 
 
 pub fn test(_shell: &mut Shell, console: &mut Console, args: Vec<&str>) -> Result<()> {
@@ -65,7 +65,7 @@ pub fn list_directory(shell: &mut Shell, console: &mut Console, args: Vec<&str>)
 
     let read_dir_result = match fs_err::read_dir(&path_to_read) {
         Ok(v) => v,
-        Err(_) => return Err(FailedReadingDir(path_to_read.clone()).into())
+        Err(_) => return Err(FailedReadingPath(path_to_read.clone()).into())
     };
 
     let mut directories = Vec::new();
