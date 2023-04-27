@@ -15,9 +15,9 @@ use clap::Parser;
 
 use anyhow::Result;
 
+use rush_state::console::Console;
 use rush_state::path::Path;
 use rush_state::shell::Shell;
-use rush_state::console::Console;
 use crate::builtin_arguments::ListDirectoryArguments;
 
 use crate::commands::{Executable, Runnable};
@@ -56,7 +56,6 @@ pub fn change_directory(shell: &mut Shell, console: &mut Console, args: Vec<&str
 
 pub fn list_directory(shell: &mut Shell, console: &mut Console, args: Vec<&str>) -> Result<()> {
     let arguments = ListDirectoryArguments::parse_from(&args);
-
     let show_hidden = arguments.all;
     let path_to_read = match arguments.path {
         Some(path) => PathBuf::from(path),
@@ -195,7 +194,10 @@ pub fn run_executable(shell: &mut Shell, console: &mut Console, args: Vec<&str>)
     check_args(&args, 1, "run-executable <path>", console)?;
     let executable_name = args[0].to_string();
     let executable_path = Path::from_str(&executable_name, shell.env().HOME()).map_err(|_| {
-        console.println(&format!("Failed to resolve executable path: '{}'", executable_name));
+        console.println(&format!(
+            "Failed to resolve executable path: '{}'",
+            executable_name
+        ));
         BuiltinError::FailedToRun
     })?;
 
@@ -214,11 +216,10 @@ pub fn configure(shell: &mut Shell, console: &mut Console, args: Vec<&str>) -> R
                 return Ok(());
             }
 
-            shell.config_mut().truncation_factor =
-                Some(value.parse::<usize>().map_err(|_| {
-                    console.println(&format!("Invalid truncation length: '{}'", value));
-                    BuiltinError::InvalidValue(value.to_string())
-                })?)
+            shell.config_mut().truncation_factor = Some(value.parse::<usize>().map_err(|_| {
+                console.println(&format!("Invalid truncation length: '{}'", value));
+                BuiltinError::InvalidValue(value.to_string())
+            })?)
         }
         "history-limit" => {
             if value == "false" {
@@ -226,21 +227,14 @@ pub fn configure(shell: &mut Shell, console: &mut Console, args: Vec<&str>) -> R
                 return Ok(());
             }
 
-            shell.config_mut().history_limit =
-                Some(value.parse::<usize>().map_err(|_| {
-                    console.println(&format!("Invalid history limit: '{}'", value));
-                    BuiltinError::InvalidValue(value.to_string())
-                })?)
+            shell.config_mut().history_limit = Some(value.parse::<usize>().map_err(|_| {
+                console.println(&format!("Invalid history limit: '{}'", value));
+                BuiltinError::InvalidValue(value.to_string())
+            })?)
         }
         "show-errors" => {
             shell.config_mut().show_errors = value.parse::<bool>().map_err(|_| {
                 console.println(&format!("Invalid value for show-errors: '{}'", value));
-                BuiltinError::InvalidValue(value.to_string())
-            })?
-        }
-        "multi-line-prompt" => {
-            shell.config_mut().multi_line_prompt = value.parse::<bool>().map_err(|_| {
-                console.println(&format!("Invalid value for multi-line-prompt: '{}'", value));
                 BuiltinError::InvalidValue(value.to_string())
             })?
         }
@@ -253,7 +247,11 @@ pub fn configure(shell: &mut Shell, console: &mut Console, args: Vec<&str>) -> R
     Ok(())
 }
 
-pub fn environment_variable(shell: &mut Shell, console: &mut Console, args: Vec<&str>) -> Result<()> {
+pub fn environment_variable(
+    shell: &mut Shell,
+    console: &mut Console,
+    args: Vec<&str>,
+) -> Result<()> {
     check_args(&args, 1, "environment-variable <var>", console)?;
     match args[0].to_uppercase().as_str() {
         "PATH" => {
@@ -294,7 +292,12 @@ pub fn edit_path(shell: &mut Shell, console: &mut Console, args: Vec<&str>) -> R
 }
 
 // Convenience function for exiting a builtin on invalid argument count
-fn check_args(args: &Vec<&str>, expected_args: usize, usage: &str, console: &mut Console) -> Result<()> {
+fn check_args(
+    args: &Vec<&str>,
+    expected_args: usize,
+    usage: &str,
+    console: &mut Console,
+) -> Result<()> {
     if args.len() == expected_args {
         Ok(())
     } else {

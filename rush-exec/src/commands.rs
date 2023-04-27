@@ -1,4 +1,6 @@
-use std::process::Command as Process;
+use std::io::{BufRead, BufReader, Read};
+use std::process::{Command as Process, Stdio};
+use std::sync::Mutex;
 
 use anyhow::Result;
 
@@ -83,25 +85,40 @@ impl Executable {
 impl Runnable for Executable {
     // * Executables do not have access to the shell state, but the context argument is required by the Runnable trait
     fn run(&self, _shell: &mut Shell, console: &mut Console, arguments: Vec<&str>) -> Result<()> {
-        // Create the Process and pass the provided arguments to it
-        let mut executable = Process::new(self.path.path());
-        executable.args(arguments);
-        // Execute the Process and wait for it to finish
-        // TODO: There may be other types of errors that could happen, they may need handlers
-        let Ok(handle) = executable.output() else { return Err(ExecutableError::PathNoLongerExists(self.path.path().clone()).into()); };
+        // Create the Process, pass the provided arguments to it, and execute it
+        let Ok(mut process) = Process::new(self.path.path()).args(arguments).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn() else { return Err(ExecutableError::PathNoLongerExists(self.path.path().clone()).into()) };
+        let stdout = process.stdout.take().unwrap();
+        let stderr = process.stderr.take().unwrap();
 
-        if handle.status.success() {
-            console.println(std::str::from_utf8(&handle.stdout)?);
-            Ok(())
-        } else {
-            // * 126 is a special exit code that means that the command was found but could not be executed
-            // * as per https://tldp.org/LDP/abs/html/exitcodes.html
-            // * It can be assumed that the command was found here because the External path must have been validated already
-            // * Otherwise it could be a 127 for "command not found"
-            Err(
-                ExecutableError::FailedToExecute(handle.status.code().unwrap_or(126) as isize)
-                    .into(),
-            )
+        fn read_lines_to_console(console: &Mutex<&mut Console>, file: Box<dyn Read + Send>) {
+            std::thread::scope(|s| {
+                s.spawn(|| {
+                    let lines = BufReader::new(file).lines();
+                    for line in lines {
+                        console.lock().unwrap().println(&line.unwrap());
+                    }
+                });
+            });
+        }
+
+        // Concurrently display the stdout and stderr of the process to the console
+        let console = Mutex::new(console);
+        read_lines_to_console(&console, Box::new(stdout));
+        read_lines_to_console(&console, Box::new(stderr));
+
+        // Wait for the process to finish
+        // TODO: There may be other types of errors that could happen, they may need handlers
+        let status = process.wait()?;
+
+        match status.success() {
+            true => Ok(()),
+            false => {
+                // * 126 is a special exit code that means that the command was found but could not be executed
+                // * as per https://tldp.org/LDP/abs/html/exitcodes.html
+                // * It can be assumed that the command was found here because the External path must have been validated already
+                // * Otherwise it could be a 127 for "command not found"
+                Err(ExecutableError::FailedToExecute(status.code().unwrap_or(126) as isize).into())
+            }
         }
     }
 }

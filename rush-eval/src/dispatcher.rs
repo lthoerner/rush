@@ -3,9 +3,9 @@ extern crate clap;
 
 use rush_exec::builtins;
 use rush_exec::commands::{Builtin, Executable, Runnable};
+use rush_state::console::Console;
 use rush_state::path::Path;
 use rush_state::shell::Shell;
-use rush_state::console::Console;
 
 use crate::errors::DispatchError;
 use crate::parser;
@@ -104,7 +104,13 @@ impl Dispatcher {
 
     // Resolves and dispatches a command to the appropriate function or external binary
     // If the command does not exist, returns None
-    fn dispatch(&self, shell: &mut Shell, console: &mut Console, command_name: &str, command_args: Vec<&str>) -> Result<()> {
+    fn dispatch(
+        &self,
+        shell: &mut Shell,
+        console: &mut Console,
+        command_name: &str,
+        command_args: Vec<&str>,
+    ) -> Result<()> {
         // If the command resides in the Dispatcher (generally means it is a builtin) run it
         if let Some(command) = self.resolve(command_name) {
             command.run(shell, console, command_args)
