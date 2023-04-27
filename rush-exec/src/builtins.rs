@@ -8,17 +8,22 @@ Users are free to create their own builtins if they wish to modify the source co
 An 'External' will only have access to its arguments and environment variables, but not the shell's state, mostly for security reasons.
  */
 
-use fs_err::{self, ReadDir};
+use fs_err::{self};
 use std::io::{BufRead, BufReader};
+use std::path::PathBuf;
+use clap::Parser;
 
 use anyhow::Result;
 
 use rush_state::path::Path;
 use rush_state::shell::Shell;
 use rush_state::console::Console;
+use crate::builtin_arguments::ListDirectoryArguments;
 
 use crate::commands::{Executable, Runnable};
 use crate::errors::BuiltinError;
+use crate::errors::BuiltinError::{FailedReadingDir, FailedReadingFileName, FailedReadingFileType};
+
 
 pub fn test(_shell: &mut Shell, console: &mut Console, args: Vec<&str>) -> Result<()> {
     check_args(&args, 0, "test", console)?;
@@ -49,64 +54,47 @@ pub fn change_directory(shell: &mut Shell, console: &mut Console, args: Vec<&str
         })
 }
 
-fn enter_and_read_path(shell: &mut Shell, console: &mut Console, path: &str) -> Result<ReadDir> {
-    // Path::from_str() will attempt to expand and canonicalize the path, and return None if the path does not exist
-    let absolute_path = Path::from_str(path, shell.env().HOME()).map_err(|_| {
-        console.println(&format!("Invalid path: '{}'", path));
-        BuiltinError::FailedToRun
-    })?;
-
-    Ok(fs_err::read_dir(absolute_path.path()).expect(&format!("Failed to read directory: '{}'", absolute_path)))
-}
-
-// TODO: Break up some of this code into different functions
 pub fn list_directory(shell: &mut Shell, console: &mut Console, args: Vec<&str>) -> Result<()> {
-    let show_hidden = show_hidden_files(&args);
+    let arguments = ListDirectoryArguments::parse_from(&args);
 
-    let files_and_directories = match args.len() {
-        // Use the working directory as the default path argument
-        // This uses expect() because it needs to crash if the working directory is invalid,
-        // though in the future the error should be handled properly
-        0 => fs_err::read_dir(shell.env().CWD().path())
-            .expect("Failed to read directory"),
-        1 => {
-            if show_hidden  {
-                fs_err::read_dir(shell.env().CWD().path()).expect("Failed to read directory")
-            } else {
-                enter_and_read_path(shell, console, args[0])?
-            }
-        }
-        2 => {
-            enter_and_read_path(shell, console, args[0])?
-        }
-        _ => {
-            console.println("Usage: list-directory <path> [flags]");
-            return Err(BuiltinError::InvalidArgumentCount(args.len()).into());
-        }
+    let show_hidden = arguments.all;
+    let path_to_read = match arguments.path {
+        Some(path) => PathBuf::from(path),
+        None => shell.env().CWD().path().to_path_buf()
+    };
+
+    let read_dir_result = match fs_err::read_dir(&path_to_read) {
+        Ok(v) => v,
+        Err(_) => return Err(FailedReadingDir(path_to_read.clone()).into())
     };
 
     let mut directories = Vec::new();
     let mut files = Vec::new();
 
-    for fd in files_and_directories {
-        let fd = fd.expect("Failed to read directory");
+    for dir_entry in read_dir_result {
+        let fs_object = match dir_entry {
+            Ok(v) => v,
+            Err(_) => return Err(FailedReadingDir(path_to_read.clone()).into())
+        };
 
-        let fd_name = fd
-            .file_name()
-            .to_str()
-            .expect("Failed to read file name")
-            .to_string();
+        let fs_object_name = match fs_object.file_name().to_str().clone() {
+            Some(v) => String::from(v),
+            None => return Err(FailedReadingFileName(path_to_read.clone()).into())
+        };
 
-        if fd_name.starts_with('.') && !show_hidden {
+        let fs_object_type = match fs_object.file_type() {
+            Ok(v) => v,
+            Err(_) => return Err(FailedReadingFileType(path_to_read.clone()).into())
+        };
+
+        if fs_object_name.starts_with('.') && !show_hidden {
             continue;
         }
 
-        if fd.file_type().expect("Failed to read file type").is_dir() {
-            // Append a '/' to directories
-            let fd_name = format!("{}/", fd_name).to_string();
-            directories.push(fd_name)
+        if fs_object_type.is_dir() {
+            directories.push(format!("{}/", fs_object_name));
         } else {
-            files.push(fd_name)
+            files.push(fs_object_name);
         };
     }
 
@@ -122,18 +110,6 @@ pub fn list_directory(shell: &mut Shell, console: &mut Console, args: Vec<&str>)
     }
 
     Ok(())
-}
-
-fn show_hidden_files(args: &Vec<&str>) -> bool {
-    let show_all_flags = vec!["--show-hidden", "--all", "-a"];
-
-    if args.len() == 2 {
-        show_all_flags.contains(&args[1])
-    } else if args.len() == 1 {
-        show_all_flags.contains(&args[0])
-    } else {
-        false
-    }
 }
 
 // TODO: Find a better name for this
