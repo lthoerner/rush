@@ -7,7 +7,5 @@ edition = "2021"
 
 [dependencies]
 rush-state = { path = "../rush-state" }
-rush-console = { path = "../rush-console" }
 rush-eval = { path = "../rush-eval" }
 anyhow.workspace = true
-colored.workspace = true

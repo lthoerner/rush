@@ -13,6 +13,14 @@ pub enum BuiltinError {
     // $ This is way too general
     #[error("Runtime error")]
     FailedToRun,
+    #[error("Unable to read Path: {0}")]
+    FailedReadingPath(PathBuf),
+    #[error("Unable to read file type from path: {0}")]
+    FailedReadingFileType(PathBuf),
+    #[error("Unable to read file name from path: {0}")]
+    FailedReadingFileName(PathBuf),
+    #[error("Unable to read dir: {0}")]
+    FailedReadingDir(PathBuf),
 }
 
 #[derive(Error, Debug)]

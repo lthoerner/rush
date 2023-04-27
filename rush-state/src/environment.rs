@@ -52,13 +52,15 @@ struct EnvVarBundle {
     vars: HashSet<EnvVar>,
 }
 
-impl EnvVarBundle {
-    fn new(vars: Vec<EnvVar>) -> Self {
+impl<const N: usize> From<[EnvVar; N]> for EnvVarBundle {
+    fn from(vars: [EnvVar; N]) -> Self {
         Self {
-            vars: vars.into_iter().map(|v| v.clone()).collect(),
+            vars: vars.into_iter().collect(),
         }
     }
+}
 
+impl EnvVarBundle {
     fn contains(&self, var: EnvVar) -> bool {
         self.vars.contains(&var)
     }
@@ -144,19 +146,26 @@ impl Environment {
     }
 
     // Sets the current working directory and stores the previous working directory
-    pub fn set_CWD(&mut self, new_path: &str, history_limit: Option<usize>) -> Result<()> {
-        let previous_path = self.CWD.clone();
-        self.CWD = Path::from_str(new_path, &self.HOME)?;
-        self.backward_directories.push_back(previous_path);
-        self.forward_directories.clear();
+    pub fn set_CWD(&mut self, new_directory: &str, history_limit: Option<usize>) -> Result<()> {
+        let starting_directory = self.CWD.clone();
+        let new_directory = Path::from_str(new_directory, &self.HOME)?;
 
-        if let Some(limit) = history_limit {
-            while self.backward_directories.len() > limit {
-                self.backward_directories.pop_front();
+        // Add the old directory to the history, avoiding duplicates
+        if new_directory != starting_directory {
+            self.CWD = new_directory;
+            self.backward_directories.push_back(starting_directory);
+            self.forward_directories.clear();
+
+            if let Some(limit) = history_limit {
+                while self.backward_directories.len() > limit {
+                    self.backward_directories.pop_front();
+                }
             }
+
+            self.update_process_env_vars([EnvVar::CWD].into())?;
         }
 
-        self.update_process_env_vars(EnvVarBundle::new(vec![EnvVar::CWD]))
+        Ok(())
     }
 
     // Sets the current working directory to the previous working directory
@@ -165,7 +174,7 @@ impl Environment {
         if let Some(previous_path) = self.backward_directories.pop_back() {
             self.CWD = previous_path;
             self.forward_directories.push_front(starting_directory);
-            self.update_process_env_vars(EnvVarBundle::new(vec![EnvVar::CWD]))
+            self.update_process_env_vars([EnvVar::CWD].into())
         } else {
             Err(ShellError::NoPreviousDirectory.into())
         }
@@ -177,7 +186,7 @@ impl Environment {
         if let Some(next_path) = self.forward_directories.pop_front() {
             self.CWD = next_path;
             self.backward_directories.push_back(starting_directory);
-            self.update_process_env_vars(EnvVarBundle::new(vec![EnvVar::CWD]))
+            self.update_process_env_vars([EnvVar::CWD].into())
         } else {
             Err(ShellError::NoNextDirectory.into())
         }

@@ -8,4 +8,7 @@ edition = "2021"
 [dependencies]
 thiserror.workspace = true
 anyhow.workspace = true
+crossterm.workspace = true
+ratatui.workspace = true
 fs-err.workspace = true
+bitflags.workspace = true
