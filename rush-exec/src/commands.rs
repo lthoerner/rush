@@ -128,7 +128,7 @@ impl Runnable for Executable {
         let mut stdout_done = false;
         let mut stderr_done = false;
 
-        let timeout = Duration::from_millis(100);
+        let timeout = Duration::from_millis(1000);
         while !stdout_done || !stderr_done {
             if let Ok(line) = rx_stdout.recv_timeout(timeout) {
                 console.println(&line);
