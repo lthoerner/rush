@@ -219,12 +219,8 @@ impl<'a> Console<'a> {
                     (KeyModifiers::NONE, KeyCode::Enter) if !self.data.line_buffer.is_empty() => {
                         return Ok(ReplAction::Return)
                     }
-                    (KeyModifiers::SHIFT, KeyCode::Up) => {
-                        self.data.scroll = self.data.scroll.saturating_sub(1)
-                    }
-                    (KeyModifiers::SHIFT, KeyCode::Down) => {
-                        self.data.scroll = self.data.scroll.saturating_add(1)
-                    }
+                    (KeyModifiers::SHIFT, KeyCode::Up) => self.data.scroll_up(),
+                    (KeyModifiers::SHIFT, KeyCode::Down) => self.data.scroll_down(),
                     (KeyModifiers::NONE, KeyCode::Up) => {
                         self.data.scroll_history(HistoryDirection::Up, shell)?
                     }
@@ -555,6 +551,19 @@ impl<'a> ConsoleData<'a> {
         // Render the cursor
         let (cursor_x, cursor_y) = Self::cursor_coord(self.cursor_index, prompt_area);
         f.set_cursor(cursor_x, cursor_y);
+    }
+
+    // Scrolls down the output panel by one line
+    fn scroll_down(&mut self) {
+        let max_scroll = self.output_buffer.lines.len();
+        if self.scroll < max_scroll {
+            self.scroll = self.scroll.saturating_add(1);
+        }
+    }
+
+    // Scrolls up the output panel by one line
+    fn scroll_up(&mut self) {
+        self.scroll = self.scroll.saturating_sub(1);
     }
 
     // Automatically scrolls to the bottom of the output panel text
