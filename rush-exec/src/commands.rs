@@ -1,6 +1,8 @@
 use std::io::{BufRead, BufReader};
 use std::process::{Command as Process, Stdio};
-use std::sync::Mutex;
+use std::thread;
+use std::time::Duration;
+use std::sync::mpsc;
 
 use anyhow::Result;
 
@@ -84,6 +86,7 @@ impl Executable {
 
 impl Runnable for Executable {
     // * Executables do not have access to the shell state, but the context argument is required by the Runnable trait
+    // TODO: Remove as many .unwrap() calls as possible here
     fn run(&self, _shell: &mut Shell, console: &mut Console, arguments: Vec<&str>) -> Result<()> {
         // Create the Process, pass the provided arguments to it, and execute it
         let Ok(mut process) = Process::new(self.path.path())
@@ -95,31 +98,55 @@ impl Runnable for Executable {
             return Err(ExecutableError::PathNoLongerExists(self.path.path().clone()).into())
         };
 
-        let stdout = process.stdout.take().unwrap();
-        let stderr = process.stderr.take().unwrap();
+        // Create channels for communication between threads
+        let (tx_stdout, rx_stdout) = mpsc::channel();
+        let (tx_stderr, rx_stderr) = mpsc::channel();
 
-        // Concurrently display the stdout and stderr of the process to the console
-        // $ THIS DOES NOT WORK!!! (Temporary solution to make the code compile)
-        let console = Mutex::new(console);
-        std::thread::scope(|scope| {
-            scope.spawn(|| {
-                let lines = BufReader::new(stdout).lines();
-                for line in lines {
-                    console.lock().unwrap().println(&line.unwrap());
+        // Spawn a thread to read stdout
+        let stdout_thread = {
+            let stdout = process.stdout.take().unwrap();
+            thread::spawn(move || {
+                let reader = BufReader::new(stdout);
+                for line in reader.lines() {
+                    tx_stdout.send(line.unwrap()).unwrap();
                 }
-            });
+            })
+        };
 
-            scope.spawn(|| {
-                let lines = BufReader::new(stderr).lines();
-                for line in lines {
-                    console.lock().unwrap().println(&line.unwrap());
+        // Spawn a thread to read stderr
+        let stderr_thread = {
+            let stderr = process.stderr.take().unwrap();
+            thread::spawn(move || {
+                let reader = BufReader::new(stderr);
+                for line in reader.lines() {
+                    tx_stderr.send(line.unwrap()).unwrap();
                 }
-            });
-        });
+            })
+        };
 
-        // Wait for the process to finish
-        // TODO: There may be other types of errors that could happen, they may need handlers
-        let status = process.wait()?;
+        // Process the lines from stdout and stderr in the main thread
+        let mut stdout_done = false;
+        let mut stderr_done = false;
+
+        let timeout = Duration::from_millis(100);
+        while !stdout_done || !stderr_done {
+            if let Ok(line) = rx_stdout.recv_timeout(timeout) {
+                console.println(&line);
+            } else {
+                stdout_done = true;
+            }
+
+            if let Ok(line) = rx_stderr.recv_timeout(timeout) {
+                console.println(&line);
+            } else {
+                stderr_done = true;
+            }
+        }
+
+        stdout_thread.join().unwrap();
+        stderr_thread.join().unwrap();
+
+        let status = process.wait().expect("Failed to wait on child process");
 
         match status.success() {
             true => Ok(()),
