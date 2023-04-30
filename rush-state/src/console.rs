@@ -192,7 +192,7 @@ impl<'a> Console<'a> {
                 ReplAction::RedrawFrame => {
                     self.data.update_autocomplete(shell);
                     self.data.update_debug(shell);
-                    self.draw_frame(false)?;
+                    self.draw_frame(true)?;
                 }
                 ReplAction::Ignore => (),
             }

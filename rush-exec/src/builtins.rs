@@ -192,8 +192,7 @@ pub fn read_file(_shell: &mut Shell, console: &mut Console, args: Vec<&str>) -> 
     Ok(())
 }
 
-pub fn run_executable(shell: &mut Shell, console: &mut Console, args: Vec<&str>) -> Result<()> {
-    check_args(&args, 1, "run-executable <path>", console)?;
+pub fn run_executable(shell: &mut Shell, console: &mut Console, mut args: Vec<&str>) -> Result<()> {
     let executable_name = args[0].to_string();
     let executable_path = Path::from_str(&executable_name, shell.env().HOME()).map_err(|_| {
         console.println(&format!(
@@ -203,6 +202,9 @@ pub fn run_executable(shell: &mut Shell, console: &mut Console, args: Vec<&str>)
         BuiltinError::FailedToRun
     })?;
 
+    // * Executable name is removed before running the executable because the std::process::Command
+    // * process builder automatically adds the executable name as the first argument
+    args.remove(0);
     Executable::new(executable_path).run(shell, console, args)
 }
 
