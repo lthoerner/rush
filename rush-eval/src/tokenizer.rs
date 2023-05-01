@@ -3,7 +3,7 @@ use crate::symbols::{
     WHITESPACE,
 };
 
-pub fn tokenize(input: &String) -> Vec<String> {
+pub fn tokenize(input: &str) -> Vec<String> {
     let symbols = Symbols::new();
 
     let mut curr_token = String::new();
@@ -130,7 +130,7 @@ pub fn tokenize(input: &String) -> Vec<String> {
         }
     }
 
-    return tokens;
+    tokens
 }
 
 fn delimit_token(tokens: &mut Vec<String>, curr_token: &mut String) {
