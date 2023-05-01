@@ -15,6 +15,7 @@ use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Span, Spans, Text};
 use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
 use ratatui::{Frame, Terminal};
+use ansi_to_tui::IntoText;
 
 use crate::shell::Shell;
 
@@ -192,7 +193,7 @@ impl<'a> Console<'a> {
                 ReplAction::RedrawFrame => {
                     self.data.update_autocomplete(shell);
                     self.data.update_debug(shell);
-                    self.draw_frame(true)?;
+                    self.draw_frame(false)?;
                 }
                 ReplAction::Ignore => (),
             }

@@ -10,5 +10,6 @@ thiserror.workspace = true
 anyhow.workspace = true
 crossterm.workspace = true
 ratatui.workspace = true
+ansi-to-tui.workspace = true
 fs-err.workspace = true
 bitflags.workspace = true
