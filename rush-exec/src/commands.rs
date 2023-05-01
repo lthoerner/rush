@@ -146,7 +146,8 @@ impl Runnable for Executable {
         stdout_thread.join().unwrap();
         stderr_thread.join().unwrap();
 
-        let status = process.wait().expect("Failed to wait on child process");
+        // This can only fail with ECHILD (see waitpid), which Rust doesn't expose
+        let status = process.wait().map_err(ExecutableError::unexpected)?;
 
         match status.success() {
             true => Ok(()),

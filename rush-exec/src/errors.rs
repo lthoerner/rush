@@ -69,4 +69,13 @@ pub enum ExecutableError {
     PathNoLongerExists(PathBuf),
     #[error("Executable failed with exit code: {0}")]
     FailedToExecute(isize),
+    /// This variant is a fallthrough, and you should generally prefer a more specific/human-readable error
+    #[error("{0}")]
+    OtherIoError(#[from] IoError),
+}
+
+impl ExecutableError {
+    pub fn unexpected(source: io::Error) -> Self {
+        Self::OtherIoError(source.into())
+    }
 }
