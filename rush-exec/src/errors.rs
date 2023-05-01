@@ -1,3 +1,4 @@
+use std::io::ErrorKind;
 use std::path::PathBuf;
 use std::{fmt, io};
 
@@ -42,13 +43,23 @@ pub enum BuiltinError {
     FailedReadingFileName(PathBuf),
     #[error("Unable to read dir: {0}")]
     FailedReadingDir(PathBuf),
+    #[error("Could not find file.")]
+    FileNotFound,
+    #[error("Insufficient permissions to read file.")]
+    NoReadPermissions,
+    /// This variant is a fallthrough, and you should generally prefer a more specific/human-readable error
     #[error("{0}")]
-    IoError(#[from] IoError),
+    OtherIoError(#[from] IoError),
 }
 
-impl From<io::Error> for BuiltinError {
-    fn from(source: io::Error) -> Self {
-        Self::IoError(source.into())
+impl BuiltinError {
+    pub fn read_file(source: io::Error) -> Self {
+        match source.kind() {
+            // unstable: ErrorKind::IsADirectory => Self::OtherIoError(source.into()),
+            ErrorKind::NotFound => Self::FileNotFound,
+            ErrorKind::PermissionDenied => Self::NoReadPermissions,
+            _ => Self::OtherIoError(source.into()),
+        }
     }
 }
 
