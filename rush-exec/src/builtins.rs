@@ -178,14 +178,11 @@ pub fn delete_file(_shell: &mut Shell, console: &mut Console, args: Vec<&str>) -
 pub fn read_file(_shell: &mut Shell, console: &mut Console, args: Vec<&str>) -> Result<()> {
     check_args(&args, 1, "read-file <path>", console)?;
     let file_name = args[0].to_string();
-    let file = fs_err::File::open(&file_name).map_err(|_| {
-        console.println(&format!("Failed to open file: '{}'", file_name));
-        BuiltinError::FailedToRun
-    })?;
+    let file = fs_err::File::open(&file_name).map_err(BuiltinError::from)?;
 
     let reader = BufReader::new(file);
     for line in reader.lines() {
-        let line = line.expect("Failed to read line");
+        let line = line.map_err(BuiltinError::from)?;
         console.println(&line);
     }
 
