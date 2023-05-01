@@ -61,6 +61,15 @@ pub struct Console<'a> {
     data: ConsoleData<'a>,
 }
 
+#[derive(Debug)]
+struct History {
+    // The history index stored when the user is scrolling through the command history
+    index: usize,
+    // If the user is scrolling through the command history, this stores the original line buffer and cursor position so they can be restored if needed
+    line_buffer: String,
+    cursor_index: usize,
+}
+
 // Represents all data stored in the TUI console, excluding the Terminal
 // * This is done because most methods do not need to access the Console.terminal and it can cause issues with borrowing
 struct ConsoleData<'a> {
@@ -82,10 +91,8 @@ struct ConsoleData<'a> {
     cursor_index: usize,
     // If the line buffer can autocomplete to a command from the history, this stores the characters that will be added if the user presses TAB
     autocomplete_buffer: Option<String>,
-    // If the user is scrolling through the command history, this stores the original line buffer and cursor position so they can be restored if needed
-    history_buffer: Option<(String, usize)>,
-    // The history index stored when the user is scrolling through the command history
-    history_index: Option<usize>,
+    // Information to be stored while the user is looking through history
+    history: Option<History>,
     // The number of lines that have been scrolled down in the output panel
     scroll: usize,
     // Whether or not to show the debug panel
@@ -155,8 +162,7 @@ impl<'a> Console<'a> {
                     self.data.reset_line_buffer();
 
                     // Clear the history buffer and index
-                    self.data.history_buffer = None;
-                    self.data.history_index = None;
+                    self.data.history = None;
 
                     // Clear the autocomplete buffer
                     self.data.autocomplete_buffer = None;
@@ -302,8 +308,7 @@ impl<'a> ConsoleData<'a> {
             debug_buffer: Text::default(),
             cursor_index: 0,
             autocomplete_buffer: None,
-            history_buffer: None,
-            history_index: None,
+            history: None,
             scroll: 0,
             debug_mode: false,
         }
@@ -403,8 +408,7 @@ impl<'a> ConsoleData<'a> {
         let cursor_index = get_spans("CURSOR INDEX:", Box::new(&self.cursor_index));
         let autocomplete_buffer =
             get_spans("AUTOCOMPLETE BUFFER:", Box::new(&self.autocomplete_buffer));
-        let history_buffer = get_spans("HISTORY BUFFER:", Box::new(&self.history_buffer));
-        let history_index = get_spans("HISTORY INDEX:", Box::new(&self.history_index));
+        let history = get_spans("HISTORY:", Box::new(&self.history));
         let output_buffer_length = get_spans(
             "OUTPUT BUFFER LENGTH:",
             Box::new(&self.output_buffer.lines.len()),
@@ -426,8 +430,7 @@ impl<'a> ConsoleData<'a> {
             line_buffer,
             cursor_index,
             autocomplete_buffer,
-            history_buffer,
-            history_index,
+            history,
             output_buffer_length,
             scroll,
             Spans::default(),
@@ -594,33 +597,31 @@ impl<'a> ConsoleData<'a> {
         let history_len = history.len();
         let history_last_index = history_len - 1;
 
-        match self.history_index {
+        match &mut self.history {
             // If the user is already scrolling through the history, move the index in the appropriate direction
             // If they attempt to scroll past the end of the history, restore the original line buffer
-            Some(index) => {
+            Some(History {
+                index,
+                line_buffer,
+                cursor_index,
+            }) => {
                 match direction {
                     Up => {
                         // Prevent the user from scrolling out of bounds
                         let new_index = index.saturating_sub(1);
-                        self.history_index = Some(new_index);
+                        *index = new_index;
                         self.cursor_index = history_get(new_index).len();
                     }
                     Down => {
                         // If the user scrolls back past the start of the history, restore the original line buffer
                         // Otherwise, keep scrolling down as normal
-                        if index == history_last_index {
-                            // TODO: Change this to an actual error
-                            let history_buffer = self
-                                .history_buffer
-                                .take()
-                                .expect("History buffer was not found when it should exist");
-                            self.line_buffer = history_buffer.0;
-                            self.cursor_index = history_buffer.1;
-                            self.history_buffer = None;
-                            self.history_index = None;
+                        if *index == history_last_index {
+                            std::mem::swap(&mut self.line_buffer, line_buffer);
+                            self.cursor_index = *cursor_index;
+                            self.history = None;
                         } else {
-                            let new_index = index + 1;
-                            self.history_index = Some(new_index);
+                            let new_index = *index + 1;
+                            *index = new_index;
                             self.cursor_index = history_get(new_index).len();
                         }
                     }
@@ -633,9 +634,11 @@ impl<'a> ConsoleData<'a> {
                     Up => {
                         // * Bounds check is not needed in this case because it is guaranteed that history
                         // * contains at least one element due to the .is_empty() check
-                        self.history_index = Some(history_last_index);
-                        self.history_buffer = Some((self.line_buffer.clone(), self.cursor_index));
-                        self.cursor_index = history_get(history_last_index).len();
+                        self.history = Some(History {
+                            index: history_last_index,
+                            line_buffer: self.line_buffer.clone(),
+                            cursor_index: self.cursor_index,
+                        });
                     }
                     Down => return Ok(()),
                 }
@@ -643,7 +646,7 @@ impl<'a> ConsoleData<'a> {
         }
 
         // TODO: Change this to an actual error
-        if let Some(index) = self.history_index {
+        if let Some(History { index, .. }) = self.history {
             self.line_buffer = history_get(index).to_owned();
         }
 
