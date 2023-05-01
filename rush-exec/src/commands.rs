@@ -124,22 +124,45 @@ impl Runnable for Executable {
             })
         };
 
-        // Process the lines from stdout and stderr in the main thread
+        let read_timeout = Duration::from_millis(100);
+        let sleep_timeout = Duration::from_millis(10);
+
         let mut stdout_done = false;
         let mut stderr_done = false;
+        let mut process_done = false;
 
-        let timeout = Duration::from_millis(1000);
-        while !stdout_done || !stderr_done {
-            if let Ok(line) = rx_stdout.recv_timeout(timeout) {
+        while !stdout_done || !stderr_done || !process_done {
+            if let Ok(line) = rx_stdout.recv_timeout(read_timeout) {
                 console.println(&line);
             } else {
                 stdout_done = true;
             }
 
-            if let Ok(line) = rx_stderr.recv_timeout(timeout) {
+            if let Ok(line) = rx_stderr.recv_timeout(read_timeout) {
                 console.println(&line);
             } else {
                 stderr_done = true;
+            }
+
+            if !process_done {
+                match process.try_wait() {
+                    Ok(Some(_)) => {
+                        process_done = true;
+                        // Set these to false so we do at least one more check on both - since the
+                        // program may terminate and not have had anything printed recently.
+                        stdout_done = false;
+                        stderr_done = false;
+                    }
+                    Ok(None) => {
+                        // Child process is still running
+                        // Add a small sleep to prevent high CPU usage in the loop
+                        thread::sleep(sleep_timeout);
+                    }
+                    Err(e) => {
+                        eprintln!("Error while waiting for child process: {}", e);
+                        break;
+                    }
+                }
             }
         }
 
