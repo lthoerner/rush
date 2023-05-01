@@ -15,7 +15,6 @@ use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Span, Spans, Text};
 use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
 use ratatui::{Frame, Terminal};
-use ansi_to_tui::IntoText;
 
 use crate::shell::Shell;
 
@@ -128,7 +127,8 @@ impl<'a> Console<'a> {
             cursor::MoveTo(0, 0),
             cursor::Show,
             Clear(ClearType::All)
-        ).unwrap();
+        )
+        .unwrap();
 
         std::process::exit(code);
     }
@@ -209,13 +209,19 @@ impl<'a> Console<'a> {
                     (KeyModifiers::NONE | KeyModifiers::SHIFT, KeyCode::Char(c)) => {
                         self.data.insert_char(c)
                     }
-                    (KeyModifiers::NONE, KeyCode::Backspace) => self.data.remove_char(RemoveMode::Backspace),
-                    (KeyModifiers::NONE, KeyCode::Delete) => self.data.remove_char(RemoveMode::Delete),
+                    (KeyModifiers::NONE, KeyCode::Backspace) => {
+                        self.data.remove_char(RemoveMode::Backspace)
+                    }
+                    (KeyModifiers::NONE, KeyCode::Delete) => {
+                        self.data.remove_char(RemoveMode::Delete)
+                    }
                     (KeyModifiers::NONE, KeyCode::Left) => self.data.move_cursor_left(),
                     (KeyModifiers::NONE, KeyCode::Right) => self.data.move_cursor_right(),
                     (KeyModifiers::ALT, KeyCode::Left) => self.data.seek_cursor_left(),
                     (KeyModifiers::ALT, KeyCode::Right) => self.data.seek_cursor_right(),
-                    (KeyModifiers::NONE, KeyCode::Enter) if !self.data.line_buffer.is_empty() => return Ok(ReplAction::Return),
+                    (KeyModifiers::NONE, KeyCode::Enter) if !self.data.line_buffer.is_empty() => {
+                        return Ok(ReplAction::Return)
+                    }
                     (KeyModifiers::SHIFT, KeyCode::Up) => self.data.scroll_up(),
                     (KeyModifiers::SHIFT, KeyCode::Down) => self.data.scroll_down(),
                     (KeyModifiers::NONE, KeyCode::Up) => {
@@ -392,35 +398,29 @@ impl<'a> ConsoleData<'a> {
         let key_style = Style::default().add_modifier(Modifier::BOLD);
         let value_style = Style::default().fg(Color::LightGreen);
 
-        let get_spans = |key, value: Box<&dyn Debug>| {
+        let get_spans = |key, value: &dyn Debug| {
             Spans::from(vec![
                 Span::styled(key, key_style),
                 Span::styled(format!(" {:?}", value), value_style),
             ])
         };
 
-        let line_buffer = get_spans("LINE BUFFER:", Box::new(&self.line_buffer));
-        let cursor_index = get_spans("CURSOR INDEX:", Box::new(&self.cursor_index));
-        let autocomplete_buffer =
-            get_spans("AUTOCOMPLETE BUFFER:", Box::new(&self.autocomplete_buffer));
-        let history_buffer = get_spans("HISTORY BUFFER:", Box::new(&self.history_buffer));
-        let history_index = get_spans("HISTORY INDEX:", Box::new(&self.history_index));
-        let output_buffer_length = get_spans(
-            "OUTPUT BUFFER LENGTH:",
-            Box::new(&self.output_buffer.lines.len()),
-        );
-        let scroll = get_spans("SCROLL:", Box::new(&self.scroll));
+        let line_buffer = get_spans("LINE BUFFER:", &self.line_buffer);
+        let cursor_index = get_spans("CURSOR INDEX:", &self.cursor_index);
+        let autocomplete_buffer = get_spans("AUTOCOMPLETE BUFFER:", &self.autocomplete_buffer);
+        let history_buffer = get_spans("HISTORY BUFFER:", &self.history_buffer);
+        let history_index = get_spans("HISTORY INDEX:", &self.history_index);
+        let output_buffer_length =
+            get_spans("OUTPUT BUFFER LENGTH:", &self.output_buffer.lines.len());
+        let scroll = get_spans("SCROLL:", &self.scroll);
 
-        let truncation = get_spans(
-            "PROMPT TRUNCATION:",
-            Box::new(&shell.config().truncation_factor),
-        );
-        let history_limit = get_spans("HISTORY LIMIT:", Box::new(&shell.config().history_limit));
-        let show_errors = get_spans("SHOW ERRORS:", Box::new(&shell.config().show_errors));
+        let truncation = get_spans("PROMPT TRUNCATION:", &shell.config().truncation_factor);
+        let history_limit = get_spans("HISTORY LIMIT:", &shell.config().history_limit);
+        let show_errors = get_spans("SHOW ERRORS:", &shell.config().show_errors);
 
-        let user = get_spans("USER:", Box::new(&shell.env().USER()));
-        let home = get_spans("HOME:", Box::new(&shell.env().HOME()));
-        let cwd = get_spans("CWD:", Box::new(&shell.env().CWD()));
+        let user = get_spans("USER:", &shell.env().USER());
+        let home = get_spans("HOME:", &shell.env().HOME());
+        let cwd = get_spans("CWD:", &shell.env().CWD());
 
         self.debug_buffer = Text::from(vec![
             line_buffer,
@@ -712,15 +712,19 @@ impl<'a> ConsoleData<'a> {
         if index == 0 || index == buffer.len() {
             return true;
         }
-        
+
         if !buffer.is_char_boundary(index) {
             return false;
         }
-        
-        if buffer[index..].chars().next().map_or(false, |c| !c.is_whitespace()) {
+
+        if buffer[index..]
+            .chars()
+            .next()
+            .map_or(false, |c| !c.is_whitespace())
+        {
             return false;
         }
-        
+
         if let Some(c) = buffer[..index].chars().next_back() {
             if c != ' ' {
                 return true;
@@ -802,7 +806,7 @@ impl<'a> ConsoleData<'a> {
     // Autocompletes the line buffer
     fn autocomplete_line(&mut self) {
         if let Some(autocompletion) = &self.autocomplete_buffer {
-            self.line_buffer.push_str(&autocompletion);
+            self.line_buffer.push_str(autocompletion);
             self.cursor_index = self.line_buffer.len();
             self.autocomplete_buffer = None;
         }
