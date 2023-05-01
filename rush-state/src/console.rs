@@ -208,17 +208,13 @@ impl<'a> Console<'a> {
                     (KeyModifiers::NONE | KeyModifiers::SHIFT, KeyCode::Char(c)) => {
                         self.data.insert_char(c)
                     }
-                    (KeyModifiers::NONE, KeyCode::Backspace) => {
-                        self.data.remove_char(RemoveMode::Backspace)
-                    }
-                    (KeyModifiers::NONE, KeyCode::Delete) => {
-                        self.data.remove_char(RemoveMode::Delete)
-                    }
+                    (KeyModifiers::NONE, KeyCode::Backspace) => self.data.remove_char(RemoveMode::Backspace),
+                    (KeyModifiers::NONE, KeyCode::Delete) => self.data.remove_char(RemoveMode::Delete),
                     (KeyModifiers::NONE, KeyCode::Left) => self.data.move_cursor_left(),
                     (KeyModifiers::NONE, KeyCode::Right) => self.data.move_cursor_right(),
-                    (KeyModifiers::NONE, KeyCode::Enter) if !self.data.line_buffer.is_empty() => {
-                        return Ok(ReplAction::Return)
-                    }
+                    (KeyModifiers::ALT, KeyCode::Left) => self.data.seek_cursor_left(),
+                    (KeyModifiers::ALT, KeyCode::Right) => self.data.seek_cursor_right(),
+                    (KeyModifiers::NONE, KeyCode::Enter) if !self.data.line_buffer.is_empty() => return Ok(ReplAction::Return),
                     (KeyModifiers::SHIFT, KeyCode::Up) => self.data.scroll_up(),
                     (KeyModifiers::SHIFT, KeyCode::Down) => self.data.scroll_down(),
                     (KeyModifiers::NONE, KeyCode::Up) => {
@@ -679,9 +675,7 @@ impl<'a> ConsoleData<'a> {
 
     // Moves the cursor left by one character, checking for bounds
     fn move_cursor_left(&mut self) {
-        if self.cursor_index > 0 {
-            self.cursor_index -= 1;
-        }
+        self.cursor_index = self.cursor_index.saturating_sub(1);
     }
 
     // Moves the cursor right by one character, checking for bounds
@@ -689,6 +683,50 @@ impl<'a> ConsoleData<'a> {
         if self.cursor_index < self.line_buffer.len() {
             self.cursor_index += 1;
         }
+    }
+
+    // Moves the cursor left by one word, checking for bounds
+    fn seek_cursor_left(&mut self) {
+        for i in (0..self.cursor_index).rev() {
+            if self.is_word_boundary(i) {
+                self.cursor_index = i;
+                return;
+            }
+        }
+    }
+
+    // Moves the cursor right by one word, checking for bounds
+    fn seek_cursor_right(&mut self) {
+        for i in (self.cursor_index..=self.line_buffer.len()).skip(1) {
+            if self.is_word_boundary(i) {
+                self.cursor_index = i;
+                return;
+            }
+        }
+    }
+
+    // Checks if the given index in the line buffer is a word boundary
+    fn is_word_boundary(&self, index: usize) -> bool {
+        let buffer = &self.line_buffer;
+        if index == 0 || index == buffer.len() {
+            return true;
+        }
+        
+        if !buffer.is_char_boundary(index) {
+            return false;
+        }
+        
+        if buffer[index..].chars().next().map_or(false, |c| !c.is_whitespace()) {
+            return false;
+        }
+        
+        if let Some(c) = buffer[..index].chars().next_back() {
+            if c != ' ' {
+                return true;
+            }
+        }
+
+        false
     }
 
     // Clears the line buffer and resets the cursor position
