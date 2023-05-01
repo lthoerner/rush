@@ -616,7 +616,7 @@ impl<'a> ConsoleData<'a> {
                         // If the user scrolls back past the start of the history, restore the original line buffer
                         // Otherwise, keep scrolling down as normal
                         if *index == history_last_index {
-                            std::mem::swap(&mut self.line_buffer, line_buffer);
+                            self.line_buffer = std::mem::take(line_buffer);
                             self.cursor_index = *cursor_index;
                             self.history = None;
                         } else {
@@ -639,6 +639,7 @@ impl<'a> ConsoleData<'a> {
                             line_buffer: self.line_buffer.clone(),
                             cursor_index: self.cursor_index,
                         });
+                        self.cursor_index = history_get(history_last_index).len();
                     }
                     Down => return Ok(()),
                 }
