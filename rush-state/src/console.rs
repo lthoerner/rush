@@ -295,7 +295,7 @@ impl<'a> Console<'a> {
 #[macro_export]
 macro_rules! show {
     ($console:expr, $($arg:tt)*) => {
-        $console.print(&format!($($arg)*))
+        $console.print(&::std::format!($($arg)*))
     };
 }
 
@@ -306,7 +306,7 @@ macro_rules! showln {
     };
 
     ($console:expr, $($arg:tt)*) => {
-        $console.println(&format!($($arg)*))
+        $console.println(&::std::format!($($arg)*))
     };
 }
 
