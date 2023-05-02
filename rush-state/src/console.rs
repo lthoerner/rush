@@ -280,6 +280,7 @@ impl<'a> Console<'a> {
     // Prints a line of text to the console
     // TODO: Probably make this a macro in the future, but for now just make it use &str or String
     // TODO: Make lazy execution version of this, or a lazy execution mode
+    //? This function should be now private because of the `std::fmt::Write` impl? to discuss.
     pub fn println(&mut self, text: &str) {
         self.data.append_str_newline(text);
         _ = self.draw_frame(true)
