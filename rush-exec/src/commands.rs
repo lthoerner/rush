@@ -1,8 +1,8 @@
 use std::io::{BufRead, BufReader};
 use std::process::{Command as Process, Stdio};
+use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
-use std::sync::mpsc;
 
 use anyhow::Result;
 

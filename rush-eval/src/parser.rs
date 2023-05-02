@@ -27,7 +27,7 @@ pub fn parse(input: &String) -> Vec<(String, VecDeque<String>)> {
         commands.push((vec_token.pop_front().unwrap(), vec_token))
     }
 
-    return commands;
+    commands
 }
 
 #[cfg(test)]
