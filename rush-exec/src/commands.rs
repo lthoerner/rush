@@ -1,3 +1,4 @@
+use std::fmt::Write;
 use std::io::{BufRead, BufReader};
 use std::process::{Command as Process, Stdio};
 use std::sync::mpsc;
@@ -133,13 +134,13 @@ impl Runnable for Executable {
 
         while !stdout_done || !stderr_done || !process_done {
             if let Ok(line) = rx_stdout.recv_timeout(read_timeout) {
-                console.println(&line);
+                console.write_str(line.as_str()).unwrap();
             } else {
                 stdout_done = true;
             }
 
             if let Ok(line) = rx_stderr.recv_timeout(read_timeout) {
-                console.println(&line);
+                console.write_str(line.as_str()).unwrap();
             } else {
                 stderr_done = true;
             }

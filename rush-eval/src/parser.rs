@@ -1,7 +1,7 @@
 use crate::tokenizer::tokenize;
 use std::collections::VecDeque;
 
-pub fn parse(input: &String) -> Vec<(String, VecDeque<String>)> {
+pub fn parse(input: &str) -> Vec<(String, VecDeque<String>)> {
     let tokens_binding = tokenize(input);
     let mut tokens = tokens_binding.iter().peekable();
 
@@ -53,7 +53,7 @@ mod tests {
         assert_eq!(first_command_args, &String::from("-a"));
 
         assert_eq!(second_command, &String::from("ls"));
-        assert_eq!(second_command_args, true);
+        assert!(second_command_args);
     }
 
     #[test]

@@ -28,7 +28,7 @@ pub enum ShellError {
 #[derive(Error, Debug)]
 pub enum PathError {
     #[error("Failed to convert PathBuf to String: {0}")]
-    FailedToConvertPathBufToString(PathBuf),
+    FailedPathBufConversion(PathBuf),
     #[error("Failed to canonicalize directory path: {0}")]
     FailedToCanonicalize(PathBuf),
     #[error("Failed to access directory path: {0}")]

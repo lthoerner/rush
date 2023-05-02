@@ -1,7 +1,7 @@
 use fs_err::canonicalize;
 use std::collections::VecDeque;
 use std::fmt::{Display, Formatter};
-use std::path::PathBuf;
+use std::path::{Path as FsPath, PathBuf};
 
 use anyhow::Result;
 
@@ -109,17 +109,17 @@ impl Path {
 }
 
 // Expands the home directory shorthand in a path string
-fn expand_home(path: &PathBuf, home_directory: &PathBuf) -> Result<String> {
+fn expand_home(path: &FsPath, home_directory: &FsPath) -> Result<String> {
     let path = path
         .to_str()
-        .ok_or(PathError::FailedToConvertPathBufToString(path.clone()))?;
+        .ok_or(PathError::FailedPathBufConversion(path.to_path_buf()))?;
     if path.starts_with('~') {
         Ok(path.replace(
             '~',
             home_directory
                 .to_str()
-                .ok_or(PathError::FailedToConvertPathBufToString(
-                    home_directory.clone(),
+                .ok_or(PathError::FailedPathBufConversion(
+                    home_directory.to_path_buf(),
                 ))?,
         ))
     } else {

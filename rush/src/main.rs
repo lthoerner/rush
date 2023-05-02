@@ -5,6 +5,8 @@ use rush_eval::errors::DispatchError;
 use rush_state::console::Console;
 use rush_state::shell::Shell;
 
+use std::fmt::Write;
+
 fn main() -> Result<()> {
     // The Shell type stores all of the state for the shell, including its configuration,
     // its environment, and other miscellaneous data like command history
@@ -34,12 +36,12 @@ fn handle_error(error: Result<()>, shell: &mut Shell, console: &mut Console) {
         Err(e) => {
             match e.downcast_ref::<DispatchError>() {
                 Some(DispatchError::UnknownCommand(command_name)) => {
-                    console.println(&format!("Unknown command: {}", command_name));
+                    writeln!(console, "Unknown command: {}", command_name).unwrap();
                 }
                 _ => {
                     if shell.config().show_errors {
                         // TODO: This is sort of a "magic" formatting string, it should be changed to a method or something
-                        console.println(&format!("Error: {:#?}: {}", e, e));
+                        writeln!(console, "Error: {0:#?}: {0}", e).unwrap();
                     }
                 }
             }
