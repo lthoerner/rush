@@ -292,6 +292,14 @@ impl<'a> Console<'a> {
     }
 }
 
+impl std::fmt::Write for Console<'_> {
+    fn write_str(&mut self, s: &str) -> std::fmt::Result {
+        self.print(s);
+
+        Ok(())
+    }
+}
+
 impl<'a> ConsoleData<'a> {
     fn new() -> Self {
         Self {
