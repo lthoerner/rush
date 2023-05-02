@@ -280,20 +280,18 @@ impl<'a> Console<'a> {
     // Prints a line of text to the console
     // TODO: Probably make this a macro in the future, but for now just make it use &str or String
     // TODO: Make lazy execution version of this, or a lazy execution mode
-    //? This function should be now private because of the `std::fmt::Write` impl? to discuss.
-    pub fn println(&mut self, text: &str) {
-        self.data.append_str_newline(text);
-        _ = self.draw_frame(true)
-    }
-
     // Prints a line of text to the console without a newline
+    #[deprecated]
     pub fn print(&mut self, text: &str) {
         self.data.append_str(text);
+
         _ = self.draw_frame(true)
     }
 }
 
 impl std::fmt::Write for Console<'_> {
+
+    #[allow(unused_results, deprecated)]
     fn write_str(&mut self, s: &str) -> std::fmt::Result {
         self.print(s);
 
@@ -778,12 +776,6 @@ impl<'a> ConsoleData<'a> {
         self.output_buffer.extend(spans)
     }
 
-    // Appends a string to the next line of the output buffer
-    fn append_str_newline(&mut self, string: &str) {
-        self.append_str(string);
-        self.append_newline()
-    }
-
     // Appends a Spans to the output buffer
     #[allow(dead_code)]
     fn append_spans(&mut self, spans: Spans<'a>) {
@@ -794,11 +786,6 @@ impl<'a> ConsoleData<'a> {
     fn append_spans_newline(&mut self, spans: Spans<'a>) {
         // TODO: Come up with a better name for this or merge it with append_newline() somehow
         self.output_buffer.lines.extend([spans, Spans::default()]);
-    }
-
-    // Appends a newline to the output buffer
-    fn append_newline(&mut self) {
-        self.output_buffer.lines.push(Spans::default());
     }
 
     // Ensures that there is an empty line at the end of the output buffer
