@@ -292,6 +292,24 @@ impl<'a> Console<'a> {
     }
 }
 
+#[macro_export]
+macro_rules! show {
+    ($console:expr, $($arg:tt)*) => {
+        $console.print(&format!($($arg)*))
+    };
+}
+
+#[macro_export]
+macro_rules! showln {
+    ($console:expr $(,)?) => {
+        $console.println("")
+    };
+
+    ($console:expr, $($arg:tt)*) => {
+        $console.println(&format!($($arg)*))
+    };
+}
+
 impl<'a> ConsoleData<'a> {
     fn new() -> Self {
         Self {

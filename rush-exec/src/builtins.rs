@@ -17,6 +17,7 @@ use anyhow::Result;
 
 use crate::builtin_arguments::ListDirectoryArguments;
 use rush_state::console::Console;
+use rush_state::showln;
 use rush_state::path::Path;
 use rush_state::shell::Shell;
 
@@ -305,7 +306,7 @@ fn check_args(
     if args.len() == expected_args {
         Ok(())
     } else {
-        console.println(&format!("Usage: {}", usage));
+        showln!(console, "Usage: {}", usage);
         Err(BuiltinError::InvalidArgumentCount(args.len()).into())
     }
 }
