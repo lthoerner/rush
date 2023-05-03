@@ -2,7 +2,7 @@ use anyhow::Result;
 
 use rush_eval::dispatcher::Dispatcher;
 use rush_eval::errors::DispatchError;
-use rush_state::console::Console;
+use rush_state::console::{Console, restore_terminal};
 use rush_state::shell::Shell;
 
 fn main() -> Result<()> {
@@ -12,6 +12,11 @@ fn main() -> Result<()> {
     // The Console type is responsible for reading and writing to the terminal (TUI),
     // and providing an interface for any commands that need to produce output and/or take input
     let mut console = Console::new()?;
+    let default_panic = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        restore_terminal();
+        default_panic(info);
+    }));
     // The Dispatcher type is responsible for resolving command names to actual function calls,
     // or executables if needed, and then invoking them with the given arguments
     let dispatcher = Dispatcher::default();
