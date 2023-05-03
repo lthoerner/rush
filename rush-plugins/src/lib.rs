@@ -5,26 +5,32 @@ use std::path::Path;
 
 pub mod plugin;
 
-#[derive(Default)]
 pub struct PluginRegistry<'a> {
     pub plugins: Vec<plugin::RushPlugin<'a>>,
-    pub context: Context,
+    pub context: &'a Context,
 }
 
 impl<'a> PluginRegistry<'a> {
+    pub fn new(plugin_context: &'a Context) -> Self {
+        Self {
+            context: plugin_context,
+            plugins: Vec::new(),
+        }
+    }
+
     pub fn load_file(
-        &'a mut self,
+        &mut self,
         path: &Path,
         init_params: &InitHookParams,
     ) -> Result<(), plugin::RushPluginError> {
-        let mut plugin = plugin::RushPlugin::new(path, &self.context)?;
+        let mut plugin = plugin::RushPlugin::new(path, self.context)?;
         plugin.init(init_params)?;
         self.plugins.push(plugin);
         Ok(())
     }
 
     pub fn load(
-        &'a mut self,
+        &mut self,
         path: &Path,
         init_params: &InitHookParams,
     ) -> Result<(), plugin::RushPluginError> {
@@ -32,15 +38,15 @@ impl<'a> PluginRegistry<'a> {
             self.load_file(path, init_params)?;
         } else {
             let path_display = path.display().to_string();
-
-            for entry in path.read_dir().context(plugin::IoSnafu {
+            let subitems = path.read_dir().context(plugin::IoSnafu {
                 name: &path_display,
-            })? {
+            })?;
+
+            for entry in subitems {
                 let entry = entry.context(plugin::IoSnafu {
                     name: &path_display,
                 })?;
-                let path = entry.path();
-                self.load(&path, init_params)?;
+                self.load(&entry.path(), init_params)?;
             }
         }
 
@@ -53,8 +59,17 @@ mod tests {
     use super::*;
 
     #[test]
-    fn it_works() {
-        //let result = add(2, 2);
-        //assert_eq!(result, 4);
+    fn load_example_plugin() {
+        let plugin_ctx = Context::new();
+        let mut registry = PluginRegistry::new(&plugin_ctx);
+
+        registry
+            .load(
+                Path::new("./example/target/wasm32-wasi/release/example.wasm"),
+                &InitHookParams {
+                    rush_version: "v1".to_string(),
+                },
+            )
+            .unwrap();
     }
 }

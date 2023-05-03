@@ -1,0 +1,13 @@
+[package]
+name = "example"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate_type = ["cdylib"]
+
+[workspace]
+
+[dependencies]
+extism-pdk = "0.3.1"
+rush-plugins-api = { version = "0.1.0", path = "../../rush-plugins-api" }
