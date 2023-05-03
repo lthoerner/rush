@@ -9,6 +9,7 @@ use anyhow::Result;
 use rush_state::console::Console;
 use rush_state::path::Path;
 use rush_state::shell::Shell;
+use rush_state::showln;
 
 use crate::errors::ExecutableError;
 
@@ -133,13 +134,13 @@ impl Runnable for Executable {
 
         while !stdout_done || !stderr_done || !process_done {
             if let Ok(line) = rx_stdout.recv_timeout(read_timeout) {
-                console.println(&line);
+                showln!(console, "{}", &line);
             } else {
                 stdout_done = true;
             }
 
             if let Ok(line) = rx_stderr.recv_timeout(read_timeout) {
-                console.println(&line);
+                showln!(console, "{}", &line);
             } else {
                 stderr_done = true;
             }
