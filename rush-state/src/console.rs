@@ -19,6 +19,25 @@ use ratatui::{Frame, Terminal};
 
 use crate::shell::Shell;
 
+// Macros for printing to the TUI console
+#[macro_export]
+macro_rules! show {
+    ($console:expr, $($arg:tt)*) => {
+        $console.print(&::std::format!($($arg)*))
+    };
+}
+
+#[macro_export]
+macro_rules! showln {
+    ($console:expr $(,)?) => {
+        $console.println("")
+    };
+
+    ($console:expr, $($arg:tt)*) => {
+        $console.println(&::std::format!($($arg)*))
+    };
+}
+
 // Represents an action that the handler instructs the REPL (Console.read_line()) to perform
 // Allows for some actions to be performed in the handler and some to be performed in the REPL
 enum ReplAction {
