@@ -1,15 +1,12 @@
 use api::InitHookParams;
-use extism::{Context, Function, Plugin, ValType};
+use extism::{Context, Plugin};
 use rush_plugins_api as api;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use snafu::{ResultExt, Snafu};
-use std::{
-    fmt::Debug,
-    fs,
-    path::{Path, PathBuf},
-};
+use std::{fmt::Debug, fs, path::Path};
 
 #[derive(Debug, Snafu)]
+#[snafu(visibility(pub(crate)))]
 pub enum RushPluginError {
     #[snafu(display("invalid plugin format ({name}): {source}"))]
     Extism { source: extism::Error, name: String },
@@ -82,7 +79,7 @@ impl<'a> RushPlugin<'a> {
         &mut self,
         hook: &str,
         data: &impl Serialize,
-    ) -> Result<Option<impl Deserialize>, extism::Error> {
+    ) -> Result<Option<impl Deserialize>, RushPluginError> {
         if self.instance.has_function(hook) {
             Ok(Some(self.call_hook(hook, data)?))
         } else {
@@ -91,7 +88,7 @@ impl<'a> RushPlugin<'a> {
     }
 
     /// Perform any initialization required by the plugin implementation.
-    pub fn init(&mut self, params: &InitHookParams) -> Result<(), extism::Error> {
+    pub fn init(&mut self, params: &InitHookParams) -> Result<(), RushPluginError> {
         self.call_hook_if_exists("rush_plugin_init", params)?;
         Ok(())
     }
