@@ -1,5 +1,6 @@
 use std::fmt::Debug;
 use std::io::{stdout, Stdout};
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use anyhow::Result;
 use bitflags::bitflags;
@@ -17,6 +18,25 @@ use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
 use ratatui::{Frame, Terminal};
 
 use crate::shell::Shell;
+
+// Macros for printing to the TUI console
+#[macro_export]
+macro_rules! show {
+    ($console:expr, $($arg:tt)*) => {
+        $console.print(&::std::format!($($arg)*))
+    };
+}
+
+#[macro_export]
+macro_rules! showln {
+    ($console:expr $(,)?) => {
+        $console.println("")
+    };
+
+    ($console:expr, $($arg:tt)*) => {
+        $console.println(&::std::format!($($arg)*))
+    };
+}
 
 // Represents an action that the handler instructs the REPL (Console.read_line()) to perform
 // Allows for some actions to be performed in the handler and some to be performed in the REPL
@@ -91,6 +111,23 @@ struct ConsoleData<'a> {
     debug_mode: bool,
 }
 
+pub static RAW_MODE: AtomicBool = AtomicBool::new(false);
+pub fn restore_terminal() {
+    if !RAW_MODE.load(Ordering::Acquire) {
+        return;
+    }
+    disable_raw_mode().unwrap();
+    execute!(
+        stdout(),
+        LeaveAlternateScreen,
+        cursor::MoveTo(0, 0),
+        cursor::Show,
+        Clear(ClearType::All)
+    )
+    .unwrap();
+    RAW_MODE.store(false, Ordering::Release);
+}
+
 impl<'a> Console<'a> {
     pub fn new() -> Result<Self> {
         let backend = CrosstermBackend::new(stdout());
@@ -113,6 +150,7 @@ impl<'a> Console<'a> {
         )?;
         self.terminal.show_cursor()?;
 
+        RAW_MODE.store(true, Ordering::Release);
         self.clear(ClearMode::RESET_LINE)
     }
 
@@ -120,16 +158,8 @@ impl<'a> Console<'a> {
     // * Error handling here is unnecessary because the program is exiting
     // TODO: This assumption may need to be reevaluated in the future
     pub fn exit(&mut self, code: i32) {
-        disable_raw_mode().unwrap();
-        execute!(
-            self.terminal.backend_mut(),
-            LeaveAlternateScreen,
-            cursor::MoveTo(0, 0),
-            cursor::Show,
-            Clear(ClearType::All)
-        )
-        .unwrap();
-
+        restore_terminal();
+        // TODO: Exiting ignores drops, which may be problematic
         std::process::exit(code);
     }
 
@@ -292,22 +322,10 @@ impl<'a> Console<'a> {
     }
 }
 
-#[macro_export]
-macro_rules! show {
-    ($console:expr, $($arg:tt)*) => {
-        $console.print(&::std::format!($($arg)*))
-    };
-}
-
-#[macro_export]
-macro_rules! showln {
-    ($console:expr $(,)?) => {
-        $console.println("")
-    };
-
-    ($console:expr, $($arg:tt)*) => {
-        $console.println(&::std::format!($($arg)*))
-    };
+impl Drop for Console<'_> {
+    fn drop(&mut self) {
+        restore_terminal();
+    }
 }
 
 impl<'a> ConsoleData<'a> {
