@@ -1,9 +1,26 @@
+use crate::bindings::{self, OUTPUT_TEXT_FN};
 use api::InitHookParams;
-use extism::{Context, Plugin};
+use extism::{Context, CurrentPlugin, Function, Plugin, UserData, Val, ValType};
 use rush_plugins_api as api;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use snafu::{ResultExt, Snafu};
-use std::{fmt::Debug, fs, path::Path};
+use std::{
+    fmt::Debug,
+    fs,
+    path::Path,
+    sync::{Arc, Mutex},
+};
+
+/// Implementations of functions that plugins can use.
+pub trait HostBindings: Send {
+    fn output_text(&mut self, plugin: &mut CurrentPlugin, input: String) {}
+    /// Automatically called when a plugin misuses the bindings
+    fn emit_warning(&mut self, plugin_name: &str, warning: &str) {}
+}
+
+/// A struct implementing [`HostBindings`] with only no-op methods.
+pub struct NoOpHostBindings;
+impl HostBindings for NoOpHostBindings {}
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub(crate)))]
@@ -24,6 +41,7 @@ pub enum RushPluginError {
 
 pub struct RushPlugin<'a> {
     instance: extism::Plugin<'a>,
+    host_functions: Vec<Function>,
     name: String,
 }
 
@@ -34,8 +52,16 @@ impl<'a> RushPlugin<'a> {
         context: &'a Context,
         name: String,
     ) -> Result<Self, extism::Error> {
+        let output_text_fn = Function::new(
+            "output_text",
+            [ValType::I64],
+            [],
+            None,
+            bindings::output_text,
+        );
         Ok(RushPlugin {
-            instance: Plugin::new(context, bytes, [], true)?,
+            instance: Plugin::new(context, bytes, [&*OUTPUT_TEXT_FN], true)?,
+            host_functions: vec![output_text_fn],
             name,
         })
     }

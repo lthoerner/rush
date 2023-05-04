@@ -1,12 +1,19 @@
-use extism::Context;
-use rush_plugins_api::InitHookParams;
-use snafu::ResultExt;
-use std::path::Path;
-
+mod bindings;
 pub mod plugin;
 
+use extism::Context;
+use plugin::{HostBindings, IoSnafu, RushPlugin, RushPluginError};
+use rush_plugins_api::InitHookParams;
+use snafu::ResultExt;
+use std::{
+    path::Path,
+    sync::{Arc, Mutex},
+};
+
+pub use bindings::HOST_BINDINGS;
+
 pub struct PluginRegistry<'a> {
-    pub plugins: Vec<plugin::RushPlugin<'a>>,
+    pub plugins: Vec<RushPlugin<'a>>,
     pub context: &'a Context,
 }
 
@@ -22,8 +29,8 @@ impl<'a> PluginRegistry<'a> {
         &mut self,
         path: &Path,
         init_params: &InitHookParams,
-    ) -> Result<(), plugin::RushPluginError> {
-        let mut plugin = plugin::RushPlugin::new(path, self.context)?;
+    ) -> Result<(), RushPluginError> {
+        let mut plugin = RushPlugin::new(path, self.context)?;
         plugin.init(init_params)?;
         self.plugins.push(plugin);
         Ok(())
@@ -33,17 +40,17 @@ impl<'a> PluginRegistry<'a> {
         &mut self,
         path: &Path,
         init_params: &InitHookParams,
-    ) -> Result<(), plugin::RushPluginError> {
+    ) -> Result<(), RushPluginError> {
         if path.is_file() {
             self.load_file(path, init_params)?;
         } else {
             let path_display = path.display().to_string();
-            let subitems = path.read_dir().context(plugin::IoSnafu {
+            let subitems = path.read_dir().context(IoSnafu {
                 name: &path_display,
             })?;
 
             for entry in subitems {
-                let entry = entry.context(plugin::IoSnafu {
+                let entry = entry.context(IoSnafu {
                     name: &path_display,
                 })?;
                 self.load(&entry.path(), init_params)?;
@@ -56,7 +63,21 @@ impl<'a> PluginRegistry<'a> {
 
 #[cfg(test)]
 mod tests {
+    use extism::CurrentPlugin;
+
     use super::*;
+
+    struct TestHostBindings;
+    impl HostBindings for TestHostBindings {
+        fn output_text(&mut self, _plugin: &mut CurrentPlugin, text: String) {
+            println!("{text}");
+        }
+    }
+
+    #[ctor::ctor]
+    fn set_test_bindings() {
+        *bindings::HOST_BINDINGS.lock().unwrap() = Box::new(TestHostBindings);
+    }
 
     #[test]
     fn load_example_plugin() {
