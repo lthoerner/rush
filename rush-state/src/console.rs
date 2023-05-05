@@ -63,7 +63,7 @@ enum RemoveMode {
 bitflags! {
     struct ClearMode: u8 {
         const OUTPUT = 0b00000001;
-        const RESET_LINE = 0b00000010;
+        const LINE = 0b00000010;
     }
 }
 
@@ -151,7 +151,7 @@ impl<'a> Console<'a> {
         self.terminal.show_cursor()?;
 
         RAW_MODE.store(true, Ordering::Release);
-        self.clear(ClearMode::RESET_LINE)
+        self.clear(ClearMode::LINE)
     }
 
     // Closes the TUI console and exits the program
@@ -263,6 +263,7 @@ impl<'a> Console<'a> {
                     (KeyModifiers::NONE, KeyCode::Tab) => self.data.autocomplete_line(),
                     (KeyModifiers::CONTROL, KeyCode::Char('c')) => return Ok(ReplAction::Exit),
                     (KeyModifiers::CONTROL, KeyCode::Char('l')) => self.clear(ClearMode::OUTPUT)?,
+                    (KeyModifiers::CONTROL, KeyCode::Char('u')) => self.clear(ClearMode::LINE)?,
                     // TODO: Make this a toggle method
                     (KeyModifiers::CONTROL, KeyCode::Char('d')) => {
                         self.data.debug_mode = !self.data.debug_mode
@@ -293,7 +294,7 @@ impl<'a> Console<'a> {
             self.data.output_buffer = Text::default();
         }
 
-        if mode.contains(ClearMode::RESET_LINE) {
+        if mode.contains(ClearMode::LINE) {
             self.data.reset_line_buffer();
             self.data.cursor_index = 0;
         }
