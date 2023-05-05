@@ -100,8 +100,8 @@ impl Runnable for Executable {
         };
 
         // Create channels for communication between threads
-        let (tx_stdout, rx_stdout) = mpsc::channel::<Result<String, ExecutableError>>();
-        let (tx_stderr, rx_stderr) = mpsc::channel::<Result<String, ExecutableError>>();
+        let (tx_stdout, rx_stdout) = mpsc::channel::<Result<String>>();
+        let (tx_stderr, rx_stderr) = mpsc::channel::<Result<String>>();
 
         // Spawn a thread to read stdout
         let stdout_thread = {
