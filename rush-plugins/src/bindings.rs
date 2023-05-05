@@ -1,5 +1,5 @@
 use crate::plugin::{HostBindings, NoOpHostBindings};
-use anyhow::bail;
+use anyhow::{bail, Context};
 use extism::{CurrentPlugin, Function, UserData, Val, ValType};
 use lazy_static::lazy_static;
 use std::sync::Mutex;
@@ -18,20 +18,43 @@ lazy_static! {
     );
 }
 
+macro_rules! load_string {
+    ($plugin:expr, $offset:expr) => {{
+        let mem = $plugin
+            .memory
+            .at_offset($offset as usize)
+            .context("Invalid memory offset")?;
+        $plugin
+            .memory
+            .get_str(mem)
+            .context("Invalid string in memory")?
+            .to_owned()
+    }};
+}
+
+#[rustfmt::skip]
+macro_rules! get_arg {
+    ($args:expr, $index:expr, $ty:ident) => {{
+        let Some(arg): Option<$ty> = $args
+            .get($index)
+            .and_then(|p| p.$ty()) else {
+                bail!("Expected a `{}` at argument {}", stringify!($ty), $index);
+            };
+        arg
+    }};
+}
+
 pub fn output_text(
     plugin: &mut CurrentPlugin,
     args: &[Val],
     _ret: &mut [Val],
     _user_data: UserData,
 ) -> Result<(), anyhow::Error> {
+    let arg = get_arg!(args, 0, i64);
+    let input = load_string!(plugin, arg);
+
     let mut bindings = HOST_BINDINGS.lock().unwrap();
-    if let Some(Some(arg)) = args.get(0).map(|p| p.i64()) {
-        let mem = plugin.memory.at_offset(arg as usize).unwrap();
-        let input = plugin.memory.get_str(mem).unwrap().to_owned();
-        bindings.output_text(plugin, input)
-    } else {
-        bail!("Invalid bindings - expected output_text(i64) -> ()");
-    }
+    bindings.output_text(plugin, input);
 
     Ok(())
 }
