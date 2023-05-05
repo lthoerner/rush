@@ -1,6 +1,6 @@
 use std::io::{BufRead, BufReader};
 use std::process::{Command as Process, Stdio};
-use std::sync::mpsc;
+use std::sync::mpsc::{self, Sender, Receiver};
 use std::thread;
 use std::time::Duration;
 
@@ -100,28 +100,52 @@ impl Runnable for Executable {
         };
 
         // Create channels for communication between threads
-        let (tx_stdout, rx_stdout) = mpsc::channel();
-        let (tx_stderr, rx_stderr) = mpsc::channel();
+        let (tx_stdout, rx_stdout) = mpsc::channel::<Result<String, ExecutableError>>();
+        let (tx_stderr, rx_stderr) = mpsc::channel::<Result<String, ExecutableError>>();
 
         // Spawn a thread to read stdout
         let stdout_thread = {
             let stdout = process.stdout.take().unwrap();
+            let tx_stdout = tx_stdout.clone();
             thread::spawn(move || {
                 let reader = BufReader::new(stdout);
                 for line in reader.lines() {
-                    tx_stdout.send(line.unwrap()).unwrap();
+                    // If the line is Ok, send it to the main thread
+                    match line {
+                        Ok(line) => {
+                            // If sending the line fails, return an error
+                            if let Err(e) = tx_stdout.send(Ok(line)) {
+                                return Err(ExecutableError::FailedToParseStdout(e.to_string()));
+                            }
+                        }
+                        // If reading the line fails, return an error
+                        Err(e) => {
+                            return Err(ExecutableError::FailedToParseStdout(e.to_string()));
+                        }
+                    }
                 }
+                Ok(())
             })
         };
 
-        // Spawn a thread to read stderr
         let stderr_thread = {
             let stderr = process.stderr.take().unwrap();
+            let tx_stderr = tx_stderr.clone();
             thread::spawn(move || {
                 let reader = BufReader::new(stderr);
                 for line in reader.lines() {
-                    tx_stderr.send(line.unwrap()).unwrap();
+                    match line {
+                        Ok(line) => {
+                            if let Err(e) = tx_stderr.send(Ok(line)) {
+                                return Err(ExecutableError::FailedToParseStderr(e.to_string()));
+                            }
+                        }
+                        Err(e) => {
+                            return Err(ExecutableError::FailedToParseStderr(e.to_string()));
+                        }
+                    }
                 }
+                Ok(())
             })
         };
 
@@ -133,14 +157,19 @@ impl Runnable for Executable {
         let mut process_done = false;
 
         while !stdout_done || !stderr_done || !process_done {
-            if let Ok(line) = rx_stdout.recv_timeout(read_timeout) {
-                showln!(console, "{}", &line);
+            if let Ok(packet) = rx_stdout.recv_timeout(read_timeout) {
+                // If the packet is Ok, unpack it and print it
+                if let Ok(line) = packet {
+                    showln!(console, "{}", &line);
+                // If the packet is Err, propagate err up the stack
+                } else { packet?; }
             } else {
                 stdout_done = true;
             }
-
-            if let Ok(line) = rx_stderr.recv_timeout(read_timeout) {
-                showln!(console, "{}", &line);
+            if let Ok(packet) = rx_stderr.recv_timeout(read_timeout) {
+                if let Ok(line) = packet {
+                    showln!(console, "{}", &line);
+                } else { packet?; }
             } else {
                 stderr_done = true;
             }
@@ -167,8 +196,9 @@ impl Runnable for Executable {
             }
         }
 
-        stdout_thread.join().unwrap();
-        stderr_thread.join().unwrap();
+        // Wait for the threads to finish, if err, push it up the stack
+        stdout_thread.join().unwrap()?;
+        stderr_thread.join().unwrap()?;
 
         let status = process.wait().expect("Failed to wait on child process");
 
