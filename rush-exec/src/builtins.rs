@@ -17,9 +17,9 @@ use anyhow::Result;
 
 use crate::builtin_arguments::ListDirectoryArguments;
 use rush_state::console::Console;
-use rush_state::showln;
 use rush_state::path::Path;
 use rush_state::shell::Shell;
+use rush_state::showln;
 
 use crate::commands::{Executable, Runnable};
 use crate::errors::BuiltinError;
@@ -196,7 +196,8 @@ pub fn read_file(_shell: &mut Shell, console: &mut Console, args: Vec<&str>) -> 
 pub fn run_executable(shell: &mut Shell, console: &mut Console, mut args: Vec<&str>) -> Result<()> {
     let executable_name = args[0].to_string();
     let executable_path = Path::from_str(&executable_name, shell.env().HOME()).map_err(|_| {
-        showln!(console, 
+        showln!(
+            console,
             "Failed to resolve executable path: '{}'",
             executable_name
         );
