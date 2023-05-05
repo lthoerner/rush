@@ -1,6 +1,6 @@
 use std::io::{BufRead, BufReader};
 use std::process::{Command as Process, Stdio};
-use std::sync::mpsc::{self, Sender, Receiver};
+use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
 
@@ -162,14 +162,18 @@ impl Runnable for Executable {
                 if let Ok(line) = packet {
                     showln!(console, "{}", &line);
                 // If the packet is Err, propagate err up the stack
-                } else { packet?; }
+                } else {
+                    packet?;
+                }
             } else {
                 stdout_done = true;
             }
             if let Ok(packet) = rx_stderr.recv_timeout(read_timeout) {
                 if let Ok(line) = packet {
                     showln!(console, "{}", &line);
-                } else { packet?; }
+                } else {
+                    packet?;
+                }
             } else {
                 stderr_done = true;
             }
