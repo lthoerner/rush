@@ -106,7 +106,6 @@ impl Runnable for Executable {
         // Spawn a thread to read stdout
         let stdout_thread = {
             let stdout = process.stdout.take().unwrap();
-            let tx_stdout = tx_stdout.clone();
             thread::spawn(move || {
                 let reader = BufReader::new(stdout);
                 for line in reader.lines() {
@@ -130,7 +129,6 @@ impl Runnable for Executable {
 
         let stderr_thread = {
             let stderr = process.stderr.take().unwrap();
-            let tx_stderr = tx_stderr.clone();
             thread::spawn(move || {
                 let reader = BufReader::new(stderr);
                 for line in reader.lines() {
