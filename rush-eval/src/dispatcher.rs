@@ -129,6 +129,7 @@ impl Dispatcher {
                         Executable::new(path).run(shell, console, command_args)
                     }
                 } else {
+                    // If the file cannot be read, return an error
                     Err(DispatchError::FailedToReadExecutableMetadata(path.to_string()).into())
                 }
             } else {
