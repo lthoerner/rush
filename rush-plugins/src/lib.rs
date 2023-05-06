@@ -86,7 +86,7 @@ mod tests {
 
         registry
             .load(
-                Path::new("./example/target/wasm32-wasi/release/example.wasm"),
+                Path::new("../example-plugins/welcome-message/target/wasm32-wasi/release/welcome_message.wasm"),
                 &InitHookParams {
                     rush_version: "v1".to_string(),
                 },
