@@ -119,7 +119,7 @@ impl Dispatcher {
             let path = Path::from_path_var(command_name, shell.env().PATH());
             if let Ok(path) = path {
                 // Check if the file is executable (has the executable bit set)
-                if let Ok(metadata) = std::fs::metadata(path.path()) {
+                if let Ok(metadata) = fs_err::metadata(path.path()) {
                     let permission_code = metadata.permissions().mode();
                     // 0o111 is the octal representation of 73, which is the executable bit
                     if permission_code & 0o111 == 0 {
