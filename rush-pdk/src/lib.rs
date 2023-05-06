@@ -46,6 +46,6 @@ macro_rules! binding {
 }
 
 binding! {
-    output_text(text: String) -> ();
+    output_text(text: &str) -> ();
     // modify_text(text: String) -> ptr String;
 }

@@ -57,6 +57,6 @@
     ],
     "rust-analyzer.linkedProjects": [
         "./rush-state/Cargo.toml",
-        "./rush-plugins/example/Cargo.toml"
+        "./example-plugins/welcome-message/Cargo.toml"
     ],
 }
