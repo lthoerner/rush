@@ -1,5 +1,4 @@
 use std::os::unix::prelude::PermissionsExt;
-
 use anyhow::Result;
 extern crate clap;
 
