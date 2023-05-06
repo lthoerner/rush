@@ -41,7 +41,6 @@ pub enum RushPluginError {
 
 pub struct RushPlugin<'a> {
     instance: extism::Plugin<'a>,
-    host_functions: Vec<Function>,
     name: String,
 }
 
@@ -52,16 +51,8 @@ impl<'a> RushPlugin<'a> {
         context: &'a Context,
         name: String,
     ) -> Result<Self, extism::Error> {
-        let output_text_fn = Function::new(
-            "output_text",
-            [ValType::I64],
-            [],
-            None,
-            bindings::output_text,
-        );
         Ok(RushPlugin {
             instance: Plugin::new(context, bytes, [&*OUTPUT_TEXT_FN], true)?,
-            host_functions: vec![output_text_fn],
             name,
         })
     }
