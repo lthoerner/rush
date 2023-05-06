@@ -25,6 +25,7 @@ impl<'a> PluginRegistry<'a> {
         }
     }
 
+    /// Load a plugin from a file.
     pub fn load_file(
         &mut self,
         path: &Path,
@@ -36,6 +37,7 @@ impl<'a> PluginRegistry<'a> {
         Ok(())
     }
 
+    /// Load all plugins from a file or directory.
     pub fn load(
         &mut self,
         path: &Path,
@@ -53,11 +55,31 @@ impl<'a> PluginRegistry<'a> {
                 let entry = entry.context(IoSnafu {
                     name: &path_display,
                 })?;
+
+                // if it's a file not ending in .wasm (i.e. not a plugin), skip it
+                if !entry.file_name().to_string_lossy().ends_with(".wasm")
+                    && entry
+                        .file_type()
+                        .context(IoSnafu {
+                            name: &path_display,
+                        })?
+                        .is_file()
+                {
+                    continue;
+                }
+
                 self.load(&entry.path(), init_params)?;
             }
         }
 
         Ok(())
+    }
+
+    /// Perform any deinitialization required by the plugin implementations.
+    pub fn deinit_plugins(&mut self) {
+        for plugin in &mut self.plugins {
+            plugin.deinit();
+        }
     }
 }
 

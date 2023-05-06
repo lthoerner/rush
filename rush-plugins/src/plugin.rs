@@ -109,6 +109,12 @@ impl<'a> RushPlugin<'a> {
         self.call_hook_if_exists("rush_plugin_init", params)?;
         Ok(())
     }
+
+    /// Perform any deinitialization required by the plugin implementation.
+    pub fn init(&mut self) -> Result<(), RushPluginError> {
+        self.call_hook_if_exists("rush_plugin_deinit", &())?;
+        Ok(())
+    }
 }
 
 impl Debug for RushPlugin<'_> {
