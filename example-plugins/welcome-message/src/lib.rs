@@ -5,7 +5,7 @@ use rush_pdk::*;
 pub fn rush_plugin_init(input: Json<InitHookParams>) -> FnResult<Json<()>> {
     // print welcome message to console
     let text = format!("Hello Rush {}", input.0.rush_version);
-    output_text(text);
+    output_text(&text);
 
     Ok(Json(()))
 }

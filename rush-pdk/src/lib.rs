@@ -1,9 +1,7 @@
-#![feature(trace_macros)]
-
 pub mod raw;
 
-pub use extism_pdk::*;
-pub use rush_plugins_api::*;
+pub use extism_pdk::{self, *};
+pub use rush_plugins_api::{self, *};
 
 macro_rules! __binding_internal {
  ($name:ident ($($arg:ident : $ty:ty),*) -> (ptr) $ret:ty; $($t:tt)*) => {
