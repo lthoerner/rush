@@ -707,6 +707,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "extism-pdk"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9ca765933c821c81068e629cf243e1133738dca9edcdd243e06d1511ded20410"
+dependencies = [
+ "anyhow",
+ "base64 0.21.0",
+ "extism-manifest",
+ "extism-pdk-derive",
+ "rmp-serde",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "extism-pdk-derive"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "69871c55f19ecab01bd966bfd4d0260cf9feefe090fa5b4e598c4656e16c9efc"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.13",
+]
+
+[[package]]
 name = "extism-runtime"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1528,6 +1554,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "rmp"
+version = "0.8.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "44519172358fd6d58656c86ab8e7fbc9e1490c3e8f14d35ed78ca0dd07403c9f"
+dependencies = [
+ "byteorder",
+ "num-traits",
+ "paste",
+]
+
+[[package]]
+name = "rmp-serde"
+version = "1.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c5b13be192e0220b8afb7222aa5813cb62cc269ebb5cac346ca6487681d2913e"
+dependencies = [
+ "byteorder",
+ "rmp",
+ "serde",
+]
+
+[[package]]
 name = "rush"
 version = "0.1.0"
 dependencies = [
@@ -1555,6 +1603,14 @@ dependencies = [
  "fs-err",
  "rush-state",
  "thiserror",
+]
+
+[[package]]
+name = "rush-pdk"
+version = "0.1.0"
+dependencies = [
+ "extism-pdk",
+ "rush-plugins-api",
 ]
 
 [[package]]

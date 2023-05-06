@@ -6,6 +6,7 @@ members = [
     "rush-exec",
     "rush-plugins",
     "rush-plugins-api",
+    "rush-pdk",
 ]
 
 [workspace.dependencies]
