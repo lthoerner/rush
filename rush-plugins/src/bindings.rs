@@ -2,9 +2,10 @@ use crate::plugin::{HostBindings, NoOpHostBindings};
 use anyhow::{bail, Context};
 use extism::{CurrentPlugin, Function, UserData, Val, ValType};
 use lazy_static::lazy_static;
-use std::sync::Mutex;
+use std::{env, sync::Mutex};
 
 lazy_static! {
+    // TODO(@doinkythederp): if we ever make plugins multithreaded, make this a thread_local
     /// Global bindings that plugins can call to interact with the shell
     pub static ref HOST_BINDINGS: Mutex<Box<dyn HostBindings>> =
         Mutex::new(Box::new(NoOpHostBindings));
@@ -15,6 +16,34 @@ lazy_static! {
         [],
         None,
         output_text,
+    );
+    pub static ref ENV_GET_FN: Function = Function::new(
+        "env_get",
+        [ValType::I64],
+        [ValType::I64],
+        None,
+        env_get,
+    );
+    pub static ref ENV_SET_FN: Function = Function::new(
+        "env_set",
+        [ValType::I64, ValType::I64],
+        [],
+        None,
+        env_set,
+    );
+    pub static ref ENV_DELETE_FN: Function = Function::new(
+        "env_delete",
+        [ValType::I64],
+        [],
+        None,
+        env_delete,
+    );
+    pub static ref ENV_VARS_FN: Function = Function::new(
+        "env_vars",
+        [],
+        [ValType::I64],
+        None,
+        env_vars,
     );
 }
 
@@ -55,6 +84,71 @@ pub fn output_text(
 
     let mut bindings = HOST_BINDINGS.lock().unwrap();
     bindings.output_text(plugin, input);
+
+    Ok(())
+}
+
+pub fn env_get(
+    plugin: &mut CurrentPlugin,
+    args: &[Val],
+    ret: &mut [Val],
+    _user_data: UserData,
+) -> Result<(), anyhow::Error> {
+    let arg0 = get_arg!(args, 0, i64);
+    let var_name = load_string!(plugin, arg0);
+
+    let mut bindings = HOST_BINDINGS.lock().unwrap();
+    let ret_val = bindings.env_get(plugin, var_name);
+    let ret_val = serde_json::to_string(&ret_val)?;
+    let ret_memory = plugin.memory.alloc_bytes(ret_val.as_bytes())?;
+    ret[0] = Val::I64(ret_memory.offset as i64);
+
+    Ok(())
+}
+
+pub fn env_set(
+    plugin: &mut CurrentPlugin,
+    args: &[Val],
+    _ret: &mut [Val],
+    _user_data: UserData,
+) -> Result<(), anyhow::Error> {
+    let arg0 = get_arg!(args, 0, i64);
+    let var_name = load_string!(plugin, arg0);
+    let arg1 = get_arg!(args, 1, i64);
+    let var_value = load_string!(plugin, arg1);
+
+    let mut bindings = HOST_BINDINGS.lock().unwrap();
+    bindings.env_set(plugin, var_name, var_value);
+
+    Ok(())
+}
+
+pub fn env_delete(
+    plugin: &mut CurrentPlugin,
+    args: &[Val],
+    _ret: &mut [Val],
+    _user_data: UserData,
+) -> Result<(), anyhow::Error> {
+    let arg0 = get_arg!(args, 0, i64);
+    let var_name = load_string!(plugin, arg0);
+
+    let mut bindings = HOST_BINDINGS.lock().unwrap();
+    bindings.env_delete(plugin, var_name);
+
+    Ok(())
+}
+
+pub fn env_vars(
+    plugin: &mut CurrentPlugin,
+    _args: &[Val],
+    ret: &mut [Val],
+    _user_data: UserData,
+) -> Result<(), anyhow::Error> {
+    let mut bindings = HOST_BINDINGS.lock().unwrap();
+    let ret_val = bindings.env_vars(plugin);
+    let ret_val = serde_json::to_string(&ret_val)?;
+    let ret_memory = plugin.memory.alloc_bytes(ret_val.as_bytes())?;
+    ret[0] = Val::I64(ret_memory.offset as i64);
 
     Ok(())
 }

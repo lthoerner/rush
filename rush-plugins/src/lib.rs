@@ -75,24 +75,30 @@ impl<'a> PluginRegistry<'a> {
         Ok(())
     }
 
-    /// Perform any deinitialization required by the plugin implementations.
+    /// Perform any deinitialization required by the plugin implementations, removing them from the registry.
     pub fn deinit_plugins(&mut self) {
-        for plugin in &mut self.plugins {
-            plugin.deinit();
+        for mut plugin in self.plugins.drain(..) {
+            _ = plugin.deinit();
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use extism::CurrentPlugin;
-
     use super::*;
+    use extism::CurrentPlugin;
+    use std::collections::HashMap;
 
     struct TestHostBindings;
     impl HostBindings for TestHostBindings {
         fn output_text(&mut self, _plugin: &mut CurrentPlugin, text: String) {
             println!("{text}");
+        }
+        fn env_vars(&mut self, plugin: &mut CurrentPlugin) -> HashMap<String, String> {
+            HashMap::from([
+                ("PATH".to_string(), "/usr/bin:/bin".to_string()),
+                ("RUSH_TEST".to_string(), "1".to_string()),
+            ])
         }
     }
 

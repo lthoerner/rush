@@ -305,6 +305,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "concat-idents"
+version = "1.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0fe0e1d9f7de897d18e590a7496b5facbe87813f746cf4b8db596ba77e07e832"
+dependencies = [
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
 name = "core-foundation-sys"
 version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1609,6 +1619,7 @@ dependencies = [
 name = "rush-pdk"
 version = "0.1.0"
 dependencies = [
+ "concat-idents",
  "extism-pdk",
  "rush-plugins-api",
 ]

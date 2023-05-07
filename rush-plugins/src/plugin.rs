@@ -1,10 +1,11 @@
-use crate::bindings::{self, OUTPUT_TEXT_FN};
+use crate::bindings::{self, ENV_DELETE_FN, ENV_GET_FN, ENV_SET_FN, ENV_VARS_FN, OUTPUT_TEXT_FN};
 use api::InitHookParams;
 use extism::{Context, CurrentPlugin, Function, Plugin, UserData, Val, ValType};
 use rush_plugins_api as api;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use snafu::{ResultExt, Snafu};
 use std::{
+    collections::HashMap,
     fmt::Debug,
     fs,
     path::Path,
@@ -12,10 +13,22 @@ use std::{
 };
 
 /// Implementations of functions that plugins can use.
+#[allow(unused_variables)]
 pub trait HostBindings: Send {
     fn output_text(&mut self, plugin: &mut CurrentPlugin, input: String) {}
-    /// Automatically called when a plugin misuses the bindings
-    fn emit_warning(&mut self, plugin_name: &str, warning: &str) {}
+
+    // Functions for modifying the host's environment variables.
+    // Each plugin has its own, isolated set so these can be used to sync between the host and plugin.
+
+    fn env_get(&mut self, plugin: &mut CurrentPlugin, var_name: String) -> Option<String> {
+        None
+    }
+    fn env_set(&mut self, plugin: &mut CurrentPlugin, var_name: String, var_value: String) {}
+    fn env_delete(&mut self, plugin: &mut CurrentPlugin, var_name: String) {}
+    /// Get all environment variables as a JSON object.
+    fn env_vars(&mut self, plugin: &mut CurrentPlugin) -> HashMap<String, String> {
+        HashMap::new()
+    }
 }
 
 /// A struct implementing [`HostBindings`] with only no-op methods.
@@ -52,7 +65,18 @@ impl<'a> RushPlugin<'a> {
         name: String,
     ) -> Result<Self, extism::Error> {
         Ok(RushPlugin {
-            instance: Plugin::new(context, bytes, [&*OUTPUT_TEXT_FN], true)?,
+            instance: Plugin::new(
+                context,
+                bytes,
+                [
+                    &*OUTPUT_TEXT_FN,
+                    &*ENV_GET_FN,
+                    &*ENV_SET_FN,
+                    &*ENV_DELETE_FN,
+                    &*ENV_VARS_FN,
+                ],
+                true,
+            )?,
             name,
         })
     }
@@ -111,7 +135,7 @@ impl<'a> RushPlugin<'a> {
     }
 
     /// Perform any deinitialization required by the plugin implementation.
-    pub fn init(&mut self) -> Result<(), RushPluginError> {
+    pub fn deinit(&mut self) -> Result<(), RushPluginError> {
         self.call_hook_if_exists("rush_plugin_deinit", &())?;
         Ok(())
     }
