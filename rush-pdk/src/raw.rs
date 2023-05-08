@@ -15,4 +15,6 @@ extern "C" {
     pub fn env_delete(var_name: u64);
     /// Get all environment variables as a JSON object.
     pub fn env_vars() -> u64;
+
+    pub fn fs_is_executable(path: u64) -> bool;
 }

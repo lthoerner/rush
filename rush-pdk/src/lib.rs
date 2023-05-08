@@ -1,5 +1,6 @@
 pub mod raw;
 
+#[allow(unused)]
 use concat_idents::concat_idents;
 use std::collections::HashMap;
 
@@ -127,5 +128,11 @@ pub mod env {
         for (key, value) in std::env::vars() {
             self::set(&key, &value);
         }
+    }
+}
+
+pub mod fs {
+    bindings! {
+        fs::is_executable(path: &str) -> bool;
     }
 }

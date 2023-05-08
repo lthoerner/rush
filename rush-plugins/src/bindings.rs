@@ -45,6 +45,13 @@ lazy_static! {
         None,
         env_vars,
     );
+    pub static ref FS_IS_EXECUTABLE_FN: Function = Function::new(
+        "fs_is_executable",
+        [ValType::I64],
+        [ValType::I32],
+        None,
+        fs_is_executable,
+    );
 }
 
 macro_rules! load_string {
@@ -150,5 +157,20 @@ pub fn env_vars(
     let ret_memory = plugin.memory.alloc_bytes(ret_val.as_bytes())?;
     ret[0] = Val::I64(ret_memory.offset as i64);
 
+    Ok(())
+}
+
+pub fn fs_is_executable(
+    plugin: &mut CurrentPlugin,
+    args: &[Val],
+    ret: &mut [Val],
+    _user_data: UserData,
+) -> Result<(), anyhow::Error> {
+    let arg0 = get_arg!(args, 0, i64);
+    let path = load_string!(plugin, arg0);
+
+    let mut bindings = HOST_BINDINGS.lock().unwrap();
+    let ret_val = bindings.fs_is_executable(plugin, path);
+    ret[0] = Val::I32(ret_val.into());
     Ok(())
 }

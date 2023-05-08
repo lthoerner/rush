@@ -5,6 +5,8 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[workspace]
+
 [dependencies]
 concat-idents = "1.1.4"
 extism-pdk = "0.3.1"

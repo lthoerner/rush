@@ -1,6 +1,10 @@
-use crate::bindings::{self, ENV_DELETE_FN, ENV_GET_FN, ENV_SET_FN, ENV_VARS_FN, OUTPUT_TEXT_FN};
+use crate::bindings::{
+    self, ENV_DELETE_FN, ENV_GET_FN, ENV_SET_FN, ENV_VARS_FN, FS_IS_EXECUTABLE_FN, OUTPUT_TEXT_FN,
+};
 use api::InitHookParams;
-use extism::{Context, CurrentPlugin, Function, Plugin, UserData, Val, ValType};
+use extism::{
+    manifest::Wasm, Context, CurrentPlugin, Function, Manifest, Plugin, UserData, Val, ValType,
+};
 use rush_plugins_api as api;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use snafu::{ResultExt, Snafu};
@@ -28,6 +32,10 @@ pub trait HostBindings: Send {
     /// Get all environment variables as a JSON object.
     fn env_vars(&mut self, plugin: &mut CurrentPlugin) -> HashMap<String, String> {
         HashMap::new()
+    }
+
+    fn fs_is_executable(&mut self, plugin: &mut CurrentPlugin, path: String) -> bool {
+        false
     }
 }
 
@@ -60,20 +68,22 @@ pub struct RushPlugin<'a> {
 impl<'a> RushPlugin<'a> {
     /// Load a plugin without reading from a file.
     pub fn from_bytes(
-        bytes: impl AsRef<[u8]>,
+        bytes: impl Into<Vec<u8>>,
         context: &'a Context,
         name: String,
     ) -> Result<Self, extism::Error> {
+        let manifest = Manifest::new([Wasm::data(bytes)]).with_allowed_path("/", "/");
         Ok(RushPlugin {
-            instance: Plugin::new(
+            instance: Plugin::new_with_manifest(
                 context,
-                bytes,
+                &manifest,
                 [
                     &*OUTPUT_TEXT_FN,
                     &*ENV_GET_FN,
                     &*ENV_SET_FN,
                     &*ENV_DELETE_FN,
                     &*ENV_VARS_FN,
+                    &*FS_IS_EXECUTABLE_FN,
                 ],
                 true,
             )?,
@@ -92,7 +102,7 @@ impl<'a> RushPlugin<'a> {
         let bytes = fs::read(path).context(IoSnafu {
             name: &path_display,
         })?;
-        Self::from_bytes(&bytes, context, path_display.clone()).context(ExtismSnafu {
+        Self::from_bytes(bytes, context, path_display.clone()).context(ExtismSnafu {
             name: &path_display,
         })
     }
@@ -116,28 +126,44 @@ impl<'a> RushPlugin<'a> {
     }
 
     /// Call an exported function from the plugin, returning `None` if it is not implemented.
-    pub fn call_hook_if_exists(
+    pub fn call_hook_if_exists<T>(
         &mut self,
         hook: &str,
         data: &impl Serialize,
-    ) -> Result<Option<impl Deserialize>, RushPluginError> {
+    ) -> Result<Option<T>, RushPluginError>
+    where
+        T: DeserializeOwned,
+    {
         if self.instance.has_function(hook) {
-            Ok(Some(self.call_hook(hook, data)?))
+            Ok(Some(self.call_hook::<T>(hook, data)?))
         } else {
             Ok(None)
         }
     }
 
+    // Following methods are a comprehensive list of plugin hooks.
+
     /// Perform any initialization required by the plugin implementation.
     pub fn init(&mut self, params: &InitHookParams) -> Result<(), RushPluginError> {
-        self.call_hook_if_exists("rush_plugin_init", params)?;
+        self.call_hook_if_exists::<()>("rush_plugin_init", params)?;
         Ok(())
     }
 
     /// Perform any deinitialization required by the plugin implementation.
     pub fn deinit(&mut self) -> Result<(), RushPluginError> {
-        self.call_hook_if_exists("rush_plugin_deinit", &())?;
+        self.call_hook_if_exists::<()>("rush_plugin_deinit", &())?;
         Ok(())
+    }
+
+    /// Ask the plugin for completion suggestions.
+    pub fn request_autocomplete(
+        &mut self,
+        line_buffer: &str,
+    ) -> Result<Option<String>, RushPluginError> {
+        let suggestion: Option<String> = self
+            .call_hook_if_exists("provide_autocomplete", &line_buffer)?
+            .flatten();
+        Ok(suggestion)
     }
 }
 
