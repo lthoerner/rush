@@ -19,6 +19,7 @@ use crate::builtin_arguments::ListDirectoryArguments;
 use rush_state::console::Console;
 use rush_state::path::Path;
 use rush_state::shell::Shell;
+use rush_state::showln;
 
 use crate::commands::{Executable, Runnable};
 use crate::errors::BuiltinError;
@@ -28,7 +29,7 @@ use crate::errors::BuiltinError::{
 
 pub fn test(_shell: &mut Shell, console: &mut Console, args: Vec<&str>) -> Result<()> {
     check_args(&args, 0, "test", console)?;
-    console.println("Test command!");
+    showln!(console, "Test command!");
     Ok(())
 }
 
@@ -40,7 +41,7 @@ pub fn exit(_shell: &mut Shell, console: &mut Console, args: Vec<&str>) -> Resul
 
 pub fn working_directory(shell: &mut Shell, console: &mut Console, args: Vec<&str>) -> Result<()> {
     check_args(&args, 0, "working-directory", console)?;
-    console.println(&format!("{}", shell.env().CWD()));
+    showln!(console, "{}", shell.env().CWD());
     Ok(())
 }
 
@@ -51,7 +52,7 @@ pub fn change_directory(shell: &mut Shell, console: &mut Console, args: Vec<&str
         .env_mut()
         .set_CWD(args[0], history_limit)
         .map_err(|_| {
-            console.println(&format!("Invalid path: '{}'", args[0]));
+            showln!(console, "Invalid path: '{}'", args[0]);
             BuiltinError::FailedToRun.into()
         })
 }
@@ -103,11 +104,11 @@ pub fn list_directory(shell: &mut Shell, console: &mut Console, args: Vec<&str>)
     files.sort();
 
     for directory in directories {
-        console.println(&directory);
+        showln!(console, "{}", &directory);
     }
 
     for file in files {
-        console.println(&file);
+        showln!(console, "{}", &file);
     }
 
     Ok(())
@@ -117,7 +118,7 @@ pub fn list_directory(shell: &mut Shell, console: &mut Console, args: Vec<&str>)
 pub fn go_back(shell: &mut Shell, console: &mut Console, args: Vec<&str>) -> Result<()> {
     check_args(&args, 0, "go-back", console)?;
     shell.env_mut().go_back().map_err(|_| {
-        console.println("Previous directory does not exist or is invalid");
+        showln!(console, "Previous directory does not exist or is invalid");
         BuiltinError::FailedToRun.into()
     })
 }
@@ -125,7 +126,7 @@ pub fn go_back(shell: &mut Shell, console: &mut Console, args: Vec<&str>) -> Res
 pub fn go_forward(shell: &mut Shell, console: &mut Console, args: Vec<&str>) -> Result<()> {
     check_args(&args, 0, "go-forward", console)?;
     shell.env_mut().go_forward().map_err(|_| {
-        console.println("Next directory does not exist or is invalid");
+        showln!(console, "Next directory does not exist or is invalid");
         BuiltinError::FailedToRun.into()
     })
 }
@@ -139,12 +140,12 @@ pub fn clear_terminal(_shell: &mut Shell, console: &mut Console, args: Vec<&str>
 pub fn make_file(_shell: &mut Shell, console: &mut Console, args: Vec<&str>) -> Result<()> {
     if args.len() == 1 {
         fs_err::File::create(args[0]).map_err(|_| {
-            console.println(&format!("Failed to create file: '{}'", args[0]));
+            showln!(console, "Failed to create file: '{}'", args[0]);
             BuiltinError::FailedToRun
         })?;
         Ok(())
     } else {
-        console.println("Usage: make-file <path>");
+        showln!(console, "Usage: make-file <path>");
         Err(BuiltinError::InvalidArgumentCount(args.len()).into())
     }
 }
@@ -152,12 +153,12 @@ pub fn make_file(_shell: &mut Shell, console: &mut Console, args: Vec<&str>) -> 
 pub fn make_directory(_shell: &mut Shell, console: &mut Console, args: Vec<&str>) -> Result<()> {
     if args.len() == 1 {
         fs_err::create_dir(args[0]).map_err(|_| {
-            console.println(&format!("Failed to create directory: '{}'", args[0]));
+            showln!(console, "Failed to create directory: '{}'", args[0]);
             BuiltinError::FailedToRun
         })?;
         Ok(())
     } else {
-        console.println("Usage: make-directory <path>");
+        showln!(console, "Usage: make-directory <path>");
         Err(BuiltinError::InvalidArgumentCount(args.len()).into())
     }
 }
@@ -165,12 +166,12 @@ pub fn make_directory(_shell: &mut Shell, console: &mut Console, args: Vec<&str>
 pub fn delete_file(_shell: &mut Shell, console: &mut Console, args: Vec<&str>) -> Result<()> {
     if args.len() == 1 {
         fs_err::remove_file(args[0]).map_err(|_| {
-            console.println(&format!("Failed to delete file: '{}'", args[0]));
+            showln!(console, "Failed to delete file: '{}'", args[0]);
             BuiltinError::FailedToRun
         })?;
         Ok(())
     } else {
-        console.println("Usage: delete-file <path>");
+        showln!(console, "Usage: delete-file <path>");
         Err(BuiltinError::InvalidArgumentCount(args.len()).into())
     }
 }
@@ -183,7 +184,7 @@ pub fn read_file(_shell: &mut Shell, console: &mut Console, args: Vec<&str>) -> 
     let reader = BufReader::new(file);
     for line in reader.lines() {
         let line = line.map_err(BuiltinError::read_file)?;
-        console.println(&line);
+        showln!(console, "{}", &line);
     }
 
     Ok(())
@@ -192,10 +193,11 @@ pub fn read_file(_shell: &mut Shell, console: &mut Console, args: Vec<&str>) -> 
 pub fn run_executable(shell: &mut Shell, console: &mut Console, mut args: Vec<&str>) -> Result<()> {
     let executable_name = args[0].to_string();
     let executable_path = Path::from_str(&executable_name, shell.env().HOME()).map_err(|_| {
-        console.println(&format!(
+        showln!(
+            console,
             "Failed to resolve executable path: '{}'",
             executable_name
-        ));
+        );
         BuiltinError::FailedToRun
     })?;
 
@@ -218,7 +220,7 @@ pub fn configure(shell: &mut Shell, console: &mut Console, args: Vec<&str>) -> R
             }
 
             shell.config_mut().truncation_factor = Some(value.parse::<usize>().map_err(|_| {
-                console.println(&format!("Invalid truncation length: '{}'", value));
+                showln!(console, "Invalid truncation length: '{}'", value);
                 BuiltinError::InvalidValue(value.to_string())
             })?)
         }
@@ -229,18 +231,18 @@ pub fn configure(shell: &mut Shell, console: &mut Console, args: Vec<&str>) -> R
             }
 
             shell.config_mut().history_limit = Some(value.parse::<usize>().map_err(|_| {
-                console.println(&format!("Invalid history limit: '{}'", value));
+                showln!(console, "Invalid history limit: '{}'", value);
                 BuiltinError::InvalidValue(value.to_string())
             })?)
         }
         "show-errors" => {
             shell.config_mut().show_errors = value.parse::<bool>().map_err(|_| {
-                console.println(&format!("Invalid value for show-errors: '{}'", value));
+                showln!(console, "Invalid value for show-errors: '{}'", value);
                 BuiltinError::InvalidValue(value.to_string())
             })?
         }
         _ => {
-            console.println(&format!("Invalid configuration key: '{}'", key));
+            showln!(console, "Invalid configuration key: '{}'", key);
             return Err(BuiltinError::InvalidArgument(key.to_string()).into());
         }
     }
@@ -257,14 +259,14 @@ pub fn environment_variable(
     match args[0].to_uppercase().as_str() {
         "PATH" => {
             for (i, path) in shell.env().PATH().iter().enumerate() {
-                console.println(&format!("[{i}]: {path}"));
+                showln!(console, "[{i}]: {path}");
             }
         }
-        "USER" => console.println(shell.env().USER()),
-        "HOME" => console.println(&format!("{}", shell.env().HOME().display())),
-        "CWD" | "WORKING-DIRECTORY" => console.println(&format!("{}", shell.env().CWD())),
+        "USER" => showln!(console, "{}", shell.env().USER()),
+        "HOME" => showln!(console, "{}", shell.env().HOME().display()),
+        "CWD" | "WORKING-DIRECTORY" => showln!(console, "{}", shell.env().CWD()),
         _ => {
-            console.println(&format!("Invalid environment variable: '{}'", args[0]));
+            showln!(console, "Invalid environment variable: '{}'", args[0]);
             return Err(BuiltinError::InvalidArgument(args[0].to_string()).into());
         }
     }
@@ -276,7 +278,7 @@ pub fn edit_path(shell: &mut Shell, console: &mut Console, args: Vec<&str>) -> R
     check_args(&args, 2, "edit-path <append | prepend> <path>", console)?;
     let action = args[0];
     let path = Path::from_str(args[1], shell.env().HOME()).map_err(|_| {
-        console.println(&format!("Invalid directory: '{}'", args[1]));
+        showln!(console, "Invalid directory: '{}'", args[1]);
         BuiltinError::FailedToRun
     })?;
 
@@ -284,7 +286,7 @@ pub fn edit_path(shell: &mut Shell, console: &mut Console, args: Vec<&str>) -> R
         "append" => shell.env_mut().PATH_mut().push_front(path),
         "prepend" => shell.env_mut().PATH_mut().push_back(path),
         _ => {
-            console.println(&format!("Invalid action: '{}'", action));
+            showln!(console, "Invalid action: '{}'", action);
             return Err(BuiltinError::InvalidArgument(args[0].to_string()).into());
         }
     }
@@ -302,7 +304,7 @@ fn check_args(
     if args.len() == expected_args {
         Ok(())
     } else {
-        console.println(&format!("Usage: {}", usage));
+        showln!(console, "Usage: {}", usage);
         Err(BuiltinError::InvalidArgumentCount(args.len()).into())
     }
 }

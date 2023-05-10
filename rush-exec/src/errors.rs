@@ -69,6 +69,10 @@ pub enum ExecutableError {
     PathNoLongerExists(PathBuf),
     #[error("Executable failed with exit code: {0}")]
     FailedToExecute(isize),
+    #[error("Failed to parse executable stdout: {0}")]
+    FailedToParseStdout(String),
+    #[error("Failed to parse executable stderr: {0}")]
+    FailedToParseStderr(String),
     /// This variant is a fallthrough, and you should generally prefer a more specific/human-readable error
     #[error("{0}")]
     OtherIoError(#[from] IoError),
