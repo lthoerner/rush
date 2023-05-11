@@ -29,14 +29,14 @@ pub enum FileContext {
     Reading,
 }
 
-pub enum SubprocessContext {
+pub enum ProcessContext {
     WaitingForChild
 }
 
 pub trait IoContextExt {
     type T;
     fn file_context(self, ctx: FileContext) -> anyhow::Result<Self::T>;
-    fn subprocess_context(self, ctx: SubprocessContext) -> anyhow::Result<Self::T>;
+    fn process_context(self, ctx: ProcessContext) -> anyhow::Result<Self::T>;
 }
 
 impl<T> IoContextExt for Result<T, io::Error> {
@@ -52,7 +52,7 @@ impl<T> IoContextExt for Result<T, io::Error> {
         })
     }
 
-    fn subprocess_context(self, ctx: SubprocessContext) -> anyhow::Result<Self::T> {
+    fn process_context(self, ctx: ProcessContext) -> anyhow::Result<Self::T> {
         self.map_err(|e| {
             // ctx can currently only be WaitingForChild, 
             // which can only fail with ECHILD (see waitpid)
