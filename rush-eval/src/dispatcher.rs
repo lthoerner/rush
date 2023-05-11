@@ -77,27 +77,14 @@ impl Dispatcher {
     }
 
     // Evaluates and executes a command from a string
-    pub fn eval(&self, context: &mut Context, line: &String) -> Result<()> {
-        let commands = parser::parse(line);
-        let mut results: Vec<Result<()>> = Vec::new();
+    pub fn eval(&self, shell: &mut Shell, console: &mut Console, line: &str) -> Result<()> {
+        let (command_name, command_args) = parser::tokenize(line);
+        // ? Is there a way to avoid this type conversion?
+        let command_name = command_name.as_str();
+        let command_args = command_args.iter().map(|a| a.as_str()).collect();
 
-        for (command_name, command_args) in commands {
-            // ? Is there a way to avoid this type conversion?
-            let command_name = command_name.as_str();
-            let command_args = command_args.iter().map(|a| a.as_str()).collect();
-
-            // Dispatch the command to the Dispatcher
-            let result = self.dispatch(command_name, command_args, context);
-            results.push(result);
-        }
-
-        for result in results {
-            if result.is_err() {
-                return Err(result.err().unwrap());
-            }
-        }
-
-        Ok(())
+        // Dispatch the command to the Dispatcher
+        self.dispatch(shell, console, command_name, command_args)
     }
 
     // Resolves and dispatches a command to the appropriate function or external binary
