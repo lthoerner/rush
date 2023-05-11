@@ -22,7 +22,7 @@ use rush_state::shell::Shell;
 use rush_state::showln;
 
 use crate::commands::{Executable, Runnable};
-use crate::errors::BuiltinError;
+use crate::errors::{BuiltinError, FileContext, FileContextExt};
 use crate::errors::BuiltinError::{
     FailedReadingDir, FailedReadingFileName, FailedReadingFileType, FailedReadingPath,
 };
@@ -177,13 +177,14 @@ pub fn delete_file(_shell: &mut Shell, console: &mut Console, args: Vec<&str>) -
 }
 
 pub fn read_file(_shell: &mut Shell, console: &mut Console, args: Vec<&str>) -> Result<()> {
+    use FileContext::Reading;
     check_args(&args, 1, "read-file <path>", console)?;
     let file_name = PathBuf::from(args[0]);
-    let file = fs_err::File::open(&file_name).map_err(BuiltinError::read_file)?;
+    let file = fs_err::File::open(&file_name).file_context(Reading)?;
 
     let reader = BufReader::new(file);
     for line in reader.lines() {
-        let line = line.map_err(BuiltinError::read_file)?;
+        let line = line.file_context(Reading)?;
         showln!(console, "{}", &line);
     }
 

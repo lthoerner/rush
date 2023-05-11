@@ -2,6 +2,7 @@ use std::io::ErrorKind;
 use std::path::PathBuf;
 use std::{fmt, io};
 
+use anyhow::anyhow;
 use thiserror::Error;
 
 /// This is a wrapper for io::Error to add more context than the default Display.
@@ -24,6 +25,29 @@ impl fmt::Display for IoError {
     }
 }
 
+pub enum FileContext {
+    Reading,
+}
+
+pub trait FileContextExt {
+    type T;
+    fn file_context(self, ctx: FileContext) -> anyhow::Result<Self::T>;
+}
+
+impl<T> FileContextExt for Result<T, io::Error> {
+    type T = T;
+    fn file_context(self, ctx: FileContext) -> anyhow::Result<T> {
+        self.map_err(|e| {
+            match (e.kind(), ctx) {
+                (ErrorKind::NotFound, FileContext::Reading) => anyhow!("File not found"),
+                (ErrorKind::PermissionDenied, FileContext::Reading) => anyhow!("No permission to read file"),
+                // unstable: (ErrorKind::IsADirectory, FileContext::Reading) => anyhow!("Cannot read a directory"),
+                _ => IoError::from(e).into()
+            }
+        })
+    }
+}
+
 #[derive(Error, Debug)]
 pub enum BuiltinError {
     #[error("Wrong number of arguments: {0}")]
@@ -43,24 +67,9 @@ pub enum BuiltinError {
     FailedReadingFileName(PathBuf),
     #[error("Unable to read dir: {0}")]
     FailedReadingDir(PathBuf),
-    #[error("Could not find file.")]
-    FileNotFound,
-    #[error("Insufficient permissions to read file.")]
-    NoReadPermissions,
     /// This variant is a fallthrough, and you should generally prefer a more specific/human-readable error
     #[error("{0}")]
     OtherIoError(#[from] IoError),
-}
-
-impl BuiltinError {
-    pub fn read_file(source: io::Error) -> Self {
-        match source.kind() {
-            // unstable: ErrorKind::IsADirectory => Self::OtherIoError(source.into()),
-            ErrorKind::NotFound => Self::FileNotFound,
-            ErrorKind::PermissionDenied => Self::NoReadPermissions,
-            _ => Self::OtherIoError(source.into()),
-        }
-    }
 }
 
 #[derive(Error, Debug)]
