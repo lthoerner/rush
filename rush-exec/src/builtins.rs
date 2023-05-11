@@ -22,7 +22,7 @@ use rush_state::shell::Shell;
 use rush_state::showln;
 
 use crate::commands::{Executable, Runnable};
-use crate::errors::{BuiltinError, FileContext, FileContextExt};
+use crate::errors::{BuiltinError, FileContext, IoContextExt};
 use crate::errors::BuiltinError::{
     FailedReadingDir, FailedReadingFileName, FailedReadingFileType, FailedReadingPath,
 };

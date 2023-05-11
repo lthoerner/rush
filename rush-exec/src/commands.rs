@@ -11,7 +11,7 @@ use rush_state::path::Path;
 use rush_state::shell::Shell;
 use rush_state::showln;
 
-use crate::errors::ExecutableError;
+use crate::errors::{ExecutableError, IoContextExt, SubprocessContext::WaitingForChild};
 
 // Represents either a builtin (internal command) or an executable (external command)
 // A Runnable may be executed by calling its .run() method
@@ -202,8 +202,7 @@ impl Runnable for Executable {
         stdout_thread.join().unwrap()?;
         stderr_thread.join().unwrap()?;
 
-        // This can only fail with ECHILD (see waitpid), which Rust doesn't expose
-        let status = process.wait().map_err(ExecutableError::unexpected)?;
+        let status = process.wait().subprocess_context(WaitingForChild)?;
 
         match status.success() {
             true => Ok(()),

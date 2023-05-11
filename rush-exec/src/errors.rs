@@ -29,12 +29,17 @@ pub enum FileContext {
     Reading,
 }
 
-pub trait FileContextExt {
-    type T;
-    fn file_context(self, ctx: FileContext) -> anyhow::Result<Self::T>;
+pub enum SubprocessContext {
+    WaitingForChild
 }
 
-impl<T> FileContextExt for Result<T, io::Error> {
+pub trait IoContextExt {
+    type T;
+    fn file_context(self, ctx: FileContext) -> anyhow::Result<Self::T>;
+    fn subprocess_context(self, ctx: SubprocessContext) -> anyhow::Result<Self::T>;
+}
+
+impl<T> IoContextExt for Result<T, io::Error> {
     type T = T;
     fn file_context(self, ctx: FileContext) -> anyhow::Result<T> {
         self.map_err(|e| {
@@ -43,6 +48,18 @@ impl<T> FileContextExt for Result<T, io::Error> {
                 (ErrorKind::PermissionDenied, FileContext::Reading) => anyhow!("No permission to read file"),
                 // unstable: (ErrorKind::IsADirectory, FileContext::Reading) => anyhow!("Cannot read a directory"),
                 _ => IoError::from(e).into()
+            }
+        })
+    }
+
+    fn subprocess_context(self, ctx: SubprocessContext) -> anyhow::Result<Self::T> {
+        self.map_err(|e| {
+            // ctx can currently only be WaitingForChild, 
+            // which can only fail with ECHILD (see waitpid)
+            // which Rust doesn't expose
+            #[allow(clippy::match_single_binding)]
+            match (e.kind(), ctx) {
+                _ => IoError::from(e).into(),
             }
         })
     }
@@ -85,10 +102,4 @@ pub enum ExecutableError {
     /// This variant is a fallthrough, and you should generally prefer a more specific/human-readable error
     #[error("{0}")]
     OtherIoError(#[from] IoError),
-}
-
-impl ExecutableError {
-    pub fn unexpected(source: io::Error) -> Self {
-        Self::OtherIoError(source.into())
-    }
 }
