@@ -53,7 +53,7 @@ mod tests {
         assert_eq!(first_command_args, &String::from("-a"));
 
         assert_eq!(second_command, &String::from("ls"));
-        assert_eq!(second_command_args, true);
+        assert!(second_command_args);
     }
 
     #[test]

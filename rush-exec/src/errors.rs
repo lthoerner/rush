@@ -26,35 +26,41 @@ impl fmt::Display for IoError {
 }
 
 pub enum FileContext {
-    Reading,
+    FileRead,
 }
 
 pub enum ProcessContext {
-    WaitingForChild
+    WaitingForChild,
 }
 
-pub trait IoContextExt {
+/// This is for creating errors with additional context, e.g.
+/// ```ignore
+/// read(file).file_context(FileContext::FileRead)?;
+/// ```
+/// General idea: we can get more reuse by making a general conversion from io::Error + context -> descriptive error
+pub trait IoErrorContextExt {
     type T;
     fn file_context(self, ctx: FileContext) -> anyhow::Result<Self::T>;
     fn process_context(self, ctx: ProcessContext) -> anyhow::Result<Self::T>;
 }
 
-impl<T> IoContextExt for Result<T, io::Error> {
+impl<T> IoErrorContextExt for Result<T, io::Error> {
     type T = T;
     fn file_context(self, ctx: FileContext) -> anyhow::Result<T> {
         self.map_err(|e| {
             match (e.kind(), ctx) {
-                (ErrorKind::NotFound, FileContext::Reading) => anyhow!("File not found"),
-                (ErrorKind::PermissionDenied, FileContext::Reading) => anyhow!("No permission to read file"),
-                // unstable: (ErrorKind::IsADirectory, FileContext::Reading) => anyhow!("Cannot read a directory"),
-                _ => IoError::from(e).into()
+                (ErrorKind::NotFound, FileContext::FileRead) => anyhow!("File not found"),
+                (ErrorKind::PermissionDenied, FileContext::FileRead) => {
+                    anyhow!("No permission to read file")
+                }
+                _ => IoError::from(e).into(),
             }
         })
     }
 
     fn process_context(self, ctx: ProcessContext) -> anyhow::Result<Self::T> {
         self.map_err(|e| {
-            // ctx can currently only be WaitingForChild, 
+            // ctx can currently only be WaitingForChild,
             // which can only fail with ECHILD (see waitpid)
             // which Rust doesn't expose
             #[allow(clippy::match_single_binding)]
@@ -84,9 +90,6 @@ pub enum BuiltinError {
     FailedReadingFileName(PathBuf),
     #[error("Unable to read dir: {0}")]
     FailedReadingDir(PathBuf),
-    /// This variant is a fallthrough, and you should generally prefer a more specific/human-readable error
-    #[error("{0}")]
-    OtherIoError(#[from] IoError),
 }
 
 #[derive(Error, Debug)]
@@ -99,7 +102,4 @@ pub enum ExecutableError {
     FailedToParseStdout(String),
     #[error("Failed to parse executable stderr: {0}")]
     FailedToParseStderr(String),
-    /// This variant is a fallthrough, and you should generally prefer a more specific/human-readable error
-    #[error("{0}")]
-    OtherIoError(#[from] IoError),
 }

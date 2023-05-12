@@ -11,7 +11,7 @@ use rush_state::path::Path;
 use rush_state::shell::Shell;
 use rush_state::showln;
 
-use crate::errors::{ExecutableError, IoContextExt, ProcessContext::WaitingForChild};
+use crate::errors::{ExecutableError, IoErrorContextExt, ProcessContext::WaitingForChild};
 
 // Represents either a builtin (internal command) or an executable (external command)
 // A Runnable may be executed by calling its .run() method
