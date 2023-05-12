@@ -25,46 +25,35 @@ impl fmt::Display for IoError {
     }
 }
 
-pub enum FileContext {
+/// This is for adding context to errors, e.g.
+/// ```ignore
+/// read(file).io_context(IoContext::FileRead)?;
+/// ```
+pub enum IoContext {
     FileRead,
-}
-
-pub enum ProcessContext {
     WaitingForChild,
 }
 
 /// This is for creating errors with additional context, e.g.
 /// ```ignore
-/// read(file).file_context(FileContext::FileRead)?;
+/// read(file).io_context(IoContext::FileRead)?;
 /// ```
 /// General idea: we can get more reuse by making a general conversion from io::Error + context -> descriptive error
 pub trait IoErrorContextExt {
     type T;
-    fn file_context(self, ctx: FileContext) -> anyhow::Result<Self::T>;
-    fn process_context(self, ctx: ProcessContext) -> anyhow::Result<Self::T>;
+    fn io_context(self, ctx: IoContext) -> anyhow::Result<Self::T>;
 }
 
 impl<T> IoErrorContextExt for Result<T, io::Error> {
     type T = T;
-    fn file_context(self, ctx: FileContext) -> anyhow::Result<T> {
-        self.map_err(|e| {
-            match (e.kind(), ctx) {
-                (ErrorKind::NotFound, FileContext::FileRead) => anyhow!("File not found"),
-                (ErrorKind::PermissionDenied, FileContext::FileRead) => {
-                    anyhow!("No permission to read file")
-                }
-                _ => IoError::from(e).into(),
-            }
-        })
-    }
 
-    fn process_context(self, ctx: ProcessContext) -> anyhow::Result<Self::T> {
+    fn io_context(self, ctx: IoContext) -> anyhow::Result<Self::T> {
         self.map_err(|e| {
-            // ctx can currently only be WaitingForChild,
-            // which can only fail with ECHILD (see waitpid)
-            // which Rust doesn't expose
-            #[allow(clippy::match_single_binding)]
             match (e.kind(), ctx) {
+                (ErrorKind::NotFound, IoContext::FileRead) => anyhow!("File not found"),
+                (ErrorKind::PermissionDenied, IoContext::FileRead) => {
+                    anyhow!("No permissions to read")
+                }
                 _ => IoError::from(e).into(),
             }
         })
