@@ -146,6 +146,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires welcome message plugin to be built"]
     fn load_example_plugin() {
         let plugin_ctx = Context::new();
         let mut registry = PluginRegistry::new(
@@ -166,6 +167,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires path autocomplete plugin to be built"]
     fn autocomplete() {
         let plugin_ctx = Context::new();
         let mut registry = PluginRegistry::new(
