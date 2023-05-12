@@ -1,12 +1,15 @@
-use std::io::{BufRead, BufReader, Read};
+use std::io::{BufRead, BufReader};
 use std::process::{Command as Process, Stdio};
-use std::sync::Mutex;
+use std::sync::mpsc;
+use std::thread;
+use std::time::Duration;
 
 use anyhow::Result;
 
 use rush_state::console::Console;
 use rush_state::path::Path;
 use rush_state::shell::Shell;
+use rush_state::showln;
 
 use crate::errors::ExecutableError;
 
@@ -84,31 +87,122 @@ impl Executable {
 
 impl Runnable for Executable {
     // * Executables do not have access to the shell state, but the context argument is required by the Runnable trait
+    // TODO: Remove as many .unwrap() calls as possible here
     fn run(&self, _shell: &mut Shell, console: &mut Console, arguments: Vec<&str>) -> Result<()> {
         // Create the Process, pass the provided arguments to it, and execute it
-        let Ok(mut process) = Process::new(self.path.path()).args(arguments).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn() else { return Err(ExecutableError::PathNoLongerExists(self.path.path().clone()).into()) };
-        let stdout = process.stdout.take().unwrap();
-        let stderr = process.stderr.take().unwrap();
+        let Ok(mut process) = Process::new(self.path.path())
+            .args(arguments)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+        else {
+            return Err(ExecutableError::PathNoLongerExists(self.path.path().clone()).into())
+        };
 
-        fn read_lines_to_console(console: &Mutex<&mut Console>, file: Box<dyn Read + Send>) {
-            std::thread::scope(|s| {
-                s.spawn(|| {
-                    let lines = BufReader::new(file).lines();
-                    for line in lines {
-                        console.lock().unwrap().println(&line.unwrap());
+        // Create channels for communication between threads
+        let (tx_stdout, rx_stdout) = mpsc::channel::<Result<String>>();
+        let (tx_stderr, rx_stderr) = mpsc::channel::<Result<String>>();
+
+        // Spawn a thread to read stdout
+        let stdout_thread = {
+            let stdout = process.stdout.take().unwrap();
+            thread::spawn(move || {
+                let reader = BufReader::new(stdout);
+                for line in reader.lines() {
+                    // If the line is Ok, send it to the main thread
+                    match line {
+                        Ok(line) => {
+                            // If sending the line fails, return an error
+                            if let Err(e) = tx_stdout.send(Ok(line)) {
+                                return Err(ExecutableError::FailedToParseStdout(e.to_string()));
+                            }
+                        }
+                        // If reading the line fails, return an error
+                        Err(e) => {
+                            return Err(ExecutableError::FailedToParseStdout(e.to_string()));
+                        }
                     }
-                });
-            });
+                }
+                Ok(())
+            })
+        };
+
+        let stderr_thread = {
+            let stderr = process.stderr.take().unwrap();
+            thread::spawn(move || {
+                let reader = BufReader::new(stderr);
+                for line in reader.lines() {
+                    match line {
+                        Ok(line) => {
+                            if let Err(e) = tx_stderr.send(Ok(line)) {
+                                return Err(ExecutableError::FailedToParseStderr(e.to_string()));
+                            }
+                        }
+                        Err(e) => {
+                            return Err(ExecutableError::FailedToParseStderr(e.to_string()));
+                        }
+                    }
+                }
+                Ok(())
+            })
+        };
+
+        let read_timeout = Duration::from_millis(100);
+        let sleep_timeout = Duration::from_millis(10);
+
+        let mut stdout_done = false;
+        let mut stderr_done = false;
+        let mut process_done = false;
+
+        while !stdout_done || !stderr_done || !process_done {
+            if let Ok(packet) = rx_stdout.recv_timeout(read_timeout) {
+                // If the packet is Ok, unpack it and print it
+                if let Ok(line) = packet {
+                    showln!(console, "{}", &line);
+                // If the packet is Err, propagate err up the stack
+                } else {
+                    packet?;
+                }
+            } else {
+                stdout_done = true;
+            }
+            if let Ok(packet) = rx_stderr.recv_timeout(read_timeout) {
+                if let Ok(line) = packet {
+                    showln!(console, "{}", &line);
+                } else {
+                    packet?;
+                }
+            } else {
+                stderr_done = true;
+            }
+
+            if !process_done {
+                match process.try_wait() {
+                    Ok(Some(_)) => {
+                        process_done = true;
+                        // Set these to false so we do at least one more check on both - since the
+                        // program may terminate and not have had anything printed recently.
+                        stdout_done = false;
+                        stderr_done = false;
+                    }
+                    Ok(None) => {
+                        // Child process is still running
+                        // Add a small sleep to prevent high CPU usage in the loop
+                        thread::sleep(sleep_timeout);
+                    }
+                    Err(e) => {
+                        eprintln!("Error while waiting for child process: {}", e);
+                        break;
+                    }
+                }
+            }
         }
 
-        // Concurrently display the stdout and stderr of the process to the console
-        let console = Mutex::new(console);
-        read_lines_to_console(&console, Box::new(stdout));
-        read_lines_to_console(&console, Box::new(stderr));
+        // Wait for the threads to finish, if err, push it up the stack
+        stdout_thread.join().unwrap()?;
+        stderr_thread.join().unwrap()?;
 
-        // Wait for the process to finish
-        // TODO: There may be other types of errors that could happen, they may need handlers
-        let status = process.wait()?;
+        let status = process.wait().expect("Failed to wait on child process");
 
         match status.success() {
             true => Ok(()),

@@ -59,7 +59,6 @@
         "./Cargo.toml",
         "./example-plugins/path-autocomplete/Cargo.toml",
         "./example-plugins/welcome-message/Cargo.toml",
-        "./rush-pdk/Cargo.toml",
-        "./rush-plugins-api/Cargo.toml",
+        "./rush-pdk/Cargo.toml"
     ],
 }

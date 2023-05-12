@@ -1,5 +1,6 @@
 target/
 /out
+demo.md
 .idea
 .DS_STORE
 rush-pdk/Cargo.lock

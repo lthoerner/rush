@@ -1,5 +1,6 @@
 use std::fmt::Debug;
 use std::io::{stdout, Stdout};
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use anyhow::Result;
 use bitflags::bitflags;
@@ -17,6 +18,25 @@ use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
 use ratatui::{Frame, Terminal};
 
 use crate::shell::Shell;
+
+// Macros for printing to the TUI console
+#[macro_export]
+macro_rules! show {
+    ($console:expr, $($arg:tt)*) => {
+        $console.print(&::std::format!($($arg)*))
+    };
+}
+
+#[macro_export]
+macro_rules! showln {
+    ($console:expr $(,)?) => {
+        $console.println("")
+    };
+
+    ($console:expr, $($arg:tt)*) => {
+        $console.println(&::std::format!($($arg)*))
+    };
+}
 
 // Represents an action that the handler instructs the REPL (Console.read_line()) to perform
 // Allows for some actions to be performed in the handler and some to be performed in the REPL
@@ -43,7 +63,7 @@ enum RemoveMode {
 bitflags! {
     struct ClearMode: u8 {
         const OUTPUT = 0b00000001;
-        const RESET_LINE = 0b00000010;
+        const LINE = 0b00000010;
     }
 }
 
@@ -91,6 +111,23 @@ struct ConsoleData<'a> {
     debug_mode: bool,
 }
 
+pub static RAW_MODE: AtomicBool = AtomicBool::new(false);
+pub fn restore_terminal() {
+    if !RAW_MODE.load(Ordering::Acquire) {
+        return;
+    }
+    disable_raw_mode().unwrap();
+    execute!(
+        stdout(),
+        LeaveAlternateScreen,
+        cursor::MoveTo(0, 0),
+        cursor::Show,
+        Clear(ClearType::All)
+    )
+    .unwrap();
+    RAW_MODE.store(false, Ordering::Release);
+}
+
 impl<'a> Console<'a> {
     pub fn new() -> Result<Self> {
         let backend = CrosstermBackend::new(stdout());
@@ -113,20 +150,17 @@ impl<'a> Console<'a> {
         )?;
         self.terminal.show_cursor()?;
 
-        self.clear(ClearMode::RESET_LINE)
+        RAW_MODE.store(true, Ordering::Release);
+        self.clear(ClearMode::LINE)
     }
 
-    // Closes the TUI console
-    pub fn close(&mut self) -> Result<()> {
-        disable_raw_mode()?;
-        execute!(
-            self.terminal.backend_mut(),
-            LeaveAlternateScreen,
-            cursor::MoveTo(0, 0),
-            cursor::Show,
-            Clear(ClearType::All)
-        )?;
-        Ok(())
+    // Closes the TUI console and exits the program
+    // * Error handling here is unnecessary because the program is exiting
+    // TODO: This assumption may need to be reevaluated in the future
+    pub fn exit(&mut self, code: i32) {
+        restore_terminal();
+        // TODO: Exiting ignores drops, which may be problematic
+        std::process::exit(code);
     }
 
     // Reads a line of input from the user
@@ -185,10 +219,7 @@ impl<'a> Console<'a> {
 
                     return Ok(line);
                 }
-                ReplAction::Exit => {
-                    self.close()?;
-                    std::process::exit(0);
-                }
+                ReplAction::Exit => self.exit(0),
                 ReplAction::RedrawFrame => {
                     self.data.update_autocomplete(shell);
                     self.data.update_debug(shell);
@@ -216,15 +247,13 @@ impl<'a> Console<'a> {
                     }
                     (KeyModifiers::NONE, KeyCode::Left) => self.data.move_cursor_left(),
                     (KeyModifiers::NONE, KeyCode::Right) => self.data.move_cursor_right(),
+                    (KeyModifiers::ALT, KeyCode::Left) => self.data.seek_cursor_left(),
+                    (KeyModifiers::ALT, KeyCode::Right) => self.data.seek_cursor_right(),
                     (KeyModifiers::NONE, KeyCode::Enter) if !self.data.line_buffer.is_empty() => {
                         return Ok(ReplAction::Return)
                     }
-                    (KeyModifiers::SHIFT, KeyCode::Up) => {
-                        self.data.scroll = self.data.scroll.saturating_sub(1)
-                    }
-                    (KeyModifiers::SHIFT, KeyCode::Down) => {
-                        self.data.scroll = self.data.scroll.saturating_add(1)
-                    }
+                    (KeyModifiers::SHIFT, KeyCode::Up) => self.data.scroll_up(),
+                    (KeyModifiers::SHIFT, KeyCode::Down) => self.data.scroll_down(),
                     (KeyModifiers::NONE, KeyCode::Up) => {
                         self.data.scroll_history(HistoryDirection::Up, shell)?
                     }
@@ -234,6 +263,7 @@ impl<'a> Console<'a> {
                     (KeyModifiers::NONE, KeyCode::Tab) => self.data.autocomplete_line(),
                     (KeyModifiers::CONTROL, KeyCode::Char('c')) => return Ok(ReplAction::Exit),
                     (KeyModifiers::CONTROL, KeyCode::Char('l')) => self.clear(ClearMode::OUTPUT)?,
+                    (KeyModifiers::CONTROL, KeyCode::Char('u')) => self.clear(ClearMode::LINE)?,
                     // TODO: Make this a toggle method
                     (KeyModifiers::CONTROL, KeyCode::Char('d')) => {
                         self.data.debug_mode = !self.data.debug_mode
@@ -264,7 +294,7 @@ impl<'a> Console<'a> {
             self.data.output_buffer = Text::default();
         }
 
-        if mode.contains(ClearMode::RESET_LINE) {
+        if mode.contains(ClearMode::LINE) {
             self.data.reset_line_buffer();
             self.data.cursor_index = 0;
         }
@@ -290,6 +320,12 @@ impl<'a> Console<'a> {
     pub fn print(&mut self, text: &str) {
         self.data.append_str(text);
         _ = self.draw_frame(true)
+    }
+}
+
+impl Drop for Console<'_> {
+    fn drop(&mut self) {
+        restore_terminal();
     }
 }
 
@@ -399,35 +435,29 @@ impl<'a> ConsoleData<'a> {
         let key_style = Style::default().add_modifier(Modifier::BOLD);
         let value_style = Style::default().fg(Color::LightGreen);
 
-        let get_spans = |key, value: Box<&dyn Debug>| {
+        let get_spans = |key, value: &dyn Debug| {
             Spans::from(vec![
                 Span::styled(key, key_style),
                 Span::styled(format!(" {:?}", value), value_style),
             ])
         };
 
-        let line_buffer = get_spans("LINE BUFFER:", Box::new(&self.line_buffer));
-        let cursor_index = get_spans("CURSOR INDEX:", Box::new(&self.cursor_index));
-        let autocomplete_buffer =
-            get_spans("AUTOCOMPLETE BUFFER:", Box::new(&self.autocomplete_buffer));
-        let history_buffer = get_spans("HISTORY BUFFER:", Box::new(&self.history_buffer));
-        let history_index = get_spans("HISTORY INDEX:", Box::new(&self.history_index));
-        let output_buffer_length = get_spans(
-            "OUTPUT BUFFER LENGTH:",
-            Box::new(&self.output_buffer.lines.len()),
-        );
-        let scroll = get_spans("SCROLL:", Box::new(&self.scroll));
+        let line_buffer = get_spans("LINE BUFFER:", &self.line_buffer);
+        let cursor_index = get_spans("CURSOR INDEX:", &self.cursor_index);
+        let autocomplete_buffer = get_spans("AUTOCOMPLETE BUFFER:", &self.autocomplete_buffer);
+        let history_buffer = get_spans("HISTORY BUFFER:", &self.history_buffer);
+        let history_index = get_spans("HISTORY INDEX:", &self.history_index);
+        let output_buffer_length =
+            get_spans("OUTPUT BUFFER LENGTH:", &self.output_buffer.lines.len());
+        let scroll = get_spans("SCROLL:", &self.scroll);
 
-        let truncation = get_spans(
-            "PROMPT TRUNCATION:",
-            Box::new(&shell.config().truncation_factor),
-        );
-        let history_limit = get_spans("HISTORY LIMIT:", Box::new(&shell.config().history_limit));
-        let show_errors = get_spans("SHOW ERRORS:", Box::new(&shell.config().show_errors));
+        let truncation = get_spans("PROMPT TRUNCATION:", &shell.config().truncation_factor);
+        let history_limit = get_spans("HISTORY LIMIT:", &shell.config().history_limit);
+        let show_errors = get_spans("SHOW ERRORS:", &shell.config().show_errors);
 
-        let user = get_spans("USER:", Box::new(&shell.env().USER()));
-        let home = get_spans("HOME:", Box::new(&shell.env().HOME()));
-        let cwd = get_spans("CWD:", Box::new(&shell.env().CWD()));
+        let user = get_spans("USER:", &shell.env().USER());
+        let home = get_spans("HOME:", &shell.env().HOME());
+        let cwd = get_spans("CWD:", &shell.env().CWD());
 
         self.debug_buffer = Text::from(vec![
             line_buffer,
@@ -508,12 +538,12 @@ impl<'a> ConsoleData<'a> {
             .wrap(Wrap { trim: false });
 
         // Split the terminal into two windows, one for the command output, and one for the prompt
-        // The output window takes up the top 80% of the terminal, and the prompt window takes up the bottom 20%
+        // The output window takes up the top 85% of the terminal, and the prompt window takes up the bottom 15%
         // If the debug panel is enabled, the output window will be split in 60/40 sections
         let (mut output_area, prompt_area) = {
             let chunks = Layout::default()
                 .direction(Direction::Vertical)
-                .constraints([Constraint::Percentage(80), Constraint::Percentage(20)])
+                .constraints([Constraint::Percentage(85), Constraint::Percentage(15)])
                 .split(f.size());
             (chunks[0], chunks[1])
         };
@@ -555,6 +585,19 @@ impl<'a> ConsoleData<'a> {
         // Render the cursor
         let (cursor_x, cursor_y) = Self::cursor_coord(self.cursor_index, prompt_area);
         f.set_cursor(cursor_x, cursor_y);
+    }
+
+    // Scrolls down the output panel by one line
+    fn scroll_down(&mut self) {
+        let max_scroll = self.output_buffer.lines.len();
+        if self.scroll < max_scroll {
+            self.scroll = self.scroll.saturating_add(1);
+        }
+    }
+
+    // Scrolls up the output panel by one line
+    fn scroll_up(&mut self) {
+        self.scroll = self.scroll.saturating_sub(1);
     }
 
     // Automatically scrolls to the bottom of the output panel text
@@ -670,9 +713,7 @@ impl<'a> ConsoleData<'a> {
 
     // Moves the cursor left by one character, checking for bounds
     fn move_cursor_left(&mut self) {
-        if self.cursor_index > 0 {
-            self.cursor_index -= 1;
-        }
+        self.cursor_index = self.cursor_index.saturating_sub(1);
     }
 
     // Moves the cursor right by one character, checking for bounds
@@ -680,6 +721,54 @@ impl<'a> ConsoleData<'a> {
         if self.cursor_index < self.line_buffer.len() {
             self.cursor_index += 1;
         }
+    }
+
+    // Moves the cursor left by one word, checking for bounds
+    fn seek_cursor_left(&mut self) {
+        for i in (0..self.cursor_index).rev() {
+            if self.is_word_boundary(i) {
+                self.cursor_index = i;
+                return;
+            }
+        }
+    }
+
+    // Moves the cursor right by one word, checking for bounds
+    fn seek_cursor_right(&mut self) {
+        for i in (self.cursor_index..=self.line_buffer.len()).skip(1) {
+            if self.is_word_boundary(i) {
+                self.cursor_index = i;
+                return;
+            }
+        }
+    }
+
+    // Checks if the given index in the line buffer is a word boundary
+    fn is_word_boundary(&self, index: usize) -> bool {
+        let buffer = &self.line_buffer;
+        if index == 0 || index == buffer.len() {
+            return true;
+        }
+
+        if !buffer.is_char_boundary(index) {
+            return false;
+        }
+
+        if buffer[index..]
+            .chars()
+            .next()
+            .map_or(false, |c| !c.is_whitespace())
+        {
+            return false;
+        }
+
+        if let Some(c) = buffer[..index].chars().next_back() {
+            if c != ' ' {
+                return true;
+            }
+        }
+
+        false
     }
 
     // Clears the line buffer and resets the cursor position
@@ -754,7 +843,7 @@ impl<'a> ConsoleData<'a> {
     // Autocompletes the line buffer
     fn autocomplete_line(&mut self) {
         if let Some(autocompletion) = &self.autocomplete_buffer {
-            self.line_buffer.push_str(&autocompletion);
+            self.line_buffer.push_str(autocompletion);
             self.cursor_index = self.line_buffer.len();
             self.autocomplete_buffer = None;
         }

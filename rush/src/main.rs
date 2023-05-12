@@ -2,8 +2,9 @@ use anyhow::Result;
 
 use rush_eval::dispatcher::Dispatcher;
 use rush_eval::errors::DispatchError;
-use rush_state::console::Console;
+use rush_state::console::{Console, restore_terminal};
 use rush_state::shell::Shell;
+use rush_state::showln;
 
 fn main() -> Result<()> {
     // The Shell type stores all of the state for the shell, including its configuration,
@@ -12,6 +13,11 @@ fn main() -> Result<()> {
     // The Console type is responsible for reading and writing to the terminal (TUI),
     // and providing an interface for any commands that need to produce output and/or take input
     let mut console = Console::new()?;
+    let default_panic = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        restore_terminal();
+        default_panic(info);
+    }));
     // The Dispatcher type is responsible for resolving command names to actual function calls,
     // or executables if needed, and then invoking them with the given arguments
     let dispatcher = Dispatcher::default();
@@ -34,12 +40,12 @@ fn handle_error(error: Result<()>, shell: &mut Shell, console: &mut Console) {
         Err(e) => {
             match e.downcast_ref::<DispatchError>() {
                 Some(DispatchError::UnknownCommand(command_name)) => {
-                    console.println(&format!("Unknown command: {}", command_name));
+                    showln!(console, "Unknown command: {}", command_name);
                 }
                 _ => {
                     if shell.config().show_errors {
                         // TODO: This is sort of a "magic" formatting string, it should be changed to a method or something
-                        console.println(&format!("Error: {:#?}: {}", e, e));
+                        showln!(console, "Error: {:#?}: {}", e, e);
                     }
                 }
             }

@@ -14,10 +14,10 @@ use crate::path::Path;
 #[allow(non_snake_case)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum EnvVar {
-    USER,
-    HOME,
-    CWD,
-    PATH,
+    User,
+    Home,
+    Cwd,
+    Path,
 }
 
 impl Display for EnvVar {
@@ -26,10 +26,10 @@ impl Display for EnvVar {
             f,
             "{}",
             match self {
-                Self::USER => "USER",
-                Self::HOME => "HOME",
-                Self::CWD => "CWD",
-                Self::PATH => "PATH",
+                Self::User => "USER",
+                Self::Home => "HOME",
+                Self::Cwd => "CWD",
+                Self::Path => "PATH",
             }
         )
     }
@@ -37,12 +37,12 @@ impl Display for EnvVar {
 
 impl EnvVar {
     // Does the same thing as .to_string(), but uses legacy environment variable names
-    fn to_legacy_string(&self) -> String {
+    fn to_legacy_string(self) -> String {
         match self {
-            Self::USER => "USER".to_string(),
-            Self::HOME => "HOME".to_string(),
-            Self::CWD => "PWD".to_string(),
-            Self::PATH => "PATH".to_string(),
+            Self::User => "USER".to_string(),
+            Self::Home => "HOME".to_string(),
+            Self::Cwd => "PWD".to_string(),
+            Self::Path => "PATH".to_string(),
         }
     }
 }
@@ -86,10 +86,10 @@ pub struct Environment {
 #[allow(non_snake_case)]
 impl Environment {
     pub fn new() -> Result<Self> {
-        let USER = get_parent_env_var(EnvVar::USER)?;
-        let HOME = PathBuf::from(get_parent_env_var(EnvVar::HOME)?);
-        let CWD = Path::from_str(get_parent_env_var(EnvVar::CWD)?.as_str(), &HOME)?;
-        let PATH = convert_path(get_parent_env_var(EnvVar::PATH)?.as_str(), &HOME);
+        let USER = get_parent_env_var(EnvVar::User)?;
+        let HOME = PathBuf::from(get_parent_env_var(EnvVar::Home)?);
+        let CWD = Path::from_str(get_parent_env_var(EnvVar::Cwd)?.as_str(), &HOME)?;
+        let PATH = convert_path(get_parent_env_var(EnvVar::Path)?.as_str(), &HOME);
 
         Ok(Self {
             USER,
@@ -105,17 +105,17 @@ impl Environment {
     // Updates the shell process's environment variables to match the internal representation
     fn update_process_env_vars(&self, vars: EnvVarBundle) -> Result<()> {
         // TODO: How to detect errors here?
-        if vars.contains(EnvVar::USER) {
+        if vars.contains(EnvVar::User) {
             env::set_var("USER", &self.USER);
         }
 
-        if vars.contains(EnvVar::HOME) {
+        if vars.contains(EnvVar::Home) {
             env::set_var("HOME", &self.HOME);
         }
 
-        if vars.contains(EnvVar::CWD) {
+        if vars.contains(EnvVar::Cwd) {
             env::set_current_dir(self.CWD.path())
-                .map_err(|_| ShellError::FailedToUpdateEnvironmentVariable(EnvVar::CWD))?;
+                .map_err(|_| ShellError::FailedToUpdateEnvironmentVariable(EnvVar::Cwd))?;
         }
 
         Ok(())
@@ -162,7 +162,7 @@ impl Environment {
                 }
             }
 
-            self.update_process_env_vars([EnvVar::CWD].into())?;
+            self.update_process_env_vars([EnvVar::Cwd].into())?;
         }
 
         Ok(())
@@ -174,7 +174,7 @@ impl Environment {
         if let Some(previous_path) = self.backward_directories.pop_back() {
             self.CWD = previous_path;
             self.forward_directories.push_front(starting_directory);
-            self.update_process_env_vars([EnvVar::CWD].into())
+            self.update_process_env_vars([EnvVar::Cwd].into())
         } else {
             Err(ShellError::NoPreviousDirectory.into())
         }
@@ -186,7 +186,7 @@ impl Environment {
         if let Some(next_path) = self.forward_directories.pop_front() {
             self.CWD = next_path;
             self.backward_directories.push_back(starting_directory);
-            self.update_process_env_vars([EnvVar::CWD].into())
+            self.update_process_env_vars([EnvVar::Cwd].into())
         } else {
             Err(ShellError::NoNextDirectory.into())
         }

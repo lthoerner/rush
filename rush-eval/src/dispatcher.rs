@@ -1,4 +1,6 @@
+use std::os::unix::prelude::PermissionsExt;
 use anyhow::Result;
+extern crate clap;
 
 use rush_exec::builtins;
 use rush_exec::commands::{Builtin, Executable, Runnable};
@@ -77,14 +79,27 @@ impl Dispatcher {
     }
 
     // Evaluates and executes a command from a string
-    pub fn eval(&self, shell: &mut Shell, console: &mut Console, line: &str) -> Result<()> {
-        let (command_name, command_args) = parser::tokenize(line);
-        // ? Is there a way to avoid this type conversion?
-        let command_name = command_name.as_str();
-        let command_args = command_args.iter().map(|a| a.as_str()).collect();
+    pub fn eval(&self, shell: &mut Shell, console: &mut Console, line: &String) -> Result<()> {
+        let commands = parser::parse(line);
+        let mut results: Vec<Result<()>> = Vec::new();
 
-        // Dispatch the command to the Dispatcher
-        self.dispatch(shell, console, command_name, command_args)
+        for (command_name, command_args) in commands {
+            // ? Is there a way to avoid this type conversion?
+            let command_name = command_name.as_str();
+            let command_args = command_args.iter().map(|a| a.as_str()).collect();
+
+            // Dispatch the command to the Dispatcher
+            let result = self.dispatch(shell, console, command_name, command_args);
+            results.push(result);
+        }
+
+        for result in results {
+            if result.is_err() {
+                return Err(result.err().unwrap());
+            }
+        }
+
+        Ok(())
     }
 
     // Resolves and dispatches a command to the appropriate function or external binary
@@ -103,8 +118,19 @@ impl Dispatcher {
             // If the command is not in the Dispatcher, try to run it as an executable from the PATH
             let path = Path::from_path_var(command_name, shell.env().PATH());
             if let Ok(path) = path {
-                // ? Should this check if the file is an executable first?
-                Executable::new(path).run(shell, console, command_args)
+                // Check if the file is executable (has the executable bit set)
+                if let Ok(metadata) = fs_err::metadata(path.path()) {
+                    let permission_code = metadata.permissions().mode();
+                    // 0o111 is the octal representation of 73, which is the executable bit
+                    if permission_code & 0o111 == 0 {
+                        Err(DispatchError::CommandNotExecutable(permission_code).into())
+                    } else {
+                        Executable::new(path).run(shell, console, command_args)
+                    }
+                } else {
+                    // If the file cannot be read, return an error
+                    Err(DispatchError::FailedToReadExecutableMetadata(path.to_string()).into())
+                }
             } else {
                 Err(DispatchError::UnknownCommand(command_name.to_string()).into())
             }
