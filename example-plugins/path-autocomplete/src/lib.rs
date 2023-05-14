@@ -56,9 +56,9 @@ fn create_completion(first_arg: &str) -> Option<String> {
 }
 
 #[plugin_fn]
-pub fn provide_autocomplete(line_buffer: Json<String>) -> FnResult<Json<Option<String>>> {
-    let Some((first_arg, is_in_quotes)) = parse_line_buffer(&line_buffer.0) else {
-        return Ok(Json(None));
+pub fn provide_autocomplete<'a>(line_buffer: String) -> FnResult<String> {
+    let Some((first_arg, is_in_quotes)) = parse_line_buffer(&line_buffer) else {
+        return Ok(String::new());
     };
 
     let mut completion = create_completion(first_arg);
@@ -68,5 +68,5 @@ pub fn provide_autocomplete(line_buffer: Json<String>) -> FnResult<Json<Option<S
         }
     }
 
-    Ok(Json(completion))
+    Ok(completion.unwrap_or(String::new()))
 }

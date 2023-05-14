@@ -13,6 +13,8 @@ snafu = "0.7.4"
 rush-plugins-api = { path = "../rush-plugins-api" }
 anyhow.workspace = true
 lazy_static = "1.4.0"
+oneshot = "0.1.5"
 
 [dev-dependencies]
 ctor = "0.2.0"
+is_executable = "1.0.1"

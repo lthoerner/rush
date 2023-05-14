@@ -1,20 +1,9 @@
 use crate::bindings::{
-    self, ENV_DELETE_FN, ENV_GET_FN, ENV_SET_FN, ENV_VARS_FN, FS_IS_EXECUTABLE_FN, OUTPUT_TEXT_FN,
+    ENV_DELETE_FN, ENV_GET_FN, ENV_SET_FN, ENV_VARS_FN, FS_IS_EXECUTABLE_FN, OUTPUT_TEXT_FN,
 };
-use api::InitHookParams;
-use extism::{
-    manifest::Wasm, Context, CurrentPlugin, Function, Manifest, Plugin, UserData, Val, ValType,
-};
-use rush_plugins_api as api;
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use extism::{manifest::Wasm, Context, CurrentPlugin, Manifest, Plugin};
 use snafu::{ResultExt, Snafu};
-use std::{
-    collections::HashMap,
-    fmt::Debug,
-    fs,
-    path::Path,
-    sync::{Arc, Mutex},
-};
+use std::{collections::HashMap, fmt::Debug, fs, path::Path, string::FromUtf8Error};
 
 /// Implementations of functions that plugins can use.
 #[allow(unused_variables)]
@@ -46,22 +35,28 @@ impl HostBindings for NoOpHostBindings {}
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub(crate)))]
 pub enum RushPluginError {
-    #[snafu(display("invalid plugin format ({name}): {source}"))]
-    Extism { source: extism::Error, name: String },
+    #[snafu(display("plugin returned error ({name}, hook: {hook:?}): {source}"))]
+    Extism {
+        source: extism::Error,
+        name: String,
+        hook: Option<String>,
+    },
     #[snafu(display("i/o error ({name}): {source}"))]
     Io {
         source: std::io::Error,
         name: String,
     },
-    #[snafu(display("message serialization/deserialization failed ({name}): {source}"))]
+    #[snafu(display("json serialization/deserialization failed ({name}): {source}"))]
     Serde {
         source: serde_json::Error,
         name: String,
     },
+    #[snafu(display("plugin hook returned invalid utf8 ({name}): {source}"))]
+    Utf8 { source: FromUtf8Error, name: String },
 }
 
 pub struct RushPlugin<'a> {
-    instance: extism::Plugin<'a>,
+    pub instance: extism::Plugin<'a>,
     name: String,
 }
 
@@ -71,9 +66,10 @@ impl<'a> RushPlugin<'a> {
         bytes: impl Into<Vec<u8>>,
         context: &'a Context,
         name: String,
-    ) -> Result<Self, extism::Error> {
+        init_hook_params: &[u8],
+    ) -> Result<Self, RushPluginError> {
         let manifest = Manifest::new([Wasm::data(bytes)]).with_allowed_path("/", "/");
-        Ok(RushPlugin {
+        let mut plugin = RushPlugin {
             instance: Plugin::new_with_manifest(
                 context,
                 &manifest,
@@ -86,9 +82,15 @@ impl<'a> RushPlugin<'a> {
                     &*FS_IS_EXECUTABLE_FN,
                 ],
                 true,
-            )?,
+            )
+            .context(ExtismSnafu {
+                name: &name,
+                hook: None,
+            })?,
             name,
-        })
+        };
+        plugin.init(init_hook_params)?;
+        Ok(plugin)
     }
 
     /// Read and load a plugin from a file.
@@ -96,74 +98,71 @@ impl<'a> RushPlugin<'a> {
     /// # Panics
     ///
     /// - Panics if the path does not contain a valid file name (ex: `/`, `/path/to/file/..`)
-    pub fn new(path: &Path, context: &'a Context) -> Result<Self, RushPluginError> {
+    pub fn new(
+        path: &Path,
+        context: &'a Context,
+        init_hook_params: &[u8],
+    ) -> Result<Self, RushPluginError> {
         let path_display = path.display().to_string();
 
         let bytes = fs::read(path).context(IoSnafu {
             name: &path_display,
         })?;
-        Self::from_bytes(bytes, context, path_display.clone()).context(ExtismSnafu {
-            name: &path_display,
-        })
+        Self::from_bytes(bytes, context, path_display, init_hook_params)
     }
 
     pub fn name(&self) -> &str {
         self.name.as_ref()
     }
 
-    /// Call an exported function from the plugin.
-    pub fn call_hook<T>(&mut self, hook: &str, data: &impl Serialize) -> Result<T, RushPluginError>
-    where
-        T: DeserializeOwned,
-    {
-        let hook_input = serde_json::to_vec(data).context(SerdeSnafu { name: &self.name })?;
-        let output_bytes = self
-            .instance
-            .call(hook, &hook_input)
-            .context(ExtismSnafu { name: &self.name })?;
-
-        serde_json::from_slice::<T>(output_bytes).context(SerdeSnafu { name: &self.name })
-    }
-
     /// Call an exported function from the plugin, returning `None` if it is not implemented.
-    pub fn call_hook_if_exists<T>(
+    pub fn call_hook_if_exists(
         &mut self,
         hook: &str,
-        data: &impl Serialize,
-    ) -> Result<Option<T>, RushPluginError>
-    where
-        T: DeserializeOwned,
-    {
+        data: &[u8],
+    ) -> Result<Option<&[u8]>, RushPluginError> {
         if self.instance.has_function(hook) {
-            Ok(Some(self.call_hook::<T>(hook, data)?))
+            Ok(Some(self.instance.call(hook, data).with_context(|_| {
+                ExtismSnafu {
+                    name: &self.name,
+                    hook: Some(hook.to_string()),
+                }
+            })?))
         } else {
             Ok(None)
         }
     }
 
-    // Following methods are a comprehensive list of plugin hooks.
+    /*
+    /// Serialize `data` to JSON and call an exported function from the plugin, returning `None` if it is not implemented.
+    pub fn call_json_hook_if_exists(
+        &mut self,
+        hook: &str,
+        data: &impl Serialize,
+    ) -> Result<Option<&[u8]>, RushPluginError> {
+        if self.instance.has_function(hook) {
+            let serialized = serde_json::to_vec(data).context(SerdeSnafu { name: &self.name })?;
+            Ok(Some(
+                self.instance
+                    .call(hook, &serialized)
+                    .context(ExtismSnafu { name: &self.name })?,
+            ))
+        } else {
+            Ok(None)
+        }
+    }
+    */
 
     /// Perform any initialization required by the plugin implementation.
-    pub fn init(&mut self, params: &InitHookParams) -> Result<(), RushPluginError> {
-        self.call_hook_if_exists::<()>("rush_plugin_init", params)?;
+    fn init(&mut self, params: &[u8]) -> Result<(), RushPluginError> {
+        self.call_hook_if_exists("rush_plugin_init", params)?;
         Ok(())
     }
 
     /// Perform any deinitialization required by the plugin implementation.
     pub fn deinit(&mut self) -> Result<(), RushPluginError> {
-        self.call_hook_if_exists::<()>("rush_plugin_deinit", &())?;
+        self.call_hook_if_exists("rush_plugin_deinit", &[])?;
         Ok(())
-    }
-
-    /// Ask the plugin for completion suggestions.
-    pub fn request_autocomplete(
-        &mut self,
-        line_buffer: &str,
-    ) -> Result<Option<String>, RushPluginError> {
-        let suggestion: Option<String> = self
-            .call_hook_if_exists("provide_autocomplete", &line_buffer)?
-            .flatten();
-        Ok(suggestion)
     }
 }
 

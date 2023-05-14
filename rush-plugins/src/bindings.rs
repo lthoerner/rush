@@ -2,7 +2,7 @@ use crate::plugin::{HostBindings, NoOpHostBindings};
 use anyhow::{bail, Context};
 use extism::{CurrentPlugin, Function, UserData, Val, ValType};
 use lazy_static::lazy_static;
-use std::{env, sync::Mutex};
+use std::sync::Mutex;
 
 lazy_static! {
     // TODO(@doinkythederp): if we ever make plugins multithreaded, make this a thread_local

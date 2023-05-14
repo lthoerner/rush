@@ -38,12 +38,12 @@ pub fn rush_plugin_init(init_info: Json<InitHookParams>) -> FnResult<Json<()>> {
 
 ### Hooks
 
-All hooks (event listeners) take 1 or 0 parameters wrapped in a `Json<…>` struct and return a `FnResult<Json<…>>` struct. For brevity, the hooks listed below will not show these in the function signature. Hook implementations must have the `#[plugin_fn]` attribute.
+Hook implementations must have the `#[plugin_fn]` attribute to correctly interact with the shell. The shell runs hooks sequentially, with the plugins loaded earliest getting a higher priority.
 
-- `rush_plugin_init(InitHookParams) -> ()`
+- `rush_plugin_init(Json<InitHookParams>) -> FnResult<()>`
   - Called once after the plugin has been loaded
-- `rush_plugin_deinit() -> ()`
+- `rush_plugin_deinit() -> FnResult<()>`
   - May be called before the plugin is unloaded
-- `provide_autocomplete(String) -> Option<String>`
+- `provide_autocomplete(String) -> FnResult<String>`
   - Called as the user types to request autocomplete
-  - The hook takes the partial command as an argument and returns what it thinks the user will type next. Returning `None` or not implementing this hook will cause the shell to request a completion from the plugin loaded after yours (if any).
+  - The hook takes the partial command as an argument and returns what it thinks the user will type next. If your plugin returns an empty string or doesn't implement this hook, the shell will request a completion from a different plugin (if any).
