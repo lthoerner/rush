@@ -320,7 +320,7 @@ mod tests {
     }
 
     #[test]
-    //#[ignore = "requires welcome message plugin to be built"]
+    #[ignore = "requires welcome message plugin to be built"]
     fn load_example_plugin() {
         let mut registry = PluginHost::new(ERROR_REPORTER.clone());
 
@@ -335,7 +335,7 @@ mod tests {
     }
 
     #[test]
-    //#[ignore = "requires path autocomplete plugin to be built"]
+    #[ignore = "requires path autocomplete plugin to be built"]
     fn autocomplete() {
         let path = Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/../example-plugins/path-autocomplete/target/wasm32-wasi/release/path_autocomplete.wasm")).canonicalize().unwrap();
         let mut registry = PluginHost::new(ERROR_REPORTER.clone());
