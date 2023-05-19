@@ -7,11 +7,12 @@ use rush_plugins_api::InitHookParams;
 use snafu::ResultExt;
 use std::{
     path::{Path, PathBuf},
-    sync::{mpsc, Arc, Mutex},
+    sync::{mpsc, Arc},
     thread,
 };
 
 pub use bindings::HOST_BINDINGS;
+pub use extism::CurrentPlugin;
 
 enum PluginRunnerMessage {
     Hook {
@@ -36,7 +37,12 @@ enum HookBroadcastCallback {
     WithPayloads(oneshot::Sender<Vec<PluginHookResponse>>),
 }
 
-pub type ErrorReporter = Arc<Mutex<dyn FnMut(RushPluginError) + Send>>;
+pub type ErrorReporter = Arc<dyn Fn(RushPluginError) + Send + Sync>;
+
+/// Runs the error reporter in a new thread to prevent blocking the plugin host thread.
+fn call_error_reporter(report_error: ErrorReporter, err: RushPluginError) {
+    thread::spawn(move || report_error(err));
+}
 
 /// A struct that can be used to communicate with a plugin host thread.
 ///
@@ -105,7 +111,7 @@ impl PluginHost {
                                         plugin_name,
                                     }),
                                     Err(err) => {
-                                        report_error.lock().unwrap()(err);
+                                        call_error_reporter(Arc::clone(&report_error), err);
                                         plugins.remove(index);
                                         None
                                     }
@@ -230,7 +236,7 @@ impl PluginHost {
                 }) {
                     Ok(s) => Some(s),
                     Err(err) => {
-                        self.report_error.lock().unwrap()(err);
+                        call_error_reporter(Arc::clone(&self.report_error), err);
                         None
                     }
                 }
@@ -314,9 +320,9 @@ mod tests {
     }
 
     lazy_static! {
-        static ref ERROR_REPORTER: ErrorReporter = Arc::new(Mutex::new(|err| {
+        static ref ERROR_REPORTER: ErrorReporter = Arc::new(|err| {
             panic!("Plugin errored: {}", err);
-        }));
+        });
     }
 
     #[test]

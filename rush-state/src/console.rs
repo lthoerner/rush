@@ -459,6 +459,8 @@ impl<'a> ConsoleData<'a> {
         let home = get_spans("HOME:", &shell.env().HOME());
         let cwd = get_spans("CWD:", &shell.env().CWD());
 
+        let config = get_spans("CWD:", &format!("{:?}", shell.config()));
+
         self.debug_buffer = Text::from(vec![
             line_buffer,
             cursor_index,
@@ -475,6 +477,8 @@ impl<'a> ConsoleData<'a> {
             user,
             home,
             cwd,
+            Spans::default(),
+            config,
         ])
     }
 

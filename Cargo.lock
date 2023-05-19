@@ -1747,7 +1747,10 @@ name = "rush"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "is_executable",
  "rush-eval",
+ "rush-plugins",
+ "rush-plugins-api",
  "rush-state",
 ]
 
@@ -1809,6 +1812,7 @@ dependencies = [
  "crossterm",
  "fs-err",
  "ratatui",
+ "rush-plugins",
  "thiserror",
 ]
 

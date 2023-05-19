@@ -36,6 +36,12 @@ pub fn rush_plugin_init(init_info: Json<InitHookParams>) -> FnResult<Json<()>> {
 }
 ```
 
+When building your plugins, make sure to use the correct target:
+
+```sh
+cargo build --release --target wasm32-wasi
+```
+
 ### Hooks
 
 Hook implementations must have the `#[plugin_fn]` attribute to correctly interact with the shell. The shell runs hooks sequentially, with the plugins loaded earliest getting a higher priority.
@@ -47,3 +53,12 @@ Hook implementations must have the `#[plugin_fn]` attribute to correctly interac
 - `provide_autocomplete(String) -> FnResult<String>`
   - Called as the user types to request autocomplete
   - The hook takes the partial command as an argument and returns what it thinks the user will type next. If your plugin returns an empty string or doesn't implement this hook, the shell will request a completion from a different plugin (if any).
+
+## Plugin Authoring Tips
+
+If your plugin starts getting too big or takes too long to start up, consider enabling LTO:
+
+```toml
+[profile.release]
+lto = true
+```
