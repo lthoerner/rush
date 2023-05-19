@@ -57,7 +57,7 @@ fn main() -> Result<()> {
     }
 
     loop {
-        let line = console.write().unwrap().read_line(&mut shell)?;
+        let line = Console::read_line(&console, &mut shell)?;
         let status = dispatcher.eval(&mut shell, &mut console.write().unwrap(), &line);
         handle_error(status, &mut shell, &mut console.write().unwrap());
 

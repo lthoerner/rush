@@ -47,6 +47,7 @@ fn call_error_reporter(report_error: ErrorReporter, err: RushPluginError) {
 /// A struct that can be used to communicate with a plugin host thread.
 ///
 /// Once plugins are loaded, they can be interacted with via the methods on this struct.
+#[derive(Clone)]
 pub struct PluginHost {
     tx: mpsc::Sender<PluginRunnerMessage>,
     report_error: ErrorReporter,

@@ -1,6 +1,12 @@
 # PATH Autocomplete Plugin
 
-Recieve autocomplete suggestions for external commands in your PATH
+Bare minimum plugin for providing PATH autocompletion in Rush.
+
+## Ways this plugin could be improved
+
+- Filesystem operations take a while; cache all available commands.
+- Sort suggestions based on usage.
+  (track when the user executes a command and increase the likelyhood to suggest it to them again)
 
 ## Building
 
