@@ -38,12 +38,21 @@ enum HookBroadcastCallback {
 
 pub type ErrorReporter = Arc<Mutex<dyn FnMut(RushPluginError) + Send>>;
 
-pub struct PluginRegistry {
+/// A struct that can be used to communicate with a plugin host thread.
+///
+/// Once plugins are loaded, they can be interacted with via the methods on this struct.
+pub struct PluginHost {
     tx: mpsc::Sender<PluginRunnerMessage>,
     report_error: ErrorReporter,
 }
 
-impl PluginRegistry {
+impl PluginHost {
+    /// Spawn a new plugin host thread and return a struct that can be used to communicate with it.
+    ///
+    /// # Arguments
+    ///
+    /// - `report_error`: A function that will be called whenever a plugin returns an error.
+    ///    If the error is due to the plugin panicking or misusing the API, the plugin will removed after this function is called.
     pub fn new(report_error: ErrorReporter) -> Self {
         let (tx, rx) = mpsc::channel();
         {
@@ -117,12 +126,8 @@ impl PluginRegistry {
         Self { tx, report_error }
     }
 
-    /// Load a plugin from a file, with the parameters pre-serialized.
-    pub fn load_file_raw(
-        &mut self,
-        path: &Path,
-        init_params: Vec<u8>,
-    ) -> Result<(), RushPluginError> {
+    /// Load a plugin from a file, with the init parameters pre-serialized.
+    fn load_file_raw(&mut self, path: &Path, init_params: Vec<u8>) -> Result<(), RushPluginError> {
         let (callback, rx) = oneshot::channel();
         self.tx
             .send(PluginRunnerMessage::Load {
@@ -147,8 +152,8 @@ impl PluginRegistry {
         self.load_file_raw(path, serialized)
     }
 
-    /// Load a plugin from a file, with the parameters pre-serialized.
-    pub fn load_raw(&mut self, path: &Path, init_params: Vec<u8>) -> Result<(), RushPluginError> {
+    /// Load a plugin from a file, with the init parameters pre-serialized.
+    fn load_raw(&mut self, path: &Path, init_params: Vec<u8>) -> Result<(), RushPluginError> {
         if path.is_file() {
             self.load_file_raw(path, init_params)?;
         } else {
@@ -181,7 +186,9 @@ impl PluginRegistry {
         Ok(())
     }
 
-    /// Load all plugins from a file or directory.
+    /// Load plugins from a file or directory.
+    ///
+    /// If the path is a directory, it will be recursively searched for files ending in `.wasm`, which will be loaded as plugins.
     pub fn load(
         &mut self,
         path: &Path,
@@ -243,7 +250,9 @@ impl PluginRegistry {
         rx.recv().unwrap();
     }
 
-    /// Perform any deinitialization required by the plugin implementations, removing them from the registry.
+    /// Call the `rush_plugin_deinit` hook on all plugins so that they can perform any deinitialization they need to.
+    ///
+    /// This is called automatically when the PluginHost is dropped.
     pub fn deinit_plugins(&mut self) {
         self.broadcast_hook("rush_plugin_deinit".to_string(), Vec::new());
     }
@@ -257,6 +266,12 @@ impl PluginRegistry {
         .into_iter()
         .filter(|s| !s.is_empty())
         .collect()
+    }
+}
+
+impl Drop for PluginHost {
+    fn drop(&mut self) {
+        self.deinit_plugins();
     }
 }
 
@@ -307,7 +322,7 @@ mod tests {
     #[test]
     //#[ignore = "requires welcome message plugin to be built"]
     fn load_example_plugin() {
-        let mut registry = PluginRegistry::new(ERROR_REPORTER.clone());
+        let mut registry = PluginHost::new(ERROR_REPORTER.clone());
 
         registry
             .load(
@@ -323,7 +338,7 @@ mod tests {
     //#[ignore = "requires path autocomplete plugin to be built"]
     fn autocomplete() {
         let path = Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/../example-plugins/path-autocomplete/target/wasm32-wasi/release/path_autocomplete.wasm")).canonicalize().unwrap();
-        let mut registry = PluginRegistry::new(ERROR_REPORTER.clone());
+        let mut registry = PluginHost::new(ERROR_REPORTER.clone());
 
         registry
             .load(

@@ -55,7 +55,7 @@ pub enum RushPluginError {
     Utf8 { source: FromUtf8Error, name: String },
 }
 
-pub struct RushPlugin<'a> {
+pub(crate) struct RushPlugin<'a> {
     pub instance: extism::Plugin<'a>,
     name: String,
 }
@@ -133,35 +133,9 @@ impl<'a> RushPlugin<'a> {
         }
     }
 
-    /*
-    /// Serialize `data` to JSON and call an exported function from the plugin, returning `None` if it is not implemented.
-    pub fn call_json_hook_if_exists(
-        &mut self,
-        hook: &str,
-        data: &impl Serialize,
-    ) -> Result<Option<&[u8]>, RushPluginError> {
-        if self.instance.has_function(hook) {
-            let serialized = serde_json::to_vec(data).context(SerdeSnafu { name: &self.name })?;
-            Ok(Some(
-                self.instance
-                    .call(hook, &serialized)
-                    .context(ExtismSnafu { name: &self.name })?,
-            ))
-        } else {
-            Ok(None)
-        }
-    }
-    */
-
     /// Perform any initialization required by the plugin implementation.
     fn init(&mut self, params: &[u8]) -> Result<(), RushPluginError> {
         self.call_hook_if_exists("rush_plugin_init", params)?;
-        Ok(())
-    }
-
-    /// Perform any deinitialization required by the plugin implementation.
-    pub fn deinit(&mut self) -> Result<(), RushPluginError> {
-        self.call_hook_if_exists("rush_plugin_deinit", &[])?;
         Ok(())
     }
 }
