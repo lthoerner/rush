@@ -165,7 +165,7 @@ impl<'a> Console<'a> {
 
     // Reads a line of input from the user
     // Handles all TUI interaction between the user and the prompt
-    pub fn read_line(&mut self, shell: &Shell) -> Result<String> {
+    pub fn read_line(&mut self, shell: &mut Shell) -> Result<String> {
         self.data.update_output_tick(shell);
         self.data.update_prompt(shell);
         self.data.update_debug(shell);
@@ -482,8 +482,19 @@ impl<'a> ConsoleData<'a> {
         ])
     }
 
-    // Updates the autocomplete buffer based on the current line buffer and the command history
-    fn update_autocomplete(&mut self, shell: &Shell) {
+    // Updates the autocomplete buffer to provide a suggestion for the current line buffer
+    fn update_autocomplete(&mut self, shell: &mut Shell) {
+        // ask plugins for completion
+        if let Some(completion) = shell
+            .plugins
+            .request_autocomplete(self.line_buffer.clone())
+            .into_iter()
+            .next()
+        {
+            self.autocomplete_buffer = Some(completion);
+            return;
+        }
+
         // If the current line buffer matches any of the commands in the history, put the rest of the command in the autocomplete buffer
         // Otherwise, clear the autocomplete buffer
         if !self.line_buffer.is_empty() {
