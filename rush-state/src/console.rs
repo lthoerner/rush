@@ -149,7 +149,7 @@ impl Console<'static> {
         }
 
         loop {
-            // console is unlocked while blocking here to allow the autocomplete to update
+            // Console is unlocked while blocking here to allow the autocomplete to update.
             let event = event::read()?;
             let mut console = console_ref.write().unwrap();
             let action = console.handle_event(event, shell)?;
