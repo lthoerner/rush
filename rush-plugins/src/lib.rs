@@ -333,7 +333,7 @@ mod tests {
 
         registry
             .load(
-                Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/../example-plugins/welcome-message/target/wasm32-wasi/release/welcome_message.wasm")),
+                Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/../examples/plugins/welcome-message/target/wasm32-wasi/release/welcome_message.wasm")),
                 &InitHookParams {
                     rush_version: "v1".to_string(),
                 },
@@ -344,7 +344,7 @@ mod tests {
     #[test]
     #[ignore = "requires path autocomplete plugin to be built"]
     fn autocomplete() {
-        let path = Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/../example-plugins/path-autocomplete/target/wasm32-wasi/release/path_autocomplete.wasm")).canonicalize().unwrap();
+        let path = Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/../examples/plugins/path-autocomplete/target/wasm32-wasi/release/path_autocomplete.wasm")).canonicalize().unwrap();
         let mut registry = PluginHost::new(ERROR_REPORTER.clone());
 
         registry
