@@ -12,4 +12,4 @@ lto = true
 [workspace]
 
 [dependencies]
-rush-pdk = { path = "../../rush-pdk" }
+rush-pdk = { path = "../../../rush-pdk" }
