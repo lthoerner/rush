@@ -61,4 +61,9 @@
         "./examples/plugins/welcome-message/Cargo.toml",
         "./rush-pdk/Cargo.toml"
     ],
+    // nightly rust-analyzer to allow for unstable rustfmt features
+    "rust-analyzer.server.extraEnv": {
+        "RUSTUP_TOOLCHAIN": "nightly"
+    },
+    "editor.formatOnSave": true
 }

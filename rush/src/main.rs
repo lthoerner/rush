@@ -2,7 +2,6 @@ use std::path::Path;
 use std::sync::{Arc, RwLock};
 
 use anyhow::Result;
-
 use is_executable::is_executable;
 use rush_eval::dispatcher::Dispatcher;
 use rush_eval::errors::DispatchError;

@@ -1,10 +1,8 @@
-use fs_err::File;
-use std::{
-    io::{BufRead, BufReader},
-    path::PathBuf,
-};
+use std::io::{BufRead, BufReader};
+use std::path::PathBuf;
 
 use anyhow::Result;
+use fs_err::File;
 
 use crate::errors::ShellError;
 

@@ -6,12 +6,11 @@ use std::thread;
 
 use anyhow::Result;
 use bitflags::bitflags;
-use crossterm::cursor;
 use crossterm::event::{self, DisableMouseCapture, Event, KeyCode, KeyModifiers};
-use crossterm::execute;
 use crossterm::terminal::{
     disable_raw_mode, enable_raw_mode, Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen,
 };
+use crossterm::{cursor, execute};
 use ratatui::backend::CrosstermBackend;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};

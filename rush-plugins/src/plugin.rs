@@ -1,9 +1,16 @@
+use std::collections::HashMap;
+use std::fmt::Debug;
+use std::fs;
+use std::path::Path;
+use std::string::FromUtf8Error;
+
+use extism::manifest::Wasm;
+use extism::{Context, CurrentPlugin, Manifest, Plugin};
+use snafu::{ResultExt, Snafu};
+
 use crate::bindings::{
     ENV_DELETE_FN, ENV_GET_FN, ENV_SET_FN, ENV_VARS_FN, FS_IS_EXECUTABLE_FN, OUTPUT_TEXT_FN,
 };
-use extism::{manifest::Wasm, Context, CurrentPlugin, Manifest, Plugin};
-use snafu::{ResultExt, Snafu};
-use std::{collections::HashMap, fmt::Debug, fs, path::Path, string::FromUtf8Error};
 
 /// Implementations of functions that plugins can use.
 #[allow(unused_variables)]

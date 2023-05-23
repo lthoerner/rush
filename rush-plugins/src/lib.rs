@@ -1,18 +1,16 @@
 mod bindings;
 pub mod plugin;
 
+use std::path::{Path, PathBuf};
+use std::sync::{mpsc, Arc};
+use std::thread;
+
+pub use bindings::HOST_BINDINGS;
 use extism::Context;
+pub use extism::CurrentPlugin;
 use plugin::{IoSnafu, RushPlugin, RushPluginError};
 use rush_plugins_api::InitHookParams;
 use snafu::ResultExt;
-use std::{
-    path::{Path, PathBuf},
-    sync::{mpsc, Arc},
-    thread,
-};
-
-pub use bindings::HOST_BINDINGS;
-pub use extism::CurrentPlugin;
 
 enum PluginRunnerMessage {
     Hook {
@@ -284,12 +282,14 @@ impl Drop for PluginHost {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::plugin::HostBindings;
+    use std::collections::HashMap;
+
     use extism::CurrentPlugin;
     use is_executable::is_executable;
     use lazy_static::lazy_static;
-    use std::collections::HashMap;
+
+    use super::*;
+    use crate::plugin::HostBindings;
 
     struct TestHostBindings {
         env_vars: HashMap<String, String>,
