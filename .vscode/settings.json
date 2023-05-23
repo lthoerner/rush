@@ -57,8 +57,8 @@
     ],
     "rust-analyzer.linkedProjects": [
         "./Cargo.toml",
-        "./example-plugins/path-autocomplete/Cargo.toml",
-        "./example-plugins/welcome-message/Cargo.toml",
+        "./examples/plugins/path-autocomplete/Cargo.toml",
+        "./examples/plugins/welcome-message/Cargo.toml",
         "./rush-pdk/Cargo.toml"
     ],
 }
