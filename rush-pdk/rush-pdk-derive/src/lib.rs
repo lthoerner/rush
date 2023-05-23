@@ -73,6 +73,13 @@ impl Parse for Bindings {
     }
 }
 
+/// Add type safety to a raw binding.
+///
+/// The host application can provide "bindings" to the plugin, which are functions that the plugin can call.
+/// Only numbers can be passed to or returned from bindings, but this does give the opportunity to pass
+/// memory pointers for the host to dereference. This macro creates a translation layer to handle allocating,
+/// sending the pointer, and then deallocating the memory and provides type safety so that plugin developers can
+/// only send the correct pointers.
 #[proc_macro]
 pub fn bindings(item: TokenStream) -> TokenStream {
     let bindings = parse_macro_input!(item as Bindings);
