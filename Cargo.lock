@@ -1750,7 +1750,6 @@ dependencies = [
  "is_executable",
  "rush-eval",
  "rush-plugins",
- "rush-plugins-api",
  "rush-state",
 ]
 
@@ -1788,18 +1787,10 @@ dependencies = [
  "is_executable",
  "lazy_static",
  "oneshot",
- "rush-plugins-api",
- "serde",
- "serde_json",
- "snafu",
-]
-
-[[package]]
-name = "rush-plugins-api"
-version = "0.1.0"
-dependencies = [
  "serde",
  "serde_derive",
+ "serde_json",
+ "snafu",
 ]
 
 [[package]]

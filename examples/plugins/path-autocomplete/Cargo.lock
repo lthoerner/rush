@@ -147,7 +147,7 @@ dependencies = [
  "concat-idents",
  "extism-pdk",
  "rush-pdk-derive",
- "rush-plugins-api",
+ "rush-plugins",
 ]
 
 [[package]]
@@ -159,7 +159,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "rush-plugins-api"
+name = "rush-plugins"
 version = "0.1.0"
 dependencies = [
  "serde",

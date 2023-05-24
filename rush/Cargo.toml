@@ -10,5 +10,4 @@ rush-state = { path = "../rush-state" }
 rush-eval = { path = "../rush-eval" }
 anyhow.workspace = true
 rush-plugins = { path = "../rush-plugins" }
-rush-plugins-api = { path = "../rush-plugins-api" }
 is_executable = "1.0.1"

@@ -10,5 +10,5 @@ edition = "2021"
 [dependencies]
 concat-idents = "1.1.4"
 extism-pdk = "0.3.1"
-rush-plugins-api = { version = "0.1.0", path = "../rush-plugins-api" }
+rush-plugins = { path = "../rush-plugins", default-features = false }
 rush-pdk-derive = { path = "./rush-pdk-derive" }

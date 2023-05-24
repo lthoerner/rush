@@ -8,7 +8,7 @@ use extism::manifest::Wasm;
 use extism::{Context, CurrentPlugin, Manifest, Plugin};
 use snafu::{ResultExt, Snafu};
 
-use crate::bindings::{
+use super::bindings::{
     ENV_DELETE_FN, ENV_GET_FN, ENV_SET_FN, ENV_VARS_FN, FS_IS_EXECUTABLE_FN, OUTPUT_TEXT_FN,
 };
 

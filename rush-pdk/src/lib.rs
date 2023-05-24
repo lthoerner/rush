@@ -1,11 +1,10 @@
-#![feature(trace_macros)]
 pub mod raw;
 
 use std::collections::HashMap;
 
 pub use extism_pdk::{self, *};
 use rush_pdk_derive::bindings;
-pub use rush_plugins_api::{self, *};
+pub use rush_plugins::api::{self as plugins_api, *};
 
 bindings! {
     output_text(text: &str) -> ();
