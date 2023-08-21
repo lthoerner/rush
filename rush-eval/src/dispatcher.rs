@@ -1,5 +1,5 @@
-use std::os::unix::prelude::PermissionsExt;
 use anyhow::Result;
+use std::os::unix::prelude::PermissionsExt;
 extern crate clap;
 
 use rush_exec::builtins;
@@ -79,7 +79,7 @@ impl Dispatcher {
     }
 
     // Evaluates and executes a command from a string
-    pub fn eval(&self, shell: &mut Shell, console: &mut Console, line: &String) -> Result<()> {
+    pub fn eval(&self, shell: &mut Shell, console: &mut Console, line: &str) -> Result<()> {
         let commands = parser::parse(line);
         let mut results: Vec<Result<()>> = Vec::new();
 

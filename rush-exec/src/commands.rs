@@ -43,6 +43,7 @@ impl Aliases {
 pub struct Builtin {
     pub true_name: String,
     pub aliases: Aliases,
+    #[allow(clippy::type_complexity)]
     function: Box<dyn Fn(&mut Shell, &mut Console, Vec<&str>) -> Result<()>>,
 }
 
