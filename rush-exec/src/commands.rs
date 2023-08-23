@@ -6,17 +6,15 @@ use std::time::Duration;
 
 use anyhow::Result;
 
-use rush_state::console::Console;
 use rush_state::path::Path;
 use rush_state::shell::Shell;
-use rush_state::showln;
 
 use crate::errors::ExecutableError;
 
 // Represents either a builtin (internal command) or an executable (external command)
 // A Runnable may be executed by calling its .run() method
 pub trait Runnable {
-    fn run(&self, shell: &mut Shell, console: &mut Console, arguments: Vec<&str>) -> Result<()>;
+    fn run(&self, shell: &mut Shell, arguments: Vec<&str>) -> Result<()>;
 }
 
 // Wrapper type for Vec<String> that makes it easier to read code related to Builtins
@@ -44,11 +42,11 @@ pub struct Builtin {
     pub true_name: String,
     pub aliases: Aliases,
     #[allow(clippy::type_complexity)]
-    function: Box<dyn Fn(&mut Shell, &mut Console, Vec<&str>) -> Result<()>>,
+    function: Box<dyn Fn(&mut Shell, Vec<&str>) -> Result<()>>,
 }
 
 impl Builtin {
-    pub fn new<F: Fn(&mut Shell, &mut Console, Vec<&str>) -> Result<()> + 'static>(
+    pub fn new<F: Fn(&mut Shell, Vec<&str>) -> Result<()> + 'static>(
         true_name: &str,
         aliases: Vec<&str>,
         function: F,
@@ -66,8 +64,8 @@ impl Builtin {
 }
 
 impl Runnable for Builtin {
-    fn run(&self, shell: &mut Shell, console: &mut Console, arguments: Vec<&str>) -> Result<()> {
-        (self.function)(shell, console, arguments)
+    fn run(&self, shell: &mut Shell, arguments: Vec<&str>) -> Result<()> {
+        (self.function)(shell, arguments)
     }
 }
 
@@ -89,7 +87,7 @@ impl Executable {
 impl Runnable for Executable {
     // * Executables do not have access to the shell state, but the context argument is required by the Runnable trait
     // TODO: Remove as many .unwrap() calls as possible here
-    fn run(&self, _shell: &mut Shell, console: &mut Console, arguments: Vec<&str>) -> Result<()> {
+    fn run(&self, _shell: &mut Shell, arguments: Vec<&str>) -> Result<()> {
         // Create the Process, pass the provided arguments to it, and execute it
         let Ok(mut process) = Process::new(self.path.path())
             .args(arguments)
@@ -159,7 +157,7 @@ impl Runnable for Executable {
             if let Ok(packet) = rx_stdout.recv_timeout(read_timeout) {
                 // If the packet is Ok, unpack it and print it
                 if let Ok(line) = packet {
-                    showln!(console, "{}", &line);
+                    println!("{}", &line);
                 // If the packet is Err, propagate err up the stack
                 } else {
                     packet?;
@@ -169,7 +167,7 @@ impl Runnable for Executable {
             }
             if let Ok(packet) = rx_stderr.recv_timeout(read_timeout) {
                 if let Ok(line) = packet {
-                    showln!(console, "{}", &line);
+                    println!("{}", &line);
                 } else {
                     packet?;
                 }
