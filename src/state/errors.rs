@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use thiserror::Error;
 
-use crate::environment::EnvVar;
+use super::environment::EnvVar;
 
 #[derive(Error, Debug)]
 pub enum ShellError {

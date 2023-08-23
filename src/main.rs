@@ -1,8 +1,12 @@
+mod eval;
+mod exec;
+mod state;
+
 use anyhow::Result;
 
-use rush_eval::dispatcher::Dispatcher;
-use rush_eval::errors::DispatchError;
-use rush_state::shell::Shell;
+use eval::dispatcher::Dispatcher;
+use eval::errors::DispatchError;
+use state::shell::Shell;
 
 fn main() -> Result<()> {
     // The Shell type stores all of the state for the shell, including its configuration,

@@ -5,7 +5,7 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 
-use crate::errors::PathError;
+use super::errors::PathError;
 
 // Wrapper class for a directory path string
 // Adds convenience methods for displaying the path in a user-friendly way,

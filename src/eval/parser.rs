@@ -1,5 +1,6 @@
-use crate::tokenizer::tokenize;
 use std::collections::VecDeque;
+
+use super::tokenizer::tokenize;
 
 pub fn parse(input: &str) -> Vec<(String, VecDeque<String>)> {
     let tokens_binding = tokenize(input);

@@ -3,7 +3,7 @@ use std::io::{BufRead, BufReader};
 
 use anyhow::Result;
 
-use crate::errors::ShellError;
+use super::errors::ShellError;
 
 // Represents any settings for the shell, most of which can be configured by the user
 pub struct Configuration {

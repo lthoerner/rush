@@ -1,4 +1,4 @@
-use crate::symbols::{
+use super::symbols::{
     Symbols, AMP, BACKSLASH, DOLLAR, DOUBLE_QUOTE, GREAT, LESS, PIPE, SEMI, SINGLE_QUOTE,
     WHITESPACE,
 };

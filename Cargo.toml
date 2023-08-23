@@ -1,12 +1,9 @@
-[workspace]
-members = [
-    "rush",
-    "rush-state",
-    "rush-eval",
-    "rush-exec",
-]
+[package]
+name = "rush"
+version = "0.1.0"
+edition = "2021"
 
-[workspace.dependencies]
+[dependencies]
 thiserror = "1.0.40"
 anyhow = "1.0.70"
 crossterm = "0.26.1"
@@ -14,3 +11,4 @@ ratatui = "0.20.1"
 ansi-to-tui = "3.0.0"
 fs-err = "2.9.0"
 bitflags = "2.1.0"
+clap = { version = "4.3.24", features = ["derive"] }

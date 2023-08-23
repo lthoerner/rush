@@ -1,7 +1,7 @@
 use anyhow::Result;
 
-use crate::config::Configuration;
-use crate::environment::Environment;
+use super::config::Configuration;
+use super::environment::Environment;
 
 // Represents the shell, its state, and provides methods for interacting with it
 // ? Should this be called ShellState or something like that?

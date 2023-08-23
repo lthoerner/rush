@@ -1,14 +1,14 @@
-use anyhow::Result;
 use std::os::unix::prelude::PermissionsExt;
-extern crate clap;
 
-use rush_exec::builtins;
-use rush_exec::commands::{Builtin, Executable, Runnable};
-use rush_state::path::Path;
-use rush_state::shell::Shell;
+use anyhow::Result;
 
-use crate::errors::DispatchError;
-use crate::parser;
+use crate::exec::builtins;
+use crate::exec::commands::{Builtin, Executable, Runnable};
+use crate::state::path::Path;
+use crate::state::shell::Shell;
+
+use super::errors::DispatchError;
+use super::parser;
 
 // Represents a collection of builtin commands
 // Allows for command resolution and execution through aliases
