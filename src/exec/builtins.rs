@@ -8,40 +8,43 @@ Users are free to create their own builtins if they wish to modify the source co
 An 'External' will only have access to its arguments and environment variables, but not the shell's state, mostly for security reasons.
  */
 
-use anyhow::Result;
-use clap::Parser;
-use fs_err::{self};
-use std::io::{BufRead, BufReader};
+use std::io::{stderr, BufRead, BufReader};
 use std::path::PathBuf;
 
-use crate::state::path::Path;
-use crate::state::shell::Shell;
+use anyhow::Result;
+use clap::Parser;
+use crossterm::{
+    execute,
+    terminal::{Clear, ClearType},
+};
+use fs_err;
+
+use crate::state::{path::Path, shell::ShellState};
 
 use super::builtin_arguments::ListDirectoryArguments;
 use super::commands::{Executable, Runnable};
-use super::errors::BuiltinError;
 use super::errors::BuiltinError::{
-    FailedReadingDir, FailedReadingFileName, FailedReadingFileType, FailedReadingPath,
+    self, FailedReadingDir, FailedReadingFileName, FailedReadingFileType, FailedReadingPath,
 };
 
-pub fn test(_shell: &mut Shell, args: Vec<&str>) -> Result<()> {
+pub fn test(_shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     check_args(&args, 0, "test")?;
     println!("Test command!");
     Ok(())
 }
 
-pub fn exit(_shell: &mut Shell, args: Vec<&str>) -> Result<()> {
+pub fn exit(_shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     check_args(&args, 0, "exit")?;
     std::process::exit(0);
 }
 
-pub fn working_directory(shell: &mut Shell, args: Vec<&str>) -> Result<()> {
+pub fn working_directory(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     check_args(&args, 0, "working-directory")?;
     println!("{}", shell.env().CWD());
     Ok(())
 }
 
-pub fn change_directory(shell: &mut Shell, args: Vec<&str>) -> Result<()> {
+pub fn change_directory(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     check_args(&args, 1, "change-directory <path>")?;
     let history_limit = shell.config_mut().history_limit;
     shell
@@ -53,7 +56,7 @@ pub fn change_directory(shell: &mut Shell, args: Vec<&str>) -> Result<()> {
         })
 }
 
-pub fn list_directory(shell: &mut Shell, args: Vec<&str>) -> Result<()> {
+pub fn list_directory(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     let arguments = ListDirectoryArguments::parse_from(&args);
     let show_hidden = arguments.all;
     let path_to_read = match arguments.path {
@@ -111,7 +114,7 @@ pub fn list_directory(shell: &mut Shell, args: Vec<&str>) -> Result<()> {
 }
 
 // TODO: Find a better name for this
-pub fn go_back(shell: &mut Shell, args: Vec<&str>) -> Result<()> {
+pub fn previous_directory(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     check_args(&args, 0, "go-back")?;
     shell.env_mut().go_back().map_err(|_| {
         println!("Previous directory does not exist or is invalid");
@@ -119,7 +122,7 @@ pub fn go_back(shell: &mut Shell, args: Vec<&str>) -> Result<()> {
     })
 }
 
-pub fn go_forward(shell: &mut Shell, args: Vec<&str>) -> Result<()> {
+pub fn next_directory(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     check_args(&args, 0, "go-forward")?;
     shell.env_mut().go_forward().map_err(|_| {
         println!("Next directory does not exist or is invalid");
@@ -127,14 +130,18 @@ pub fn go_forward(shell: &mut Shell, args: Vec<&str>) -> Result<()> {
     })
 }
 
-pub fn clear_terminal(_shell: &mut Shell, args: Vec<&str>) -> Result<()> {
+pub fn clear_terminal(_shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     check_args(&args, 0, "clear-terminal")?;
-    // console.clear_output();
-    todo!()
+    if execute!(stderr(), Clear(ClearType::All)).is_err() {
+        println!("Failed to clear terminal");
+        return Err(BuiltinError::FailedToRun.into());
+    }
+
+    Ok(())
 }
 
 // TODO: Add prompt to confirm file overwrite
-pub fn make_file(_shell: &mut Shell, args: Vec<&str>) -> Result<()> {
+pub fn make_file(_shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     if args.len() == 1 {
         fs_err::File::create(args[0]).map_err(|_| {
             println!("Failed to create file: '{}'", args[0]);
@@ -147,7 +154,7 @@ pub fn make_file(_shell: &mut Shell, args: Vec<&str>) -> Result<()> {
     }
 }
 
-pub fn make_directory(_shell: &mut Shell, args: Vec<&str>) -> Result<()> {
+pub fn make_directory(_shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     if args.len() == 1 {
         fs_err::create_dir(args[0]).map_err(|_| {
             println!("Failed to create directory: '{}'", args[0]);
@@ -160,7 +167,7 @@ pub fn make_directory(_shell: &mut Shell, args: Vec<&str>) -> Result<()> {
     }
 }
 
-pub fn delete_file(_shell: &mut Shell, args: Vec<&str>) -> Result<()> {
+pub fn delete_file(_shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     if args.len() == 1 {
         fs_err::remove_file(args[0]).map_err(|_| {
             println!("Failed to delete file: '{}'", args[0]);
@@ -173,7 +180,7 @@ pub fn delete_file(_shell: &mut Shell, args: Vec<&str>) -> Result<()> {
     }
 }
 
-pub fn read_file(_shell: &mut Shell, args: Vec<&str>) -> Result<()> {
+pub fn read_file(_shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     check_args(&args, 1, "read-file <path>")?;
     let file_name = args[0].to_string();
     let file = fs_err::File::open(&file_name).map_err(|_| {
@@ -190,7 +197,7 @@ pub fn read_file(_shell: &mut Shell, args: Vec<&str>) -> Result<()> {
     Ok(())
 }
 
-pub fn run_executable(shell: &mut Shell, mut args: Vec<&str>) -> Result<()> {
+pub fn run_executable(shell: &mut ShellState, mut args: Vec<&str>) -> Result<()> {
     let executable_name = args[0].to_string();
     let executable_path = Path::from_str(&executable_name, shell.env().HOME()).map_err(|_| {
         println!("Failed to resolve executable path: '{}'", executable_name);
@@ -203,7 +210,7 @@ pub fn run_executable(shell: &mut Shell, mut args: Vec<&str>) -> Result<()> {
     Executable::new(executable_path).run(shell, args)
 }
 
-pub fn configure(shell: &mut Shell, args: Vec<&str>) -> Result<()> {
+pub fn configure(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     check_args(&args, 2, "configure <key> <value>")?;
     let key = args[0];
     let value = args[1];
@@ -246,7 +253,7 @@ pub fn configure(shell: &mut Shell, args: Vec<&str>) -> Result<()> {
     Ok(())
 }
 
-pub fn environment_variable(shell: &mut Shell, args: Vec<&str>) -> Result<()> {
+pub fn environment_variable(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     check_args(&args, 1, "environment-variable <var>")?;
     match args[0].to_uppercase().as_str() {
         "PATH" => {
@@ -266,7 +273,7 @@ pub fn environment_variable(shell: &mut Shell, args: Vec<&str>) -> Result<()> {
     Ok(())
 }
 
-pub fn edit_path(shell: &mut Shell, args: Vec<&str>) -> Result<()> {
+pub fn edit_path(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     check_args(&args, 2, "edit-path <append | prepend> <path>")?;
     let action = args[0];
     let path = Path::from_str(args[1], shell.env().HOME()).map_err(|_| {

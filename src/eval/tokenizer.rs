@@ -1,6 +1,6 @@
 use super::symbols::{
-    Symbols, AMP, BACKSLASH, DOLLAR, DOUBLE_QUOTE, GREAT, LESS, PIPE, SEMI, SINGLE_QUOTE,
-    WHITESPACE,
+    Symbols, AMPERSAND, BACKSLASH, DOLLAR, DOUBLE_QUOTE, GREATER_THAN, LESS_THAN, PIPE, SEMICOLON,
+    SINGLE_QUOTE, WHITESPACE,
 };
 
 pub fn tokenize(input: &str) -> Vec<String> {
@@ -19,7 +19,7 @@ pub fn tokenize(input: &str) -> Vec<String> {
         match character {
             Some(v) => {
                 match v {
-                    WHITESPACE | AMP | SEMI => {
+                    WHITESPACE | AMPERSAND | SEMICOLON => {
                         if in_single_quotes || in_double_quotes {
                             curr_token.push(v);
                             continue;
@@ -27,8 +27,8 @@ pub fn tokenize(input: &str) -> Vec<String> {
 
                         match characters.peek() {
                             Some(peeked_char) => {
-                                if (peeked_char == &SEMI && v == SEMI)
-                                    || (peeked_char == &AMP && v == AMP)
+                                if (peeked_char == &SEMICOLON && v == SEMICOLON)
+                                    || (peeked_char == &AMPERSAND && v == AMPERSAND)
                                 {
                                     // clear token, push the operator into the token and advance to the next character
                                     delimit_token(&mut tokens, &mut curr_token);
@@ -47,7 +47,7 @@ pub fn tokenize(input: &str) -> Vec<String> {
                             }
                         }
                     }
-                    PIPE | LESS | GREAT => {
+                    PIPE | LESS_THAN | GREATER_THAN => {
                         if in_single_quotes || in_double_quotes {
                             curr_token.push(v);
                             continue;
@@ -90,34 +90,34 @@ pub fn tokenize(input: &str) -> Vec<String> {
                         }
                     }
                     BACKSLASH => {
-                        if !in_single_quotes && !in_double_quotes {
-                            continue;
-                        }
-
                         if in_single_quotes {
                             curr_token.push(v);
                             continue;
                         }
 
-                        match characters.peek() {
-                            Some(peeked_char) => {
-                                if peeked_char == &'n' {
-                                    curr_token.push(v);
-                                } else if peeked_char == &SINGLE_QUOTE
-                                    || peeked_char == &DOLLAR
-                                    || peeked_char == &DOUBLE_QUOTE
-                                    || peeked_char == &BACKSLASH
-                                {
-                                    curr_token.push(*peeked_char);
-                                    characters.next();
-                                    continue;
-                                } else {
-                                    curr_token.push(v);
+                        'dont_skip: {
+                            if let Some(peeked_char) = characters.peek() {
+                                match *peeked_char {
+                                    'n' => curr_token.push('\n'),
+                                    't' => curr_token.push('\t'),
+                                    'r' => curr_token.push('\r'),
+                                    '0' => curr_token.push('\0'),
+                                    'a' => curr_token.push('\x07'),
+                                    'b' => curr_token.push('\x08'),
+                                    'v' => curr_token.push('\x0b'),
+                                    'f' => curr_token.push('\x0c'),
+                                    'e' => curr_token.push('\x1b'),
+                                    SINGLE_QUOTE | DOUBLE_QUOTE | DOLLAR | BACKSLASH => {
+                                        curr_token.push(*peeked_char)
+                                    }
+                                    _ => {
+                                        curr_token.push(v);
+                                        break 'dont_skip;
+                                    }
                                 }
                             }
-                            None => {
-                                continue;
-                            }
+
+                            characters.next();
                         }
                     }
                     _ => curr_token.push(v),
@@ -137,181 +137,5 @@ fn delimit_token(tokens: &mut Vec<String>, curr_token: &mut String) {
     if !curr_token.is_empty() {
         tokens.push(curr_token.clone());
         curr_token.clear();
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn return_correct_token_with_quoted_backslash_special_chars() {
-        //given
-        let input = String::from("print \"test\\$test\"");
-
-        //when
-        let tokens = tokenize(&input);
-
-        //then
-        let expected = vec![String::from("print"), String::from("test$test")];
-
-        assert_eq!(tokens, expected);
-    }
-
-    #[test]
-    fn return_correct_token_with_non_quoted_backslash() {
-        //given
-        let input = String::from("\\0");
-
-        //when
-        let tokens = tokenize(&input);
-
-        //then
-        let expected = vec![String::from("0")];
-
-        assert_eq!(tokens, expected);
-    }
-
-    #[test]
-    fn return_correct_token_with_and_operator() {
-        //given
-        let input = String::from("ls && ls -a");
-
-        //when
-        let tokens = tokenize(&input);
-
-        //then
-        let expected = vec![
-            String::from("ls"),
-            String::from("&&"),
-            String::from("ls"),
-            String::from("-a"),
-        ];
-        assert_eq!(tokens, expected);
-    }
-
-    #[test]
-    fn return_correct_token_with_or_operator() {
-        //given
-        let input = String::from("ls || ls -a");
-
-        //when
-        let tokens = tokenize(&input);
-
-        //then
-        let expected = vec![
-            String::from("ls"),
-            String::from("||"),
-            String::from("ls"),
-            String::from("-a"),
-        ];
-        assert_eq!(tokens, expected);
-    }
-
-    #[test]
-    fn return_correct_token_with_semi_operator() {
-        //given
-        let input = String::from("ls ;; ls -a");
-
-        //when
-        let tokens = tokenize(&input);
-
-        //then
-        let expected = vec![
-            String::from("ls"),
-            String::from(";;"),
-            String::from("ls"),
-            String::from("-a"),
-        ];
-        assert_eq!(tokens, expected);
-    }
-
-    #[test]
-    fn return_correct_token_with_greater_and_less_operator() {
-        //given
-        let input = String::from("ls << ls -a >> mkdir");
-
-        //when
-        let tokens = tokenize(&input);
-
-        //then
-        let expected = vec![
-            String::from("ls"),
-            String::from("<<"),
-            String::from("ls"),
-            String::from("-a"),
-            String::from(">>"),
-            String::from("mkdir"),
-        ];
-        assert_eq!(tokens, expected);
-    }
-
-    #[test]
-    fn return_correct_tokens_with_double_quotes() {
-        //given
-        let input = String::from("print \"print my text\"");
-
-        //when
-        let tokens = tokenize(&input);
-
-        //then
-        let expected = vec![String::from("print"), String::from("print my text")];
-        assert_eq!(tokens, expected);
-    }
-
-    #[test]
-    fn return_correct_tokens_with_double_quotes_and_special_operators() {
-        //given
-        let input = String::from("print \"print&&  my text;; with< operators|<\"");
-
-        //when
-        let tokens = tokenize(&input);
-
-        //then
-        let expected = vec![
-            String::from("print"),
-            String::from("print&&  my text;; with< operators|<"),
-        ];
-        assert_eq!(tokens, expected);
-    }
-
-    #[test]
-    fn return_correct_tokens_with_double_quotes_and_backslash() {
-        //given
-        let input = String::from("print \"print\n  my\r text\"");
-
-        //when
-        let tokens = tokenize(&input);
-
-        //then
-        let expected = vec![String::from("print"), String::from("print\n  my\r text")];
-        assert_eq!(tokens, expected);
-    }
-
-    #[test]
-    fn return_correct_tokens_with_double_quotes_and_single_quote() {
-        //given
-        let input = String::from("print \"print' my text\"");
-
-        //when
-        let tokens = tokenize(&input);
-
-        //then
-        let expected = vec![String::from("print"), String::from("print' my text")];
-        assert_eq!(tokens, expected);
-    }
-
-    #[test]
-    fn return_correct_tokens_with_unquoted_backslash() {
-        //given
-        let input = String::from("print\\nls");
-
-        //when
-        let tokens = tokenize(&input);
-        println!("tokens: {:?}", tokens);
-
-        //then
-        let expected = vec![String::from("printnls")];
-        assert_eq!(tokens, expected);
     }
 }

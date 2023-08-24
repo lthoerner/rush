@@ -1,9 +1,9 @@
 // Separators
 pub const WHITESPACE: char = ' ';
-pub const SEMI: char = ';';
-pub const AMP: char = '&';
-pub const GREAT: char = '>';
-pub const LESS: char = '<';
+pub const SEMICOLON: char = ';';
+pub const AMPERSAND: char = '&';
+pub const GREATER_THAN: char = '>';
+pub const LESS_THAN: char = '<';
 pub const PIPE: char = '|';
 pub const SINGLE_QUOTE: char = '\'';
 pub const DOUBLE_QUOTE: char = '"';
@@ -32,7 +32,7 @@ impl Symbols<'_> {
             AND_IF, OR_IF, DSEMI, DLESS, DGREAT, LESSAND, GREATAND, LESSGREAT, CLOBBER,
         ];
 
-        let separators = vec![WHITESPACE, AMP, SEMI];
+        let separators = vec![WHITESPACE, AMPERSAND, SEMICOLON];
 
         Symbols {
             operators,

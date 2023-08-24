@@ -1,5 +1,6 @@
 /target
 /out
+/config/history.rush
 demo.md
 .idea
 .DS_STORE

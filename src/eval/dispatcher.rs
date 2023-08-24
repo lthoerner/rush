@@ -5,10 +5,11 @@ use anyhow::Result;
 use crate::exec::builtins;
 use crate::exec::commands::{Builtin, Executable, Runnable};
 use crate::state::path::Path;
-use crate::state::shell::Shell;
+use crate::state::shell::ShellState;
 
 use super::errors::DispatchError;
-use super::parser;
+// use super::parser;
+use super::tokenizer::tokenize;
 
 // Represents a collection of builtin commands
 // Allows for command resolution and execution through aliases
@@ -27,8 +28,8 @@ impl Default for Dispatcher {
         dispatcher.add_builtin("working-directory", vec!["pwd", "wd"], builtins::working_directory);
         dispatcher.add_builtin("change-directory", vec!["cd"], builtins::change_directory);
         dispatcher.add_builtin("list-directory", vec!["directory", "list", "ls", "dir"], builtins::list_directory);
-        dispatcher.add_builtin("previous-directory", vec!["back", "b", "prev", "pd"], builtins::go_back);
-        dispatcher.add_builtin("next-directory", vec!["forward", "f", "next", "nd"], builtins::go_forward);
+        dispatcher.add_builtin("previous-directory", vec!["back", "b", "prev", "pd"], builtins::previous_directory);
+        dispatcher.add_builtin("next-directory", vec!["forward", "f", "next", "nd"], builtins::next_directory);
         dispatcher.add_builtin("clear-terminal", vec!["clear", "cls"], builtins::clear_terminal);
         dispatcher.add_builtin("make-file", vec!["create", "touch", "new", "mf"], builtins::make_file);
         dispatcher.add_builtin("make-directory", vec!["mkdir", "md"], builtins::make_directory);
@@ -51,7 +52,7 @@ impl Dispatcher {
     }
 
     // Adds a builtin to the Dispatcher
-    fn add_builtin<F: Fn(&mut Shell, Vec<&str>) -> Result<()> + 'static>(
+    fn add_builtin<F: Fn(&mut ShellState, Vec<&str>) -> Result<()> + 'static>(
         &mut self,
         true_name: &str,
         aliases: Vec<&str>,
@@ -78,24 +79,14 @@ impl Dispatcher {
     }
 
     // Evaluates and executes a command from a string
-    pub fn eval(&self, shell: &mut Shell, line: &str) -> Result<()> {
-        let commands = parser::parse(line);
-        let mut results: Vec<Result<()>> = Vec::new();
+    pub fn eval(&self, shell: &mut ShellState, line: &str) -> Result<()> {
+        let args = tokenize(line);
+        let command_name = args.get(0).unwrap().as_str();
+        let command_args: Vec<&str> = args.iter().skip(1).map(|a| a.as_str()).collect();
 
-        for (command_name, command_args) in commands {
-            // ? Is there a way to avoid this type conversion?
-            let command_name = command_name.as_str();
-            let command_args = command_args.iter().map(|a| a.as_str()).collect();
-
-            // Dispatch the command to the Dispatcher
-            let result = self.dispatch(shell, command_name, command_args);
-            results.push(result);
-        }
-
-        for result in results {
-            if result.is_err() {
-                return Err(result.err().unwrap());
-            }
+        let result = self.dispatch(shell, command_name, command_args);
+        if result.is_err() {
+            return Err(result.err().unwrap());
         }
 
         Ok(())
@@ -105,7 +96,7 @@ impl Dispatcher {
     // If the command does not exist, returns None
     fn dispatch(
         &self,
-        shell: &mut Shell,
+        shell: &mut ShellState,
         command_name: &str,
         command_args: Vec<&str>,
     ) -> Result<()> {

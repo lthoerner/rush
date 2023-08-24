@@ -7,14 +7,14 @@ use std::time::Duration;
 use anyhow::Result;
 
 use crate::state::path::Path;
-use crate::state::shell::Shell;
+use crate::state::shell::ShellState;
 
 use super::errors::ExecutableError;
 
 // Represents either a builtin (internal command) or an executable (external command)
 // A Runnable may be executed by calling its .run() method
 pub trait Runnable {
-    fn run(&self, shell: &mut Shell, arguments: Vec<&str>) -> Result<()>;
+    fn run(&self, shell: &mut ShellState, arguments: Vec<&str>) -> Result<()>;
 }
 
 // Wrapper type for Vec<String> that makes it easier to read code related to Builtins
@@ -42,11 +42,11 @@ pub struct Builtin {
     pub true_name: String,
     pub aliases: Aliases,
     #[allow(clippy::type_complexity)]
-    function: Box<dyn Fn(&mut Shell, Vec<&str>) -> Result<()>>,
+    function: Box<dyn Fn(&mut ShellState, Vec<&str>) -> Result<()>>,
 }
 
 impl Builtin {
-    pub fn new<F: Fn(&mut Shell, Vec<&str>) -> Result<()> + 'static>(
+    pub fn new<F: Fn(&mut ShellState, Vec<&str>) -> Result<()> + 'static>(
         true_name: &str,
         aliases: Vec<&str>,
         function: F,
@@ -64,7 +64,7 @@ impl Builtin {
 }
 
 impl Runnable for Builtin {
-    fn run(&self, shell: &mut Shell, arguments: Vec<&str>) -> Result<()> {
+    fn run(&self, shell: &mut ShellState, arguments: Vec<&str>) -> Result<()> {
         (self.function)(shell, arguments)
     }
 }
@@ -87,7 +87,7 @@ impl Executable {
 impl Runnable for Executable {
     // * Executables do not have access to the shell state, but the context argument is required by the Runnable trait
     // TODO: Remove as many .unwrap() calls as possible here
-    fn run(&self, _shell: &mut Shell, arguments: Vec<&str>) -> Result<()> {
+    fn run(&self, _shell: &mut ShellState, arguments: Vec<&str>) -> Result<()> {
         // Create the Process, pass the provided arguments to it, and execute it
         let Ok(mut process) = Process::new(self.path.path())
             .args(arguments)
