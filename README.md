@@ -19,7 +19,7 @@ disposing of the often-archaic conventions of the traditionally-popular shells.
 ## Development Updates
 Rush is currently looking for contributors!
 
-**Join the Discord: https://discord.gg/KphQhFeKqv**
+**[Join the Discord](https://discord.gg/KphQhFeKqv)**
 
 ## Notes
 Rush is currently unavailable on Windows. It is available for MacOS and most Linux distributions. If
