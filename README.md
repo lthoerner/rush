@@ -8,6 +8,8 @@ computer through the CLI. It largely aims to accomplish this by either modifying
 disposing of the often-archaic conventions of the traditionally-popular shells.
 
 ## Goals
+- Native shell scripting using Rhai instead of a custom shell language
+- Scripting API for interoperability with other popular scripting languages
 - Support for easy coloration of input and output
 - Powerful built-in commands with consistent structure and usage
 - Event-based plugin API for 3rd-party feature development
