@@ -1,11 +1,40 @@
-use crossterm::style::Stylize;
+use rustyline::completion::FilenameCompleter;
 use rustyline::error::ReadlineError;
-use rustyline::{CompletionType, Config, DefaultEditor};
+use rustyline::highlight::MatchingBracketHighlighter;
+use rustyline::hint::HistoryHinter;
+use rustyline::history::DefaultHistory;
+use rustyline::validate::MatchingBracketValidator;
+use rustyline::{
+    Completer, CompletionType, Config, Editor, Helper, Highlighter, Hinter, Validator,
+};
 
 use crate::state::shell::ShellState;
 
+#[derive(Helper, Completer, Hinter, Validator, Highlighter)]
+struct LineEditorHelper {
+    #[rustyline(Completer)]
+    completer: FilenameCompleter,
+    #[rustyline(Highlighter)]
+    highlighter: MatchingBracketHighlighter,
+    #[rustyline(Validator)]
+    validator: MatchingBracketValidator,
+    #[rustyline(Hinter)]
+    hinter: HistoryHinter,
+}
+
+impl LineEditorHelper {
+    fn new() -> Self {
+        Self {
+            completer: FilenameCompleter::new(),
+            highlighter: MatchingBracketHighlighter::new(),
+            validator: MatchingBracketValidator::new(),
+            hinter: HistoryHinter {},
+        }
+    }
+}
+
 pub struct LineEditor {
-    editor: DefaultEditor,
+    editor: Editor<LineEditorHelper, DefaultHistory>,
 }
 
 impl LineEditor {
@@ -16,8 +45,11 @@ impl LineEditor {
             .completion_type(CompletionType::Fuzzy)
             .build();
 
+        let helper = LineEditorHelper::new();
+
         // TODO: Make the history path a parameter
-        let mut editor = DefaultEditor::with_config(config).unwrap();
+        let mut editor = Editor::with_config(config).unwrap();
+        editor.set_helper(Some(helper));
         if editor.load_history("./config/history.rush").is_err() {
             println!("No existing history file found, attempting to create one...");
             if fs_err::File::create("./config/history.rush").is_err() {
