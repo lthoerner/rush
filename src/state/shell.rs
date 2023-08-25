@@ -5,7 +5,7 @@ use super::config::Configuration;
 use super::environment::Environment;
 
 // Represents the shell state and provides methods for interacting with it
-// TODO: Miscellaneous shell state like command_success, command_history etc might be better off in some sort of bundle struct
+// ? Miscellaneous shell state like command_success, command_history etc might be better off in some sort of bundle struct
 pub struct ShellState {
     pub environment: Environment,
     pub config: Configuration,

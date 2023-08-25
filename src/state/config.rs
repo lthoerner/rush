@@ -48,12 +48,18 @@ impl Configuration {
             let (key, value) = (tokens[0], tokens[1]);
 
             // ? Should these be underscores instead of hyphens?
+            // TODO: Error handling
             match key {
                 "truncation-factor" => {
                     if let Ok(length) = value.parse::<usize>() {
                         config.truncation_factor = Some(length);
                     } else if value == "false" {
                         config.truncation_factor = None;
+                    }
+                }
+                "multi-line-prompt" => {
+                    if let Ok(multi_line) = value.parse::<bool>() {
+                        config.multi_line_prompt = multi_line;
                     }
                 }
                 "history-limit" => {
