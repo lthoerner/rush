@@ -13,10 +13,9 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 use clap::Parser;
-use crossterm::{
-    execute,
-    terminal::{Clear, ClearType},
-};
+use crossterm::execute;
+use crossterm::style::Stylize;
+use crossterm::terminal::{Clear, ClearType};
 use fs_err;
 
 use crate::state::{path::Path, shell::ShellState};
@@ -29,7 +28,7 @@ use super::errors::BuiltinError::{
 
 pub fn test(_shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     check_args(&args, 0, "test")?;
-    println!("Test command!");
+    println!("{}", "Test command!".yellow());
     Ok(())
 }
 
@@ -93,9 +92,9 @@ pub fn list_directory(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
         }
 
         if fs_object_type.is_dir() {
-            directories.push(format!("{}/", fs_object_name));
+            directories.push(format!("{}/", fs_object_name).green().to_string());
         } else {
-            files.push(fs_object_name);
+            files.push(fs_object_name.cyan().to_string());
         };
     }
 

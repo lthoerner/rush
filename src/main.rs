@@ -1,30 +1,30 @@
 mod eval;
 mod exec;
-mod readline;
 mod state;
 
 use anyhow::Result;
 
-use eval::dispatcher::Dispatcher;
-use eval::errors::DispatchError;
+use eval::{DispatchError, Dispatcher, LineEditor};
 use state::shell::ShellState;
 
 fn main() -> Result<()> {
-    // The Shell type stores all of the state for the shell, including its configuration,
-    // its environment, and other miscellaneous data like command history
-    let mut shell = ShellState::new()?;
-    // The Console type is responsible for reading and writing to the terminal (TUI),
-    // and providing an interface for any commands that need to produce output and/or take input
     let default_panic = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {
         default_panic(info);
     }));
+
+    // The Shell type stores all of the state for the shell, including its configuration,
+    // its environment, and other miscellaneous data like command history
+    let mut shell = ShellState::new()?;
+    // The LineEditor type is responsible for reading lines of input from the user, storing history,
+    // providing tab completion and other line-editing features
+    let mut line_editor = LineEditor::new();
     // The Dispatcher type is responsible for resolving command names to actual function calls,
     // or executables if needed, and then invoking them with the given arguments
     let dispatcher = Dispatcher::default();
 
     loop {
-        let line = readline::prompt_and_read_line();
+        let line = line_editor.prompt_and_read_line();
         if let Some(line) = line {
             let status = dispatcher.eval(&mut shell, &line);
             handle_error(status, &mut shell);

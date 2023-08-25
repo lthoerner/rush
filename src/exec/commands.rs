@@ -1,8 +1,4 @@
-use std::io::{BufRead, BufReader};
-use std::process::{Command as Process, Stdio};
-use std::sync::mpsc;
-use std::thread;
-use std::time::Duration;
+use std::process::Command as Process;
 
 use anyhow::Result;
 
@@ -91,117 +87,14 @@ impl Runnable for Executable {
         // Create the Process, pass the provided arguments to it, and execute it
         let Ok(mut process) = Process::new(self.path.path())
             .args(arguments)
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
             .spawn()
         else {
             return Err(ExecutableError::PathNoLongerExists(self.path.path().clone()).into())
         };
 
-        // Create channels for communication between threads
-        let (tx_stdout, rx_stdout) = mpsc::channel::<Result<String>>();
-        let (tx_stderr, rx_stderr) = mpsc::channel::<Result<String>>();
-
-        // Spawn a thread to read stdout
-        let stdout_thread = {
-            let stdout = process.stdout.take().unwrap();
-            thread::spawn(move || {
-                let reader = BufReader::new(stdout);
-                for line in reader.lines() {
-                    // If the line is Ok, send it to the main thread
-                    match line {
-                        Ok(line) => {
-                            // If sending the line fails, return an error
-                            if let Err(e) = tx_stdout.send(Ok(line)) {
-                                return Err(ExecutableError::FailedToParseStdout(e.to_string()));
-                            }
-                        }
-                        // If reading the line fails, return an error
-                        Err(e) => {
-                            return Err(ExecutableError::FailedToParseStdout(e.to_string()));
-                        }
-                    }
-                }
-                Ok(())
-            })
-        };
-
-        let stderr_thread = {
-            let stderr = process.stderr.take().unwrap();
-            thread::spawn(move || {
-                let reader = BufReader::new(stderr);
-                for line in reader.lines() {
-                    match line {
-                        Ok(line) => {
-                            if let Err(e) = tx_stderr.send(Ok(line)) {
-                                return Err(ExecutableError::FailedToParseStderr(e.to_string()));
-                            }
-                        }
-                        Err(e) => {
-                            return Err(ExecutableError::FailedToParseStderr(e.to_string()));
-                        }
-                    }
-                }
-                Ok(())
-            })
-        };
-
-        let read_timeout = Duration::from_millis(100);
-        let sleep_timeout = Duration::from_millis(10);
-
-        let mut stdout_done = false;
-        let mut stderr_done = false;
-        let mut process_done = false;
-
-        while !stdout_done || !stderr_done || !process_done {
-            if let Ok(packet) = rx_stdout.recv_timeout(read_timeout) {
-                // If the packet is Ok, unpack it and print it
-                if let Ok(line) = packet {
-                    println!("{}", &line);
-                // If the packet is Err, propagate err up the stack
-                } else {
-                    packet?;
-                }
-            } else {
-                stdout_done = true;
-            }
-            if let Ok(packet) = rx_stderr.recv_timeout(read_timeout) {
-                if let Ok(line) = packet {
-                    println!("{}", &line);
-                } else {
-                    packet?;
-                }
-            } else {
-                stderr_done = true;
-            }
-
-            if !process_done {
-                match process.try_wait() {
-                    Ok(Some(_)) => {
-                        process_done = true;
-                        // Set these to false so we do at least one more check on both - since the
-                        // program may terminate and not have had anything printed recently.
-                        stdout_done = false;
-                        stderr_done = false;
-                    }
-                    Ok(None) => {
-                        // Child process is still running
-                        // Add a small sleep to prevent high CPU usage in the loop
-                        thread::sleep(sleep_timeout);
-                    }
-                    Err(e) => {
-                        eprintln!("Error while waiting for child process: {}", e);
-                        break;
-                    }
-                }
-            }
-        }
-
-        // Wait for the threads to finish, if err, push it up the stack
-        stdout_thread.join().unwrap()?;
-        stderr_thread.join().unwrap()?;
-
-        let status = process.wait().expect("Failed to wait on child process");
+        let status = process
+            .wait()
+            .expect("Failed to wait for executable to complete");
 
         match status.success() {
             true => Ok(()),

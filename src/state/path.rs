@@ -46,7 +46,7 @@ impl Path {
 
     // Attempts to construct a new Path from the PATH environment variable,
     // given the name of an executable that is in the PATH
-    pub fn from_path_var(name: &str, path: &VecDeque<Path>) -> Result<Self> {
+    pub fn resolve_executable(name: &str, path: &VecDeque<Path>) -> Result<Self> {
         if !name.is_empty() {
             for dir in path {
                 let mut path = dir.path().clone();
