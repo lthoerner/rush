@@ -28,10 +28,10 @@ impl ShellState {
 
     // Generates the prompt string used by the REPL
     pub fn generate_prompt(&self) -> String {
-        let user = self.environment.USER().clone();
-        let home = self.environment.HOME();
+        let user = self.environment.USER.clone();
+        let home = &self.environment.HOME;
         let truncation = self.config.truncation_factor;
-        let cwd = self.environment.CWD().collapse(home, truncation);
+        let cwd = self.environment.CWD.collapse(home, truncation);
         let prompt_delimiter = match self.config.multi_line_prompt {
             true => "\n",
             false => " ",

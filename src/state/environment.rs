@@ -61,14 +61,14 @@ bitflags! {
 // * any fields that are not actual environment variables are represented in the usual snake_case
 #[allow(non_snake_case)]
 pub struct Environment {
-    USER: String,
-    HOME: PathBuf,
-    CWD: Path,
+    pub USER: String,
+    pub HOME: PathBuf,
+    pub CWD: Path,
     backward_directories: VecDeque<Path>,
     forward_directories: VecDeque<Path>,
     // * PATH is not to be confused with the WORKING_DIRECTORY. PATH is a list of directories which
     // * the shell will search for executables in. WORKING_DIRECTORY is the current directory the user is in.
-    PATH: VecDeque<Path>,
+    pub PATH: VecDeque<Path>,
     #[allow(dead_code)]
     custom_variables: HashMap<String, String>,
 }
@@ -109,30 +109,6 @@ impl Environment {
         }
 
         Ok(())
-    }
-
-    pub fn USER(&self) -> &String {
-        &self.USER
-    }
-
-    pub fn HOME(&self) -> &PathBuf {
-        &self.HOME
-    }
-
-    pub fn CWD(&self) -> &Path {
-        &self.CWD
-    }
-
-    pub fn CWD_mut(&mut self) -> &mut Path {
-        &mut self.CWD
-    }
-
-    pub fn PATH(&self) -> &VecDeque<Path> {
-        &self.PATH
-    }
-
-    pub fn PATH_mut(&mut self) -> &mut VecDeque<Path> {
-        &mut self.PATH
     }
 
     // Sets the current working directory and stores the previous working directory

@@ -13,9 +13,10 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 use clap::Parser;
+use crossterm::cursor::MoveTo;
 use crossterm::execute;
 use crossterm::style::Stylize;
-use crossterm::terminal::{Clear, ClearType};
+use crossterm::terminal::{self, Clear, ClearType};
 use fs_err;
 
 use crate::state::{path::Path, shell::ShellState};
@@ -39,7 +40,7 @@ pub fn exit(_shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
 
 pub fn working_directory(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     check_args(&args, 0, "working-directory")?;
-    println!("{}", shell.environment.CWD());
+    println!("{}", shell.environment.CWD);
     Ok(())
 }
 
@@ -60,7 +61,7 @@ pub fn list_directory(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     let show_hidden = arguments.all;
     let path_to_read = match arguments.path {
         Some(path) => PathBuf::from(path),
-        None => shell.environment.CWD().path().to_path_buf(),
+        None => shell.environment.CWD.path().to_path_buf(),
     };
 
     let read_dir_result = match fs_err::read_dir(&path_to_read) {
@@ -131,10 +132,20 @@ pub fn next_directory(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
 
 pub fn clear_terminal(_shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     check_args(&args, 0, "clear-terminal")?;
-    if execute!(stderr(), Clear(ClearType::All)).is_err() {
+    let y_size = terminal::size()
+        .map_err(|_| {
+            println!("Failed to get terminal size");
+            BuiltinError::FailedToRun
+        })?
+        .1;
+    execute!(stderr(), Clear(ClearType::All)).map_err(|_| {
         println!("Failed to clear terminal");
-        return Err(BuiltinError::FailedToRun.into());
-    }
+        BuiltinError::FailedToRun
+    })?;
+    execute!(stderr(), MoveTo(0, y_size - 2)).map_err(|_| {
+        println!("Failed to move cursor to bottom of terminal");
+        BuiltinError::FailedToRun
+    })?;
 
     Ok(())
 }
@@ -199,7 +210,7 @@ pub fn read_file(_shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
 pub fn run_executable(shell: &mut ShellState, mut args: Vec<&str>) -> Result<()> {
     let executable_name = args[0].to_string();
     let executable_path =
-        Path::from_str(&executable_name, shell.environment.HOME()).map_err(|_| {
+        Path::from_str(&executable_name, &shell.environment.HOME).map_err(|_| {
             println!("Failed to resolve executable path: '{}'", executable_name);
             BuiltinError::FailedToRun
         })?;
@@ -263,13 +274,13 @@ pub fn environment_variable(shell: &mut ShellState, args: Vec<&str>) -> Result<(
     check_args(&args, 1, "environment-variable <var>")?;
     match args[0].to_uppercase().as_str() {
         "PATH" => {
-            for (i, path) in shell.environment.PATH().iter().enumerate() {
+            for (i, path) in shell.environment.PATH.iter().enumerate() {
                 println!("[{i}]: {path}");
             }
         }
-        "USER" => println!("{}", shell.environment.USER()),
-        "HOME" => println!("{}", shell.environment.HOME().display()),
-        "CWD" | "WORKING-DIRECTORY" => println!("{}", shell.environment.CWD()),
+        "USER" => println!("{}", shell.environment.USER),
+        "HOME" => println!("{}", shell.environment.HOME.display()),
+        "CWD" | "WORKING-DIRECTORY" => println!("{}", shell.environment.CWD),
         _ => {
             println!("Invalid environment variable: '{}'", args[0]);
             return Err(BuiltinError::InvalidArgument(args[0].to_string()).into());
@@ -282,14 +293,14 @@ pub fn environment_variable(shell: &mut ShellState, args: Vec<&str>) -> Result<(
 pub fn edit_path(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     check_args(&args, 2, "edit-path <append | prepend> <path>")?;
     let action = args[0];
-    let path = Path::from_str(args[1], shell.environment.HOME()).map_err(|_| {
+    let path = Path::from_str(args[1], &shell.environment.HOME).map_err(|_| {
         println!("Invalid directory: '{}'", args[1]);
         BuiltinError::FailedToRun
     })?;
 
     match action {
-        "append" => shell.environment.PATH_mut().push_front(path),
-        "prepend" => shell.environment.PATH_mut().push_back(path),
+        "append" => shell.environment.PATH.push_front(path),
+        "prepend" => shell.environment.PATH.push_back(path),
         _ => {
             println!("Invalid action: '{}'", action);
             return Err(BuiltinError::InvalidArgument(args[0].to_string()).into());

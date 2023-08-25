@@ -105,7 +105,7 @@ impl Dispatcher {
             command.run(shell, command_args)
         } else {
             // If the command is not in the Dispatcher, try to run it as an executable from the PATH
-            let path = Path::resolve_executable(command_name, shell.environment.PATH());
+            let path = Path::resolve_executable(command_name, &shell.environment.PATH);
             if let Ok(path) = path {
                 // Check if the file is executable (has the executable bit set)
                 if let Ok(metadata) = fs_err::metadata(path.path()) {
