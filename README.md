@@ -1,8 +1,11 @@
-# rush
+# Rush
 A user-focused shell, implemented in Rust.
 
 ## Mission
-Rush is a shell designed to be as user-friendly as possible, both for longtime users of other popular shells, as well as complete beginners who are just learning how to interact with their computer through the CLI. It largely aims to accomplish this by either modifying, replacing, or disposing of the often-archaic conventions of the traditionally-popular shells.
+Rush is a shell designed to be as user-friendly as possible, both for longtime users of other
+popular shells, as well as complete beginners who are just learning how to interact with their
+computer through the CLI. It largely aims to accomplish this by either modifying, replacing, or
+disposing of the often-archaic conventions of the traditionally-popular shells.
 
 ## Goals
 - Support for easy coloration of input and output
@@ -19,4 +22,6 @@ Rush is currently looking for contributors!
 **Join the Discord: https://discord.gg/KphQhFeKqv**
 
 ## Notes
-Rush is currently unavailable on Windows. It is available for MacOS and most Linux distributions. If you are running Windows and wish to contribute to the project, you will be able to test it using WSL or a virtual machine.
+Rush is currently unavailable on Windows. It is available for MacOS and most Linux distributions. If
+you are running Windows and wish to contribute to the project, you will be able to test it using WSL
+or a virtual machine.
