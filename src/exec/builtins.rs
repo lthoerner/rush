@@ -39,15 +39,15 @@ pub fn exit(_shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
 
 pub fn working_directory(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     check_args(&args, 0, "working-directory")?;
-    println!("{}", shell.env().CWD());
+    println!("{}", shell.environment.CWD());
     Ok(())
 }
 
 pub fn change_directory(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     check_args(&args, 1, "change-directory <path>")?;
-    let history_limit = shell.config_mut().history_limit;
+    let history_limit = shell.config.history_limit;
     shell
-        .env_mut()
+        .environment
         .set_CWD(args[0], history_limit)
         .map_err(|_| {
             println!("Invalid path: '{}'", args[0]);
@@ -60,7 +60,7 @@ pub fn list_directory(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     let show_hidden = arguments.all;
     let path_to_read = match arguments.path {
         Some(path) => PathBuf::from(path),
-        None => shell.env().CWD().path().to_path_buf(),
+        None => shell.environment.CWD().path().to_path_buf(),
     };
 
     let read_dir_result = match fs_err::read_dir(&path_to_read) {
@@ -115,7 +115,7 @@ pub fn list_directory(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
 // TODO: Find a better name for this
 pub fn previous_directory(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     check_args(&args, 0, "go-back")?;
-    shell.env_mut().go_back().map_err(|_| {
+    shell.environment.go_back().map_err(|_| {
         println!("Previous directory does not exist or is invalid");
         BuiltinError::FailedToRun.into()
     })
@@ -123,7 +123,7 @@ pub fn previous_directory(shell: &mut ShellState, args: Vec<&str>) -> Result<()>
 
 pub fn next_directory(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     check_args(&args, 0, "go-forward")?;
-    shell.env_mut().go_forward().map_err(|_| {
+    shell.environment.go_forward().map_err(|_| {
         println!("Next directory does not exist or is invalid");
         BuiltinError::FailedToRun.into()
     })
@@ -198,10 +198,11 @@ pub fn read_file(_shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
 
 pub fn run_executable(shell: &mut ShellState, mut args: Vec<&str>) -> Result<()> {
     let executable_name = args[0].to_string();
-    let executable_path = Path::from_str(&executable_name, shell.env().HOME()).map_err(|_| {
-        println!("Failed to resolve executable path: '{}'", executable_name);
-        BuiltinError::FailedToRun
-    })?;
+    let executable_path =
+        Path::from_str(&executable_name, shell.environment.HOME()).map_err(|_| {
+            println!("Failed to resolve executable path: '{}'", executable_name);
+            BuiltinError::FailedToRun
+        })?;
 
     // * Executable name is removed before running the executable because the std::process::Command
     // * process builder automatically adds the executable name as the first argument
@@ -217,28 +218,34 @@ pub fn configure(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     match key {
         "truncation" => {
             if value == "false" {
-                shell.config_mut().truncation_factor = None;
+                shell.config.truncation_factor = None;
                 return Ok(());
             }
 
-            shell.config_mut().truncation_factor = Some(value.parse::<usize>().map_err(|_| {
+            shell.config.truncation_factor = Some(value.parse::<usize>().map_err(|_| {
                 println!("Invalid truncation length: '{}'", value);
                 BuiltinError::InvalidValue(value.to_string())
             })?)
         }
+        "multi-line-prompt" => {
+            shell.config.multi_line_prompt = value.parse::<bool>().map_err(|_| {
+                println!("Invalid value for multi-line-prompt: '{}'", value);
+                BuiltinError::InvalidValue(value.to_string())
+            })?
+        }
         "history-limit" => {
             if value == "false" {
-                shell.config_mut().history_limit = None;
+                shell.config.history_limit = None;
                 return Ok(());
             }
 
-            shell.config_mut().history_limit = Some(value.parse::<usize>().map_err(|_| {
+            shell.config.history_limit = Some(value.parse::<usize>().map_err(|_| {
                 println!("Invalid history limit: '{}'", value);
                 BuiltinError::InvalidValue(value.to_string())
             })?)
         }
         "show-errors" => {
-            shell.config_mut().show_errors = value.parse::<bool>().map_err(|_| {
+            shell.config.show_errors = value.parse::<bool>().map_err(|_| {
                 println!("Invalid value for show-errors: '{}'", value);
                 BuiltinError::InvalidValue(value.to_string())
             })?
@@ -256,13 +263,13 @@ pub fn environment_variable(shell: &mut ShellState, args: Vec<&str>) -> Result<(
     check_args(&args, 1, "environment-variable <var>")?;
     match args[0].to_uppercase().as_str() {
         "PATH" => {
-            for (i, path) in shell.env().PATH().iter().enumerate() {
+            for (i, path) in shell.environment.PATH().iter().enumerate() {
                 println!("[{i}]: {path}");
             }
         }
-        "USER" => println!("{}", shell.env().USER()),
-        "HOME" => println!("{}", shell.env().HOME().display()),
-        "CWD" | "WORKING-DIRECTORY" => println!("{}", shell.env().CWD()),
+        "USER" => println!("{}", shell.environment.USER()),
+        "HOME" => println!("{}", shell.environment.HOME().display()),
+        "CWD" | "WORKING-DIRECTORY" => println!("{}", shell.environment.CWD()),
         _ => {
             println!("Invalid environment variable: '{}'", args[0]);
             return Err(BuiltinError::InvalidArgument(args[0].to_string()).into());
@@ -275,14 +282,14 @@ pub fn environment_variable(shell: &mut ShellState, args: Vec<&str>) -> Result<(
 pub fn edit_path(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     check_args(&args, 2, "edit-path <append | prepend> <path>")?;
     let action = args[0];
-    let path = Path::from_str(args[1], shell.env().HOME()).map_err(|_| {
+    let path = Path::from_str(args[1], shell.environment.HOME()).map_err(|_| {
         println!("Invalid directory: '{}'", args[1]);
         BuiltinError::FailedToRun
     })?;
 
     match action {
-        "append" => shell.env_mut().PATH_mut().push_front(path),
-        "prepend" => shell.env_mut().PATH_mut().push_back(path),
+        "append" => shell.environment.PATH_mut().push_front(path),
+        "prepend" => shell.environment.PATH_mut().push_back(path),
         _ => {
             println!("Invalid action: '{}'", action);
             return Err(BuiltinError::InvalidArgument(args[0].to_string()).into());

@@ -2,16 +2,16 @@ use std::path::PathBuf;
 
 use thiserror::Error;
 
-use super::environment::EnvVar;
+use super::environment::EnvVariable;
 
 #[derive(Error, Debug)]
 pub enum ShellError {
     #[error("Failed to get external environment variable: {0}")]
-    MissingExternalEnvironmentVariable(EnvVar),
+    MissingExternalEnvironmentVariable(EnvVariable),
     #[error("Failed to get internal environment variable: {0}")]
-    MissingInternalEnvironmentVariable(EnvVar),
+    MissingInternalEnvironmentVariable(EnvVariable),
     #[error("Failed to update shell environment variable: {0}")]
-    FailedToUpdateEnvironmentVariable(EnvVar),
+    FailedToUpdateEnvironmentVariable(EnvVariable),
     #[error("Previous directory does not exist")]
     NoPreviousDirectory,
     #[error("Next directory does not exist")]

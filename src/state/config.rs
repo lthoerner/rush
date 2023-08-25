@@ -9,6 +9,8 @@ use super::errors::ShellError;
 pub struct Configuration {
     // The truncation length for the prompt
     pub truncation_factor: Option<usize>,
+    // Whether to show the prompt tick on a new line
+    pub multi_line_prompt: bool,
     // How many directories to store in the back/forward history
     pub history_limit: Option<usize>,
     // Whether or not to print out full error messages and status codes when a command fails
@@ -19,6 +21,7 @@ impl Default for Configuration {
     fn default() -> Self {
         Self {
             truncation_factor: None,
+            multi_line_prompt: false,
             history_limit: None,
             show_errors: true,
         }

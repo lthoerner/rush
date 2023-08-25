@@ -13,7 +13,7 @@ fn main() -> Result<()> {
         default_panic(info);
     }));
 
-    // The Shell type stores all of the state for the shell, including its configuration,
+    // The ShellState type stores all of the state for the shell, including its configuration,
     // its environment, and other miscellaneous data like command history
     let mut shell = ShellState::new()?;
     // The LineEditor type is responsible for reading lines of input from the user, storing history,
@@ -24,7 +24,7 @@ fn main() -> Result<()> {
     let dispatcher = Dispatcher::default();
 
     loop {
-        let line = line_editor.prompt_and_read_line();
+        let line = line_editor.prompt_and_read_line(&shell);
         if let Some(line) = line {
             let status = dispatcher.eval(&mut shell, &line);
             handle_error(status, &mut shell);
@@ -35,21 +35,22 @@ fn main() -> Result<()> {
 // Prints an appropriate error message for the given error, if applicable
 fn handle_error(error: Result<()>, shell: &mut ShellState) {
     match error {
-        Ok(_) => shell.set_success(true),
+        Ok(_) => shell.last_command_succeeded = true,
         Err(e) => {
+            // TODO: Probably just do an enum here honestly
             match e.downcast_ref::<DispatchError>() {
                 Some(DispatchError::UnknownCommand(command_name)) => {
                     println!("Unknown command: {}", command_name);
                 }
                 _ => {
-                    if shell.config().show_errors {
+                    if shell.config.show_errors {
                         // TODO: This is sort of a "magic" formatting string, it should be changed to a method or something
                         println!("Error: {:#?}: {}", e, e);
                     }
                 }
             }
 
-            shell.set_success(false);
+            shell.last_command_succeeded = false;
         }
     }
 }

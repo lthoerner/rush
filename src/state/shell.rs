@@ -1,4 +1,5 @@
 use anyhow::Result;
+use crossterm::style::Stylize;
 
 use super::config::Configuration;
 use super::environment::Environment;
@@ -6,9 +7,10 @@ use super::environment::Environment;
 // Represents the shell state and provides methods for interacting with it
 // TODO: Miscellaneous shell state like command_success, command_history etc might be better off in some sort of bundle struct
 pub struct ShellState {
-    pub(crate) environment: Environment,
-    pub(crate) config: Configuration,
-    pub(crate) command_success: bool,
+    pub environment: Environment,
+    pub config: Configuration,
+    pub last_command_succeeded: bool,
+    pub should_exit: bool,
 }
 
 impl ShellState {
@@ -19,31 +21,35 @@ impl ShellState {
         Ok(Self {
             environment: Environment::new()?,
             config,
-            command_success: true,
+            last_command_succeeded: true,
+            should_exit: false,
         })
     }
 
-    pub fn env(&self) -> &Environment {
-        &self.environment
-    }
+    // Generates the prompt string used by the REPL
+    pub fn generate_prompt(&self) -> String {
+        let user = self.environment.USER().clone();
+        let home = self.environment.HOME();
+        let truncation = self.config.truncation_factor;
+        let cwd = self.environment.CWD().collapse(home, truncation);
+        let prompt_delimiter = match self.config.multi_line_prompt {
+            true => "\n",
+            false => " ",
+        };
 
-    pub fn env_mut(&mut self) -> &mut Environment {
-        &mut self.environment
-    }
+        // ? What is the actual name for this?
+        let prompt_tick = match self.last_command_succeeded {
+            true => "❯".green(),
+            false => "❯".red(),
+        }
+        .bold();
 
-    pub fn config(&self) -> &Configuration {
-        &self.config
-    }
-
-    pub fn config_mut(&mut self) -> &mut Configuration {
-        &mut self.config
-    }
-
-    pub fn success(&self) -> bool {
-        self.command_success
-    }
-
-    pub fn set_success(&mut self, success: bool) {
-        self.command_success = success;
+        format!(
+            "\n{} on {}{}{} ",
+            user.dark_blue(),
+            cwd.dark_green(),
+            prompt_delimiter,
+            prompt_tick
+        )
     }
 }

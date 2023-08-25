@@ -2,6 +2,8 @@ use crossterm::style::Stylize;
 use rustyline::error::ReadlineError;
 use rustyline::{CompletionType, Config, DefaultEditor};
 
+use crate::state::shell::ShellState;
+
 pub struct LineEditor {
     editor: DefaultEditor,
 }
@@ -14,6 +16,7 @@ impl LineEditor {
             .completion_type(CompletionType::Fuzzy)
             .build();
 
+        // TODO: Make the history path a parameter
         let mut editor = DefaultEditor::with_config(config).unwrap();
         if editor.load_history("./config/history.rush").is_err() {
             println!("No existing history file found, attempting to create one...");
@@ -30,9 +33,9 @@ impl LineEditor {
         Self { editor }
     }
 
-    pub fn prompt_and_read_line(&mut self) -> Option<String> {
+    pub fn prompt_and_read_line(&mut self, shell: &ShellState) -> Option<String> {
         loop {
-            let input = self.editor.readline(&">> ".red().to_string());
+            let input = self.editor.readline(&shell.generate_prompt());
             match input {
                 Ok(line) => {
                     if !line.is_empty() {

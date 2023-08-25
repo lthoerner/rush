@@ -1,9 +1,10 @@
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashMap, VecDeque};
 use std::env;
 use std::fmt::{Display, Formatter};
 use std::path::PathBuf;
 
 use anyhow::Result;
+use bitflags::bitflags;
 
 use super::errors::ShellError;
 use super::path::Path;
@@ -12,14 +13,14 @@ use super::path::Path;
 // ? What's a good name for this?
 #[allow(non_snake_case)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum EnvVar {
+pub enum EnvVariable {
     User,
     Home,
     Cwd,
     Path,
 }
 
-impl Display for EnvVar {
+impl Display for EnvVariable {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -34,7 +35,7 @@ impl Display for EnvVar {
     }
 }
 
-impl EnvVar {
+impl EnvVariable {
     // Does the same thing as .to_string(), but uses legacy environment variable names
     fn to_legacy_string(self) -> String {
         match self {
@@ -46,22 +47,12 @@ impl EnvVar {
     }
 }
 
-// Convenience struct for passing around a set of environment variables without duplicates
-struct EnvVarBundle {
-    vars: HashSet<EnvVar>,
-}
-
-impl<const N: usize> From<[EnvVar; N]> for EnvVarBundle {
-    fn from(vars: [EnvVar; N]) -> Self {
-        Self {
-            vars: vars.into_iter().collect(),
-        }
-    }
-}
-
-impl EnvVarBundle {
-    fn contains(&self, var: EnvVar) -> bool {
-        self.vars.contains(&var)
+bitflags! {
+    pub struct EnvVariables: u8 {
+        const USER = 0b0001;
+        const HOME = 0b0010;
+        const CWD = 0b0100;
+        const PATH = 0b1000;
     }
 }
 
@@ -85,10 +76,10 @@ pub struct Environment {
 #[allow(non_snake_case)]
 impl Environment {
     pub fn new() -> Result<Self> {
-        let USER = get_parent_env_var(EnvVar::User)?;
-        let HOME = PathBuf::from(get_parent_env_var(EnvVar::Home)?);
-        let CWD = Path::from_str(get_parent_env_var(EnvVar::Cwd)?.as_str(), &HOME)?;
-        let PATH = convert_path(get_parent_env_var(EnvVar::Path)?.as_str(), &HOME);
+        let USER = get_parent_env_var(EnvVariable::User)?;
+        let HOME = PathBuf::from(get_parent_env_var(EnvVariable::Home)?);
+        let CWD = Path::from_str(get_parent_env_var(EnvVariable::Cwd)?.as_str(), &HOME)?;
+        let PATH = convert_path(get_parent_env_var(EnvVariable::Path)?.as_str(), &HOME);
 
         Ok(Self {
             USER,
@@ -102,19 +93,19 @@ impl Environment {
     }
 
     // Updates the shell process's environment variables to match the internal representation
-    fn update_process_env_vars(&self, vars: EnvVarBundle) -> Result<()> {
+    fn update_process_env_vars(&self, vars: EnvVariables) -> Result<()> {
         // TODO: How to detect errors here?
-        if vars.contains(EnvVar::User) {
+        if vars.contains(EnvVariables::USER) {
             env::set_var("USER", &self.USER);
         }
 
-        if vars.contains(EnvVar::Home) {
+        if vars.contains(EnvVariables::HOME) {
             env::set_var("HOME", &self.HOME);
         }
 
-        if vars.contains(EnvVar::Cwd) {
+        if vars.contains(EnvVariables::CWD) {
             env::set_current_dir(self.CWD.path())
-                .map_err(|_| ShellError::FailedToUpdateEnvironmentVariable(EnvVar::Cwd))?;
+                .map_err(|_| ShellError::FailedToUpdateEnvironmentVariable(EnvVariable::Cwd))?;
         }
 
         Ok(())
@@ -161,7 +152,7 @@ impl Environment {
                 }
             }
 
-            self.update_process_env_vars([EnvVar::Cwd].into())?;
+            self.update_process_env_vars(EnvVariables::CWD)?;
         }
 
         Ok(())
@@ -173,7 +164,7 @@ impl Environment {
         if let Some(previous_path) = self.backward_directories.pop_back() {
             self.CWD = previous_path;
             self.forward_directories.push_front(starting_directory);
-            self.update_process_env_vars([EnvVar::Cwd].into())
+            self.update_process_env_vars(EnvVariables::CWD)
         } else {
             Err(ShellError::NoPreviousDirectory.into())
         }
@@ -185,7 +176,7 @@ impl Environment {
         if let Some(next_path) = self.forward_directories.pop_front() {
             self.CWD = next_path;
             self.backward_directories.push_back(starting_directory);
-            self.update_process_env_vars([EnvVar::Cwd].into())
+            self.update_process_env_vars(EnvVariables::CWD)
         } else {
             Err(ShellError::NoNextDirectory.into())
         }
@@ -193,7 +184,7 @@ impl Environment {
 }
 
 // Gets the name of the user who invoked the shell (to be used when the shell is first initialized)
-fn get_parent_env_var(variable: EnvVar) -> Result<String> {
+fn get_parent_env_var(variable: EnvVariable) -> Result<String> {
     std::env::var(variable.to_legacy_string())
         .map_err(|_| ShellError::MissingExternalEnvironmentVariable(variable).into())
 }
