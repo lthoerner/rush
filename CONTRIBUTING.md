@@ -68,22 +68,24 @@ speaking any and all contributions should adhere to these tenets. There will be 
    tree. Only use `#[allow]` if a lint is truly unhelpful/its suggestion should not be implemented.
 2. Rustfmt (`cargo fmt`) must be used before committing. It is recommended that you set up a hook to
    run Rustfmt automatically when saving.
-3. Do not use macros without consulting a maintainer beforehand. Macros make the codebase both
+3. Use [conventional commit](https://www.conventionalcommits.org/en/v1.0.0/) messages.
+4. Do not use macros without consulting a maintainer beforehand. Macros make the codebase both
    difficult-to-maintain and relatively unreadable, especially for beginner Rust developers.
-4. Make sure your code is commented to a level which allows any developer to mentally parse it, even
+5. Make sure your code is commented to a level which allows any developer to mentally parse it, even
    if they do not have prior experience in Rust. On the other hand, do not leave excessive comments
    for self-descriptive code.
-5. Ensure that your submitted PRs do not contain `.unwrap()`, `.expect()`, `panic!()`, or any other
+6. Ensure that your submitted PRs do not contain `.unwrap()`, `.expect()`, `panic!()`, or any other
    code which will allow a panic to occur. Errors should be at the very least passed up the
    callstack, and preferably they should be handled.
-6. Comments must follow the format `// <message>`, and use standard English language conventions
+7. Comments must follow the format `// <message>`, and use standard English language conventions
    (capitalization, punctuation, etc.). You can also use `// $ <message>` to highlight a comment in
    red, `// * <message>` to highlight a comment in green, and `// ? <message>` to highlight a
    comment in blue. These are used for high-priority warnings, important clarifications to code, and
    "notes to self," respectively. Usually, only `// *` comments are suitable for merging.
-7. `TODO`s must be commented in the appropate format (`// TODO: <message>`) and are generally not
-   suitable for merging. Please submit complete work whenever remotely possible.
-8. Do not use `unsafe`.
+8. `TODO`s must be commented in the appropate format (`// TODO: <message>`) and are generally not
+   suitable for merging. Please submit complete work whenever remotely possible. Do not use "FIXME"
+   messages.
+9. Do not use `unsafe`.
 
 ## Communication
 The team communicates mostly via [Discord](https://discord.gg/KphQhFeKqv) for informal discussions,
