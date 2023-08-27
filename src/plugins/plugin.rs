@@ -76,7 +76,13 @@ impl<'a> WasmPluginBuilder<'a> {
         let mut linker = Linker::new(self.engine);
 
         let context = WasmPluginContext {
-            wasi: self.wasi.then(|| WasiCtxBuilder::new().build()),
+            wasi: self.wasi.then(|| {
+                WasiCtxBuilder::new()
+                    .inherit_stdio()
+                    .inherit_env()
+                    .unwrap()
+                    .build()
+            }),
             shell: self.state.context("Shell state not provided to plugin")?,
             memory: None,
         };
