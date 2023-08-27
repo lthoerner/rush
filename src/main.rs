@@ -1,10 +1,12 @@
 mod eval;
 mod exec;
+mod plugins;
 mod state;
 
 use anyhow::Result;
 
 use eval::{DispatchError, Dispatcher, LineEditor};
+use plugins::host::PluginHost;
 use state::shell::ShellState;
 
 fn main() -> Result<()> {
@@ -15,7 +17,8 @@ fn main() -> Result<()> {
 
     // The ShellState type stores all of the state for the shell, including its configuration,
     // its environment, and other miscellaneous data like command history
-    let mut shell = ShellState::new()?;
+    let shell = ShellState::new()?;
+    let plugins = PluginHost::new(shell.clone());
     // The LineEditor type is responsible for reading lines of input from the user, storing history,
     // providing tab completion and other line-editing features
     let mut line_editor = LineEditor::new();
@@ -24,10 +27,10 @@ fn main() -> Result<()> {
     let dispatcher = Dispatcher::default();
 
     loop {
-        let line = line_editor.prompt_and_read_line(&shell);
+        let line = line_editor.prompt_and_read_line(&shell.read().unwrap());
         if let Some(line) = line {
-            let status = dispatcher.eval(&mut shell, &line);
-            handle_error(status, &mut shell);
+            let status = dispatcher.eval(&mut shell.write().unwrap(), &line);
+            handle_error(status, &mut shell.write().unwrap());
         }
     }
 }
