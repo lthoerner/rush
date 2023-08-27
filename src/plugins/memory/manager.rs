@@ -222,7 +222,7 @@ mod tests {
             let offset = store.data().memory_offset;
             if (offset + length) as u64 > PAGE_SIZE * self.memory.size(&store) {
                 self.memory
-                    .grow(&mut store, (length as u64).div_ceil(PAGE_SIZE))
+                    .grow(&mut store, length as u64 / PAGE_SIZE + 1)
                     .unwrap();
             }
 
