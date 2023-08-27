@@ -1,5 +1,8 @@
 use fs_err::File;
-use std::io::{BufRead, BufReader};
+use std::{
+    io::{BufRead, BufReader},
+    path::PathBuf,
+};
 
 use anyhow::Result;
 
@@ -15,6 +18,8 @@ pub struct Configuration {
     pub history_limit: Option<usize>,
     // Whether or not to print out full error messages and status codes when a command fails
     pub show_errors: bool,
+    /// Paths to recursively search for plugins
+    pub plugin_paths: Vec<PathBuf>,
 }
 
 impl Default for Configuration {
@@ -24,6 +29,7 @@ impl Default for Configuration {
             multi_line_prompt: false,
             history_limit: None,
             show_errors: true,
+            plugin_paths: vec![],
         }
     }
 }
@@ -31,7 +37,8 @@ impl Default for Configuration {
 impl Configuration {
     // Scans a configuration file for settings and updates the configuration accordingly
     pub fn from_file(filename: &str) -> Result<Self> {
-        let filename = filename.to_string();
+        let filename = PathBuf::from(filename);
+        let dirname = filename.parent().unwrap();
 
         let mut config = Self::default();
         let file = File::open(filename.clone())
@@ -73,6 +80,9 @@ impl Configuration {
                     if let Ok(show) = value.parse::<bool>() {
                         config.show_errors = show;
                     }
+                }
+                "plugin-path" => {
+                    config.plugin_paths.push(dirname.join(value));
                 }
                 _ => return Err(ShellError::FailedToReadConfigFile(filename).into()),
             }

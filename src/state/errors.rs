@@ -17,10 +17,9 @@ pub enum ShellError {
     #[error("Next directory does not exist")]
     NoNextDirectory,
     #[error("Failed to open configuration file: {0}")]
-    // ? Should these be Strings or Path/PathBuf?
-    FailedToOpenConfigFile(String),
+    FailedToOpenConfigFile(PathBuf),
     #[error("Failed to read configuration file: {0}")]
-    FailedToReadConfigFile(String),
+    FailedToReadConfigFile(PathBuf),
     #[error("Unknown error")]
     Uncategorized,
 }

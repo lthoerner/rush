@@ -1,3 +1,5 @@
+use std::sync::{Arc, RwLock};
+
 use anyhow::Result;
 use crossterm::style::Stylize;
 
@@ -14,16 +16,16 @@ pub struct ShellState {
 }
 
 impl ShellState {
-    pub fn new() -> Result<Self> {
+    pub fn new() -> Result<Arc<RwLock<Self>>> {
         let config =
             Configuration::from_file("./config/config.rush").unwrap_or(Configuration::default());
 
-        Ok(Self {
+        Ok(Arc::new(RwLock::new(Self {
             environment: Environment::new()?,
             config,
             last_command_succeeded: true,
             should_exit: false,
-        })
+        })))
     }
 
     // Generates the prompt string used by the REPL
