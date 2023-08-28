@@ -113,15 +113,7 @@ pub struct WasmPlugin {
 }
 
 impl WasmPlugin {
-    fn buffers_to_pointers(&mut self, values: &[&[u8]]) -> Vec<Val> {
-        // For the plugin to find our arguments, it needs to know where to find
-        // it and how long it is. In this implementation, we split each buffer into
-        // an 64 bit number where the first half is the pointer to the buffer
-        // and the second half is its length
-        // Example:
-        // `fn after_command(stdout: String, stderr: String)`
-        // becomes:
-        // `fn(stdout: i64, stderr: i64)`
+    fn buffers_to_wasm(&mut self, values: &[&[u8]]) -> Vec<Val> {
         values
             .iter()
             .map(|buffer| {
@@ -130,9 +122,8 @@ impl WasmPlugin {
                     .memory()
                     .copy(self.store.as_context_mut(), buffer)
                     .into_raw()
-                    .as_wide_pointer()
+                    .to_wasm()
             })
-            .map(Val::I64)
             .collect()
     }
 }
@@ -148,7 +139,7 @@ impl Plugin for WasmPlugin {
             return Some(Err(anyhow::anyhow!("Hook {name} may not return a value")));
         }
 
-        let arg_pointers = self.buffers_to_pointers(arguments);
+        let arg_pointers = self.buffers_to_wasm(arguments);
 
         if let Err(err) = hook.call(&mut self.store, &arg_pointers, &mut []) {
             return Some(Err(err));
@@ -168,14 +159,14 @@ impl Plugin for WasmPlugin {
             return Some(Err(anyhow::anyhow!("Hook {name} must return an i64")));
         }
 
-        let arg_pointers = self.buffers_to_pointers(arguments);
+        let arg_pointers = self.buffers_to_wasm(arguments);
 
         let mut return_values = [Val::null()];
         if let Err(err) = hook.call(&mut self.store, &arg_pointers, &mut return_values) {
             return Some(Err(err));
         }
 
-        let memory_span = WasmSpan::from_wide_pointer(return_values[0].unwrap_i64());
+        let memory_span = WasmSpan::try_from_wasm(&return_values[0]).unwrap();
         let buffer = self
             .store
             .data()
