@@ -1,3 +1,4 @@
+mod errors;
 mod eval;
 mod exec;
 mod plugins;
@@ -5,7 +6,8 @@ mod state;
 
 use anyhow::Result;
 
-use eval::{DispatchError, Dispatcher, LineEditor};
+use errors::DispatchError;
+use eval::{Dispatcher, LineEditor};
 use plugins::host::PluginHost;
 use state::shell::ShellState;
 

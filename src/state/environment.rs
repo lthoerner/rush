@@ -6,8 +6,8 @@ use std::path::PathBuf;
 use anyhow::Result;
 use bitflags::bitflags;
 
-use super::errors::ShellError;
 use super::path::Path;
+use crate::errors::ShellError;
 
 // Identifier enum for safely accessing environment variables
 // ? What's a good name for this?

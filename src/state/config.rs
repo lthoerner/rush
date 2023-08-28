@@ -6,7 +6,7 @@ use std::{
 
 use anyhow::Result;
 
-use super::errors::ShellError;
+use crate::errors::ShellError;
 
 // Represents any settings for the shell, most of which can be configured by the user
 pub struct Configuration {

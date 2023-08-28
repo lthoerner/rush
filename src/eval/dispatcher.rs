@@ -7,7 +7,7 @@ use crate::exec::commands::{Builtin, Executable, Runnable};
 use crate::state::path::Path;
 use crate::state::shell::ShellState;
 
-use super::errors::DispatchError;
+use crate::errors::DispatchError;
 // use super::parser;
 use super::tokenizer::tokenize;
 
