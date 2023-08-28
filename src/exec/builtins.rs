@@ -23,9 +23,7 @@ use crate::state::{path::Path, shell::ShellState};
 
 use super::builtin_arguments::ListDirectoryArguments;
 use super::commands::{Executable, Runnable};
-use super::errors::BuiltinError::{
-    self, FailedReadingDir, FailedReadingFileName, FailedReadingFileType, FailedReadingPath,
-};
+use crate::errors::BuiltinError;
 
 pub fn test(_shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     check_args(&args, 0, "test")?;
@@ -66,7 +64,7 @@ pub fn list_directory(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
 
     let read_dir_result = match fs_err::read_dir(&path_to_read) {
         Ok(v) => v,
-        Err(_) => return Err(FailedReadingPath(path_to_read).into()),
+        Err(_) => return Err(BuiltinError::FailedReadingPath(path_to_read).into()),
     };
 
     let mut directories = Vec::new();
@@ -75,17 +73,17 @@ pub fn list_directory(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     for dir_entry in read_dir_result {
         let fs_object = match dir_entry {
             Ok(v) => v,
-            Err(_) => return Err(FailedReadingDir(path_to_read).into()),
+            Err(_) => return Err(BuiltinError::FailedReadingDir(path_to_read).into()),
         };
 
         let fs_object_name = match fs_object.file_name().to_str() {
             Some(v) => String::from(v),
-            None => return Err(FailedReadingFileName(path_to_read).into()),
+            None => return Err(BuiltinError::FailedReadingFileName(path_to_read).into()),
         };
 
         let fs_object_type = match fs_object.file_type() {
             Ok(v) => v,
-            Err(_) => return Err(FailedReadingFileType(path_to_read).into()),
+            Err(_) => return Err(BuiltinError::FailedReadingFileType(path_to_read).into()),
         };
 
         if fs_object_name.starts_with('.') && !show_hidden {

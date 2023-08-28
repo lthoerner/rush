@@ -5,7 +5,7 @@ use anyhow::Result;
 use crate::state::path::Path;
 use crate::state::shell::ShellState;
 
-use super::errors::ExecutableError;
+use crate::errors::ExecutableError;
 
 // Represents either a builtin (internal command) or an executable (external command)
 // A Runnable may be executed by calling its .run() method
