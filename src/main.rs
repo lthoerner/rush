@@ -20,7 +20,7 @@ fn main() {
     let plugins = PluginHost::new(shell.clone());
     // The LineEditor type is responsible for reading lines of input from the user, storing history,
     // providing tab completion and other line-editing features
-    let mut line_editor = LineEditor::new();
+    let mut line_editor = LineEditor::new("./config/history.rush");
     // The Dispatcher type is responsible for resolving command names to actual function calls,
     // or executables if needed, and then invoking them with the given arguments
     let dispatcher = Dispatcher::default();

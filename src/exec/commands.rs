@@ -78,7 +78,6 @@ impl Executable {
 
 impl Runnable for Executable {
     // * Executables do not have access to the shell state, but the context argument is required by the Runnable trait
-    // TODO: Remove as many .unwrap() calls as possible here
     fn run(&self, _shell: &mut ShellState, arguments: Vec<&str>) -> Result<()> {
         // Create the Process, pass the provided arguments to it, and execute it
         let mut process = Process::new(self.path.path())
@@ -86,16 +85,14 @@ impl Runnable for Executable {
             .spawn()
             .replace_err(executable_err!(PathNoLongerExists(self.path.into())))?;
 
-        let status = process
-            .wait()
-            .expect("Failed to wait for executable to complete");
+        let status = process.wait().replace_err(executable_err!(FailedToWait))?;
 
         match status.success() {
             true => Ok(()),
             false => {
                 // * 126 is a special exit code that means that the command was found but could not be executed
                 // * as per https://tldp.org/LDP/abs/html/exitcodes.html
-                // * It can be assumed that the command was found here because the External path must have been validated already
+                // * It can be assumed that the command was found here because the Executable path must have been validated already
                 // * Otherwise it could be a 127 for "command not found"
                 Err(executable_err!(FailedToExecute(
                     status.code().unwrap_or(126) as isize
