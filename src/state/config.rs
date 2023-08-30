@@ -41,12 +41,11 @@ impl Configuration {
 
         let mut config = Self::default();
         let file = File::open(filename.clone())
-            .replace_err_no_context(state_err!(FailedToOpenConfigFile(filename.clone())))?;
+            .replace_err(state_err!(FailedToOpenConfigFile(filename.clone())))?;
         let reader = BufReader::new(file);
 
         for line in reader.lines() {
-            let line =
-                line.replace_err_no_context(state_err!(FailedToOpenConfigFile(filename.clone())))?;
+            let line = line.replace_err(state_err!(FailedToOpenConfigFile(filename.clone())))?;
             let tokens = line.split(": ").collect::<Vec<&str>>();
             if tokens.len() != 2 {
                 return Err(state_err!(FailedToReadConfigFile(filename)));

@@ -3,63 +3,77 @@ use std::path::PathBuf;
 
 use crate::state::EnvVariable;
 
+/// `Result` alias which automatically uses `RushError` as the error type.
 pub type Result<T> = std::result::Result<T, RushError>;
 pub trait Handle<T> {
-    /// Replaces any error kind with a new one, with additional context
-    fn replace_err(self, new_error: RushError, context: &str) -> Result<T>;
-    /// Replaces any error kind with a new one, without additional context
-    fn replace_err_no_context(self, new_error: RushError) -> Result<T>;
+    /// Replaces any error kind with a new one, without overriding the default error message.
+    /// Useful in situations where additional context provides no additional clarity.
+    fn replace_err(self, new_error: RushError) -> Result<T>;
+    /// Replaces any error kind with a new one, overriding the default error message with the
+    /// provided one. Useful in situations where additional context can provide additional clarity.
+    fn replace_err_with_msg(self, new_error: RushError, context: &str) -> Result<T>;
 }
 
 impl<T, E> Handle<T> for std::result::Result<T, E> {
-    fn replace_err(mut self, new_error: RushError, context: &str) -> Result<T> {
-        self.map_err(|_| new_error.set_context(context))
+    fn replace_err(mut self, new_error: RushError) -> Result<T> {
+        self.map_err(|_| new_error)
     }
 
-    fn replace_err_no_context(mut self, new_error: RushError) -> Result<T> {
-        self.map_err(|_| new_error)
+    fn replace_err_with_msg(mut self, new_error: RushError, context: &str) -> Result<T> {
+        self.map_err(|_| new_error.set_context(context))
     }
 }
 
 impl<T> Handle<T> for std::option::Option<T> {
-    fn replace_err(mut self, new_error: RushError, context: &str) -> Result<T> {
+    fn replace_err_with_msg(mut self, new_error: RushError, context: &str) -> Result<T> {
         self.ok_or(new_error.set_context(context))
     }
 
-    fn replace_err_no_context(mut self, new_error: RushError) -> Result<T> {
+    fn replace_err(mut self, new_error: RushError) -> Result<T> {
         self.ok_or(new_error)
     }
 }
 
+/// Error type for Rush.
+/// Contains an error kind and optionally a custom message,
+/// which is used to override the default error message.
+/// All error kinds have a default error message and an extended description of the error,
+/// including a detailed explanation of what the error kind represents and potential causes.
 pub struct RushError {
     kind: ErrorKind,
-    context: Option<String>,
+    custom_message: Option<String>,
 }
 
 impl Display for RushError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        if let Some(context) = &self.context {
-            write!(f, "{}: {}", self.kind, context)
-        } else {
-            write!(f, "{}", self.kind)
-        }
+        // If the error has a custom message, use it instead of the default error message.
+        write!(
+            f,
+            "{}",
+            self.custom_message.unwrap_or(self.kind.to_string())
+        )
     }
 }
 
 impl RushError {
+    /// Creates a `RushError` with no custom message.
     pub fn new(kind: ErrorKind) -> Self {
         Self {
             kind,
-            context: None,
+            custom_message: None,
         }
     }
 
+    /// Takes a `RushError` and gives it a custom message.
     pub fn set_context(mut self, context: &str) -> Self {
-        self.context = Some(context.to_owned());
+        self.custom_message = Some(context.to_owned());
         self
     }
 }
 
+/// Enum representing every type of error which can occur in Rush.
+/// Downstream error variants will typically include data providing basic information
+/// about how the error occurred, such as the name of a command which was not found.
 pub enum ErrorKind {
     Dispatch(DispatchError),
     Builtin(BuiltinError),
@@ -80,6 +94,7 @@ impl Display for ErrorKind {
     }
 }
 
+/// Error type for errors which occur during command dispatch.
 pub enum DispatchError {
     UnknownCommand(String),
     CommandNotExecutable(u32),
@@ -110,6 +125,7 @@ impl Display for DispatchError {
     }
 }
 
+/// Error type for errors which occur during execution of builtins.
 pub enum BuiltinError {
     InvalidArgumentCount(usize),
     InvalidArgument(String),
@@ -149,6 +165,7 @@ impl Display for BuiltinError {
     }
 }
 
+/// Error type for errors which occur during execution of executable files.
 pub enum ExecutableError {
     PathNoLongerExists(PathBuf),
     FailedToExecute(isize),
@@ -167,6 +184,7 @@ impl Display for ExecutableError {
     }
 }
 
+/// Error type for errors which occur during state operations.
 pub enum StateError {
     MissingExternalEnvironmentVariable(EnvVariable),
     MissingInternalEnvironmentVariable(EnvVariable),
@@ -203,6 +221,7 @@ impl Display for StateError {
     }
 }
 
+/// Error type for errors which occur during path operations.
 pub enum PathError {
     FailedToConvertPathBufToString(PathBuf),
     FailedToCanonicalize(PathBuf),
@@ -233,6 +252,7 @@ impl Display for PathError {
     }
 }
 
+/// Shortcut for creating a `RushError::Dispatch` without explicit imports
 macro_rules! dispatch_err {
     ($content:expr) => {{
         use crate::errors::DispatchError::*;
@@ -242,6 +262,7 @@ macro_rules! dispatch_err {
     }};
 }
 
+/// Shortcut for creating a `RushError::Builtin` without explicit imports
 macro_rules! builtin_err {
     ($content:expr) => {{
         use crate::errors::BuiltinError::*;
@@ -251,6 +272,7 @@ macro_rules! builtin_err {
     }};
 }
 
+/// Shortcut for creating a `RushError::Executable` without explicit imports
 macro_rules! executable_err {
     ($content:expr) => {{
         use crate::errors::ErrorKind;
@@ -260,6 +282,7 @@ macro_rules! executable_err {
     }};
 }
 
+/// Shortcut for creating a `RushError::State` without explicit imports
 macro_rules! state_err {
     ($content:expr) => {{
         use crate::errors::ErrorKind;
@@ -269,6 +292,7 @@ macro_rules! state_err {
     }};
 }
 
+/// Shortcut for creating a `RushError::Path` without explicit imports
 macro_rules! path_err {
     ($content:expr) => {{
         use crate::errors::ErrorKind;
