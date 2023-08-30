@@ -84,12 +84,13 @@ pub enum ErrorKind {
 
 impl Display for ErrorKind {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        use ErrorKind::*;
         match self {
-            ErrorKind::Dispatch(error) => write!(f, "{}", error),
-            ErrorKind::Builtin(error) => write!(f, "{}", error),
-            ErrorKind::Executable(error) => write!(f, "{}", error),
-            ErrorKind::State(error) => write!(f, "{}", error),
-            ErrorKind::Path(error) => write!(f, "{}", error),
+            Dispatch(error) => write!(f, "{}", error),
+            Builtin(error) => write!(f, "{}", error),
+            Executable(error) => write!(f, "{}", error),
+            State(error) => write!(f, "{}", error),
+            Path(error) => write!(f, "{}", error),
         }
     }
 }
@@ -103,18 +104,19 @@ pub enum DispatchError {
 
 impl Display for DispatchError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        use DispatchError::*;
         match self {
-            DispatchError::UnknownCommand(command_name) => {
+            UnknownCommand(command_name) => {
                 write!(f, "Unknown command: {}", command_name)
             }
-            DispatchError::CommandNotExecutable(permission_code) => {
+            CommandNotExecutable(permission_code) => {
                 write!(
                     f,
                     "Command is not executable. Permission code: {}",
                     permission_code
                 )
             }
-            DispatchError::FailedToReadExecutableMetadata(path) => {
+            FailedToReadExecutableMetadata(path) => {
                 write!(
                     f,
                     "Failed to read metadata for executable: {}",
@@ -140,25 +142,26 @@ pub enum BuiltinError {
 
 impl Display for BuiltinError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        use BuiltinError::*;
         match self {
-            BuiltinError::InvalidArgumentCount(count) => {
+            InvalidArgumentCount(count) => {
                 write!(f, "Incorrect number of arguments: {}", count)
             }
-            BuiltinError::InvalidArgument(argument) => {
+            InvalidArgument(argument) => {
                 write!(f, "Invalid argument: {}", argument)
             }
-            BuiltinError::InvalidValue(value) => write!(f, "Invalid argument value: {}", value),
-            BuiltinError::FailedToRun => write!(f, "Failed to run builtin"),
-            BuiltinError::FailedReadingPath(path) => {
+            InvalidValue(value) => write!(f, "Invalid argument value: {}", value),
+            FailedToRun => write!(f, "Failed to run builtin"),
+            FailedReadingPath(path) => {
                 write!(f, "Failed to read path: {}", path.display())
             }
-            BuiltinError::FailedReadingFileType(path) => {
+            FailedReadingFileType(path) => {
                 write!(f, "Failed to read file type from path: {}", path.display())
             }
-            BuiltinError::FailedReadingFileName(path) => {
+            FailedReadingFileName(path) => {
                 write!(f, "Failed to read file name from path: {}", path.display())
             }
-            BuiltinError::FailedReadingDir(path) => {
+            FailedReadingDir(path) => {
                 write!(f, "Failed to read dir: {}", path.display())
             }
         }
@@ -173,11 +176,12 @@ pub enum ExecutableError {
 
 impl Display for ExecutableError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        use ExecutableError::*;
         match self {
-            ExecutableError::PathNoLongerExists(path) => {
+            PathNoLongerExists(path) => {
                 write!(f, "Path no longer exists: {}", path.display())
             }
-            ExecutableError::FailedToExecute(exit_code) => {
+            FailedToExecute(exit_code) => {
                 write!(f, "Executable failed with exit code: {}", exit_code)
             }
         }
@@ -198,25 +202,26 @@ pub enum StateError {
 
 impl Display for StateError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        use StateError::*;
         match self {
-            StateError::MissingExternalEnvironmentVariable(variable) => {
+            MissingExternalEnvironmentVariable(variable) => {
                 write!(f, "Missing external environment variable: {}", variable)
             }
-            StateError::MissingInternalEnvironmentVariable(variable) => {
+            MissingInternalEnvironmentVariable(variable) => {
                 write!(f, "Missing internal environment variable: {}", variable)
             }
-            StateError::FailedToUpdateEnvironmentVariable(variable) => {
+            FailedToUpdateEnvironmentVariable(variable) => {
                 write!(f, "Failed to update environment variable: {}", variable)
             }
-            StateError::NoPreviousDirectory => write!(f, "No previous directory"),
-            StateError::NoNextDirectory => write!(f, "No next directory"),
-            StateError::FailedToOpenConfigFile(path) => {
+            NoPreviousDirectory => write!(f, "No previous directory"),
+            NoNextDirectory => write!(f, "No next directory"),
+            FailedToOpenConfigFile(path) => {
                 write!(f, "Failed to open configuration file: {}", path.display())
             }
-            StateError::FailedToReadConfigFile(path) => {
+            FailedToReadConfigFile(path) => {
                 write!(f, "Failed to read configuration file: {}", path.display())
             }
-            StateError::Uncategorized => write!(f, "Unknown error"),
+            Uncategorized => write!(f, "Unknown error"),
         }
     }
 }
@@ -231,21 +236,22 @@ pub enum PathError {
 
 impl Display for PathError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        use PathError::*;
         match self {
-            PathError::FailedToConvertPathBufToString(path) => {
+            FailedToConvertPathBufToString(path) => {
                 write!(f, "Failed to convert PathBuf to String: {}", path.display())
             }
-            PathError::FailedToCanonicalize(path) => {
+            FailedToCanonicalize(path) => {
                 write!(
                     f,
                     "Failed to canonicalize directory path: {}",
                     path.display()
                 )
             }
-            PathError::FailedToAccess(path) => {
+            FailedToAccess(path) => {
                 write!(f, "Failed to access directory path: {}", path.display())
             }
-            PathError::UnknownDirectory(path) => {
+            UnknownDirectory(path) => {
                 write!(f, "Directory does not exist: {}", path.display())
             }
         }
