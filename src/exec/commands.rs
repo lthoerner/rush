@@ -1,11 +1,7 @@
 use std::process::Command as Process;
 
-use anyhow::Result;
-
-use crate::state::path::Path;
-use crate::state::shell::ShellState;
-
-use crate::errors::ExecutableError;
+use crate::errors::{Handle, Result};
+use crate::state::{Path, ShellState};
 
 // Represents either a builtin (internal command) or an executable (external command)
 // A Runnable may be executed by calling its .run() method
@@ -85,12 +81,10 @@ impl Runnable for Executable {
     // TODO: Remove as many .unwrap() calls as possible here
     fn run(&self, _shell: &mut ShellState, arguments: Vec<&str>) -> Result<()> {
         // Create the Process, pass the provided arguments to it, and execute it
-        let Ok(mut process) = Process::new(self.path.path())
+        let mut process = Process::new(self.path.path())
             .args(arguments)
             .spawn()
-        else {
-            return Err(ExecutableError::PathNoLongerExists(self.path.path().clone()).into())
-        };
+            .replace_err_no_context(executable_err!(PathNoLongerExists(self.path.into())))?;
 
         let status = process
             .wait()
@@ -103,7 +97,9 @@ impl Runnable for Executable {
                 // * as per https://tldp.org/LDP/abs/html/exitcodes.html
                 // * It can be assumed that the command was found here because the External path must have been validated already
                 // * Otherwise it could be a 127 for "command not found"
-                Err(ExecutableError::FailedToExecute(status.code().unwrap_or(126) as isize).into())
+                Err(executable_err!(FailedToExecute(
+                    status.code().unwrap_or(126) as isize
+                )))
             }
         }
     }

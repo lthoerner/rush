@@ -4,8 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-thiserror = "1.0.40"
-anyhow = "1.0.70"
 crossterm = "0.26.1"
 fs-err = "2.9.0"
 bitflags = "2.1.0"

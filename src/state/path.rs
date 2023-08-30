@@ -2,10 +2,9 @@ use std::collections::VecDeque;
 use std::fmt::{Display, Formatter};
 use std::path::PathBuf;
 
-use anyhow::Result;
 use fs_err::canonicalize;
 
-use crate::errors::PathError;
+use crate::errors::{Handle, Result};
 
 // Wrapper class for a directory path string
 // Adds convenience methods for displaying the path in a user-friendly way,
@@ -21,24 +20,31 @@ impl Display for Path {
     }
 }
 
+impl From<Path> for PathBuf {
+    fn from(value: Path) -> Self {
+        value.absolute_path
+    }
+}
+
 impl Path {
     // Attempts to construct a new Path from a given path string by resolving it to an absolute path
     pub fn from_str(path: &str, home_directory: &PathBuf) -> Result<Self> {
-        Self::from_pathbuf(&PathBuf::from(path), home_directory)
+        Self::from_pathbuf(PathBuf::from(path), home_directory)
     }
 
     // Attempts to construct a new Path from a given PathBuf by first resolving it to an absolute path
-    fn from_pathbuf(path: &PathBuf, home_directory: &PathBuf) -> Result<Self> {
+    fn from_pathbuf(path: PathBuf, home_directory: &PathBuf) -> Result<Self> {
         // The home directory shorthand must be expanded before resolving the path,
         // because PathBuf is not user-aware and only uses absolute and relative paths
         let expanded_path = expand_home(path, home_directory)?;
         // Canonicalizing a path will resolve any relative or absolute paths
-        let absolute_path = canonicalize(expanded_path)?;
+        let absolute_path = canonicalize(expanded_path)
+            .replace_err_no_context(path_err!(FailedToCanonicalize(expanded_path)))?;
 
         // If the file system can canonicalize the path, it should exist,
         // but this is added for extra precaution
         if !absolute_path.exists() {
-            Err(PathError::UnknownDirectory(absolute_path).into())
+            Err(path_err!(UnknownDirectory(absolute_path)))
         } else {
             Ok(Self { absolute_path })
         }
@@ -60,7 +66,7 @@ impl Path {
             }
         }
 
-        Err(PathError::FailedToCanonicalize(PathBuf::from(name)).into())
+        Err(path_err!(FailedToCanonicalize(PathBuf::from(name))))
     }
 
     // Gets the absolute path, with all directory names included
@@ -108,22 +114,21 @@ impl Path {
     }
 }
 
+// TODO: Clean up this function
 #[allow(clippy::ptr_arg)]
 // Expands the home directory shorthand in a path string
-fn expand_home(path: &PathBuf, home_directory: &PathBuf) -> Result<String> {
-    let path = path
+fn expand_home(path: PathBuf, home_directory: &PathBuf) -> Result<PathBuf> {
+    let path_string = path
         .to_str()
-        .ok_or(PathError::FailedToConvertPathBufToString(path.clone()))?;
-    if path.starts_with('~') {
-        Ok(path.replace(
+        .replace_err_no_context(path_err!(FailedToConvertPathBufToString(path.clone())))?;
+    if path_string.starts_with('~') {
+        Ok(PathBuf::from(path_string.replace(
             '~',
-            home_directory
-                .to_str()
-                .ok_or(PathError::FailedToConvertPathBufToString(
-                    home_directory.to_path_buf(),
-                ))?,
-        ))
+            home_directory.to_str().replace_err_no_context(path_err!(
+                FailedToConvertPathBufToString(home_directory.to_path_buf(),)
+            ))?,
+        )))
     } else {
-        Ok(path.to_string())
+        Ok(PathBuf::from(path_string))
     }
 }

@@ -1766,7 +1766,6 @@ checksum = "e5ea92a5b6195c6ef2a0295ea818b312502c6fc94dde986c5553242e18fd4ce2"
 name = "rush"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "bitflags 2.4.0",
  "clap",
  "crossterm",
@@ -1775,7 +1774,6 @@ dependencies = [
  "rustyline",
  "serde",
  "serde_json",
- "thiserror",
  "wasmtime",
  "wasmtime-wasi",
 ]

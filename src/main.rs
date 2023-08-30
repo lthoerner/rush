@@ -1,25 +1,22 @@
+#[macro_use]
 mod errors;
 mod eval;
 mod exec;
 mod plugins;
 mod state;
 
-use anyhow::Result;
-
-use errors::DispatchError;
+use errors::Result;
 use eval::{Dispatcher, LineEditor};
 use plugins::host::PluginHost;
-use state::shell::ShellState;
+use state::ShellState;
 
-fn main() -> Result<()> {
-    let default_panic = std::panic::take_hook();
-    std::panic::set_hook(Box::new(move |info| {
-        default_panic(info);
-    }));
-
+fn main() {
     // The ShellState type stores all of the state for the shell, including its configuration,
     // its environment, and other miscellaneous data like command history
-    let shell = ShellState::new()?;
+    let Ok(shell) = ShellState::new() else {
+        std::process::exit(1);
+    };
+
     let plugins = PluginHost::new(shell.clone());
     // The LineEditor type is responsible for reading lines of input from the user, storing history,
     // providing tab completion and other line-editing features
@@ -37,25 +34,10 @@ fn main() -> Result<()> {
     }
 }
 
-// Prints an appropriate error message for the given error, if applicable
-fn handle_error(error: Result<()>, shell: &mut ShellState) {
-    match error {
-        Ok(_) => shell.last_command_succeeded = true,
-        Err(e) => {
-            // TODO: Probably just do an enum here honestly
-            match e.downcast_ref::<DispatchError>() {
-                Some(DispatchError::UnknownCommand(command_name)) => {
-                    println!("Unknown command: {}", command_name);
-                }
-                _ => {
-                    if shell.config.show_errors {
-                        // TODO: This is sort of a "magic" formatting string, it should be changed to a method or something
-                        println!("Error: {:#?}: {}", e, e);
-                    }
-                }
-            }
-
-            shell.last_command_succeeded = false;
-        }
+// Handles the return value of running a builtin or executable, setting flags and/or printing errors
+fn handle_error(potential_error: Result<()>, shell: &mut ShellState) {
+    shell.last_command_succeeded = potential_error.is_ok();
+    if let Err(error) = potential_error {
+        eprintln!("{}", error);
     }
 }

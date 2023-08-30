@@ -3,15 +3,12 @@ use std::env;
 use std::fmt::{Display, Formatter};
 use std::path::PathBuf;
 
-use anyhow::Result;
 use bitflags::bitflags;
 
 use super::path::Path;
-use crate::errors::ShellError;
+use crate::errors::{Handle, Result};
 
 // Identifier enum for safely accessing environment variables
-// ? What's a good name for this?
-#[allow(non_snake_case)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum EnvVariable {
     User,
@@ -64,11 +61,11 @@ pub struct Environment {
     pub USER: String,
     pub HOME: PathBuf,
     pub CWD: Path,
-    backward_directories: VecDeque<Path>,
-    forward_directories: VecDeque<Path>,
     // * PATH is not to be confused with the WORKING_DIRECTORY. PATH is a list of directories which
     // * the shell will search for executables in. WORKING_DIRECTORY is the current directory the user is in.
     pub PATH: VecDeque<Path>,
+    backward_directories: VecDeque<Path>,
+    forward_directories: VecDeque<Path>,
     #[allow(dead_code)]
     custom_variables: HashMap<String, String>,
 }
@@ -85,9 +82,9 @@ impl Environment {
             USER,
             HOME,
             CWD,
+            PATH,
             backward_directories: VecDeque::new(),
             forward_directories: VecDeque::new(),
-            PATH,
             custom_variables: HashMap::new(),
         })
     }
@@ -104,8 +101,9 @@ impl Environment {
         }
 
         if vars.contains(EnvVariables::CWD) {
-            env::set_current_dir(self.CWD.path())
-                .map_err(|_| ShellError::FailedToUpdateEnvironmentVariable(EnvVariable::Cwd))?;
+            env::set_current_dir(self.CWD.path()).replace_err_no_context(state_err!(
+                FailedToUpdateEnvironmentVariable(EnvVariable::Cwd)
+            ))?;
         }
 
         Ok(())
@@ -135,26 +133,26 @@ impl Environment {
     }
 
     // Sets the current working directory to the previous working directory
-    pub fn go_back(&mut self) -> Result<()> {
+    pub fn previous_directory(&mut self) -> Result<()> {
         let starting_directory = self.CWD.clone();
         if let Some(previous_path) = self.backward_directories.pop_back() {
             self.CWD = previous_path;
             self.forward_directories.push_front(starting_directory);
             self.update_process_env_vars(EnvVariables::CWD)
         } else {
-            Err(ShellError::NoPreviousDirectory.into())
+            Err(state_err!(NoPreviousDirectory))
         }
     }
 
     // Sets the current working directory to the next working directory
-    pub fn go_forward(&mut self) -> Result<()> {
+    pub fn next_directory(&mut self) -> Result<()> {
         let starting_directory = self.CWD.clone();
         if let Some(next_path) = self.forward_directories.pop_front() {
             self.CWD = next_path;
             self.backward_directories.push_back(starting_directory);
             self.update_process_env_vars(EnvVariables::CWD)
         } else {
-            Err(ShellError::NoNextDirectory.into())
+            Err(state_err!(NoNextDirectory))
         }
     }
 }
@@ -162,7 +160,7 @@ impl Environment {
 // Gets the name of the user who invoked the shell (to be used when the shell is first initialized)
 fn get_parent_env_var(variable: EnvVariable) -> Result<String> {
     std::env::var(variable.to_legacy_string())
-        .map_err(|_| ShellError::MissingExternalEnvironmentVariable(variable).into())
+        .replace_err_no_context(state_err!(MissingExternalEnvironmentVariable(variable)))
 }
 
 // Converts the PATH environment variable from a string to a vector of Paths

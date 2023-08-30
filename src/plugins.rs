@@ -1,15 +1,9 @@
-use std::{
-    cell::RefCell,
-    rc::Rc,
-    sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard},
-};
+use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
-use wasmtime::{Caller, Store};
 use wasmtime_wasi::WasiCtx;
 
 use crate::state::shell::ShellState;
-
-use self::memory::manager::WasmMemoryManager;
+use memory::manager::WasmMemoryManager;
 
 pub mod host;
 pub mod loader;

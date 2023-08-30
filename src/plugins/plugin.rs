@@ -1,19 +1,15 @@
-use std::{
-    rc::Rc,
-    sync::{Arc, RwLock},
-};
+use std::sync::{Arc, RwLock};
 
-use anyhow::Context;
 use serde_json::Value;
 use wasmtime::{AsContextMut, Engine, Instance, Linker, Module, Store, Val, ValType};
 use wasmtime_wasi::WasiCtxBuilder;
-
-use crate::state::shell::ShellState;
 
 use super::{
     memory::{manager::CooperativeMemoryManager, WasmSpan},
     StoreData, WasmPluginContext,
 };
+use crate::errors::Result;
+use crate::state::ShellState;
 
 pub trait Plugin: Send {
     /// Returns the name of the plugin - this is usually the file it was loaded from
@@ -21,13 +17,9 @@ pub trait Plugin: Send {
     /// Run a function defined by the plugin.
     /// Accepts a pre-serialized argument list of JSON data, so as to not cause
     /// unneccesary serialization.
-    fn call_hook(&mut self, name: &str, arguments: &[&[u8]]) -> Option<anyhow::Result<()>>;
+    fn call_hook(&mut self, name: &str, arguments: &[&[u8]]) -> Option<Result<()>>;
     /// Run a function defined by the plugin and capture its return value.
-    fn call_hook_with_return(
-        &mut self,
-        name: &str,
-        arguments: &[&[u8]],
-    ) -> Option<anyhow::Result<Value>>;
+    fn call_hook_with_return(&mut self, name: &str, arguments: &[&[u8]]) -> Option<Result<Value>>;
 }
 
 pub struct WasmPluginBuilder<'a> {
@@ -69,7 +61,7 @@ impl<'a> WasmPluginBuilder<'a> {
         self
     }
 
-    pub fn build(self) -> anyhow::Result<WasmPlugin> {
+    pub fn build(self) -> Result<WasmPlugin> {
         let name = self.name.context("Plugin name not set")?;
 
         let module = Module::new(self.engine, self.bytes)?;
@@ -132,11 +124,12 @@ impl Plugin for WasmPlugin {
     fn name(&self) -> &str {
         &self.name
     }
-    fn call_hook(&mut self, name: &str, arguments: &[&[u8]]) -> Option<anyhow::Result<()>> {
+
+    fn call_hook(&mut self, name: &str, arguments: &[&[u8]]) -> Option<Result<()>> {
         let hook = self.instance.get_func(&mut self.store, name)?;
 
         if hook.ty(&self.store).results().len() != 0 {
-            return Some(Err(anyhow::anyhow!("Hook {name} may not return a value")));
+            return Some(Err(anyhow!("Hook {name} may not return a value")));
         }
 
         let arg_pointers = self.buffers_to_wasm(arguments);
@@ -147,16 +140,13 @@ impl Plugin for WasmPlugin {
 
         Some(Ok(()))
     }
-    fn call_hook_with_return(
-        &mut self,
-        name: &str,
-        arguments: &[&[u8]],
-    ) -> Option<anyhow::Result<Value>> {
+
+    fn call_hook_with_return(&mut self, name: &str, arguments: &[&[u8]]) -> Option<Result<Value>> {
         let hook = self.instance.get_func(&mut self.store, name)?;
 
         let hook_type = hook.ty(&self.store);
         if hook_type.results().len() != 1 || hook_type.results().next() != Some(ValType::I64) {
-            return Some(Err(anyhow::anyhow!("Hook {name} must return an i64")));
+            return Some(Err(anyhow!("Hook {name} must return an i64")));
         }
 
         let arg_pointers = self.buffers_to_wasm(arguments);
@@ -182,7 +172,6 @@ impl Plugin for WasmPlugin {
 mod tests {
     use super::*;
     use crate::state::shell::ShellState;
-    use std::sync::Arc;
     use wasmtime::Engine;
 
     #[test]
