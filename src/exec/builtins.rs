@@ -62,8 +62,8 @@ pub fn list_directory(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
         None => shell.environment.CWD.path().to_path_buf(),
     };
 
-    let read_dir_result = fs_err::read_dir(&path_to_read)
-        .replace_err(builtin_err!(FailedReadingPath(path_to_read)))?;
+    let read_dir_result =
+        fs_err::read_dir(&path_to_read).replace_err(path_err!(UnknownDirectory(path_to_read)))?;
 
     let mut directories = Vec::new();
     let mut files = Vec::new();
@@ -287,7 +287,9 @@ fn check_args(args: &Vec<&str>, expected_args: usize, usage: &str) -> Result<()>
     if args.len() == expected_args {
         Ok(())
     } else {
-        Err(builtin_err!(InvalidArgumentCount(args.len()))
-            .set_context(&format!("Usage: {}", usage)))
+        Err(
+            builtin_err!(InvalidArgumentCount(expected_args, args.len()))
+                .set_context(&format!("Usage: {}", usage)),
+        )
     }
 }
