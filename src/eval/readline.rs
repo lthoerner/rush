@@ -39,7 +39,7 @@ pub struct LineEditor {
 
 impl LineEditor {
     // Creates a LineEditor with the default configuration and history file
-    pub fn new() -> Self {
+    pub fn new(history_file: &str) -> Self {
         let config = Config::builder()
             .history_ignore_space(true)
             .completion_type(CompletionType::Fuzzy)
@@ -47,16 +47,15 @@ impl LineEditor {
 
         let helper = LineEditorHelper::new();
 
-        // TODO: Make the history path a parameter
         let mut editor = Editor::with_config(config).unwrap();
         editor.set_helper(Some(helper));
-        if editor.load_history("./config/history.rush").is_err() {
+        if editor.load_history(history_file).is_err() {
             println!("No existing history file found, attempting to create one...");
-            if fs_err::File::create("./config/history.rush").is_err() {
+            if fs_err::File::create(history_file).is_err() {
                 println!("Failed to create history file.");
             } else {
                 println!("History file created successfully.");
-                if editor.load_history("./config/history.rush").is_err() {
+                if editor.load_history(history_file).is_err() {
                     println!("Failed to load history file even though it exists.");
                 }
             }

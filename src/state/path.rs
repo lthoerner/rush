@@ -29,11 +29,6 @@ impl From<Path> for PathBuf {
 impl Path {
     // Attempts to construct a new Path from a given path string by resolving it to an absolute path
     pub fn from_str(path: &str, home_directory: &PathBuf) -> Result<Self> {
-        Self::from_pathbuf(PathBuf::from(path), home_directory)
-    }
-
-    // Attempts to construct a new Path from a given PathBuf by first resolving it to an absolute path
-    fn from_pathbuf(path: PathBuf, home_directory: &PathBuf) -> Result<Self> {
         // The home directory shorthand must be expanded before resolving the path,
         // because PathBuf is not user-aware and only uses absolute and relative paths
         let expanded_path = expand_home(path, home_directory)?;
@@ -114,25 +109,21 @@ impl Path {
     }
 }
 
-// TODO: Clean up this function
 #[allow(clippy::ptr_arg)]
 // Expands the home directory shorthand in a path string
-fn expand_home(path: PathBuf, home_directory: &PathBuf) -> Result<PathBuf> {
-    let path_string = path
-        .to_str()
-        .replace_err(path_err!(FailedToConvertPathBufToString(path)))?;
-    if path_string.starts_with('~') {
+fn expand_home(path: &str, home_directory: &PathBuf) -> Result<PathBuf> {
+    if path.starts_with('~') {
         Ok(PathBuf::from(
-            path_string.replace(
+            path.replace(
                 '~',
                 home_directory
                     .to_str()
-                    .replace_err(path_err!(FailedToConvertPathBufToString(
+                    .replace_err(path_err!(FailedToConvertPathToString(
                         home_directory.to_path_buf(),
                     )))?,
             ),
         ))
     } else {
-        Ok(PathBuf::from(path_string))
+        Ok(PathBuf::from(path))
     }
 }

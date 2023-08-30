@@ -54,19 +54,20 @@ impl Configuration {
             let (key, value) = (tokens[0], tokens[1]);
 
             // ? Should these be underscores instead of hyphens?
-            // TODO: Error handling
             match key {
                 "truncation-factor" => {
                     if let Ok(length) = value.parse::<usize>() {
                         config.truncation_factor = Some(length);
                     } else if value == "false" {
                         config.truncation_factor = None;
+                    } else {
+                        return Err(state_err!(FailedToReadConfigFile(filename)));
                     }
                 }
                 "multi-line-prompt" => {
-                    if let Ok(multi_line) = value.parse::<bool>() {
-                        config.multi_line_prompt = multi_line;
-                    }
+                    config.multi_line_prompt = value
+                        .parse::<bool>()
+                        .replace_err(state_err!(FailedToReadConfigFile(filename)))?;
                 }
                 "history-limit" => {
                     if let Ok(limit) = value.parse::<usize>() {
@@ -76,9 +77,9 @@ impl Configuration {
                     }
                 }
                 "show-errors" => {
-                    if let Ok(show) = value.parse::<bool>() {
-                        config.show_errors = show;
-                    }
+                    config.show_errors = value
+                        .parse::<bool>()
+                        .replace_err(state_err!(FailedToReadConfigFile(filename)))?;
                 }
                 "plugin-path" => {
                     config.plugin_paths.push(dirname.join(value));

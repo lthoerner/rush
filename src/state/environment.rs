@@ -76,7 +76,7 @@ impl Environment {
         let USER = get_parent_env_var(EnvVariable::User)?;
         let HOME = PathBuf::from(get_parent_env_var(EnvVariable::Home)?);
         let CWD = Path::from_str(get_parent_env_var(EnvVariable::Cwd)?.as_str(), &HOME)?;
-        let PATH = convert_path(get_parent_env_var(EnvVariable::Path)?.as_str(), &HOME);
+        let PATH = convert_path(get_parent_env_var(EnvVariable::Path)?.as_str(), &HOME)?;
 
         Ok(Self {
             USER,
@@ -164,17 +164,16 @@ fn get_parent_env_var(variable: EnvVariable) -> Result<String> {
 }
 
 // Converts the PATH environment variable from a string to a vector of Paths
-fn convert_path(path: &str, home: &PathBuf) -> VecDeque<Path> {
+fn convert_path(path: &str, home: &PathBuf) -> Result<VecDeque<Path>> {
     let mut paths = VecDeque::new();
 
     let path_strings = path.split(':').collect::<Vec<&str>>();
     for path_string in path_strings {
-        let path = Path::from_str(path_string, home);
-        // TODO: Handle errors
-        if let Ok(path) = path {
-            paths.push_back(path);
-        }
+        let path = Path::from_str(path_string, home).replace_err(path_err!(
+            FailedToConvertStringToPath(path_string.to_owned())
+        ))?;
+        paths.push_back(path);
     }
 
-    paths
+    Ok(paths)
 }

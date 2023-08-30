@@ -105,6 +105,7 @@ pub enum BuiltinError {
 pub enum ExecutableError {
     PathNoLongerExists(PathBuf),
     FailedToExecute(isize),
+    FailedToWait,
 }
 
 /// Error type for errors which occur during state operations.
@@ -119,7 +120,8 @@ pub enum StateError {
 
 /// Error type for errors which occur during path operations.
 pub enum PathError {
-    FailedToConvertPathBufToString(PathBuf),
+    FailedToConvertStringToPath(String),
+    FailedToConvertPathToString(PathBuf),
     FailedToCanonicalize(PathBuf),
     UnknownDirectory(PathBuf),
 }
@@ -212,8 +214,9 @@ impl Display for ExecutableError {
                 write!(f, "Path '{}' no longer exists", path.display())
             }
             FailedToExecute(exit_code) => {
-                write!(f, "Executable failed with exit code: {}", exit_code)
+                write!(f, "Executable failed with exit code {}", exit_code)
             }
+            FailedToWait => write!(f, "Failed to wait for executable to complete"),
         }
     }
 }
@@ -260,7 +263,10 @@ impl Display for PathError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         use PathError::*;
         match self {
-            FailedToConvertPathBufToString(path) => {
+            FailedToConvertStringToPath(string) => {
+                write!(f, "Failed to convert string '{}' to path", string)
+            }
+            FailedToConvertPathToString(path) => {
                 // ? Under what circumstances would a path fail to convert but still display?
                 write!(f, "Failed to convert path '{}' to string", path.display())
             }
