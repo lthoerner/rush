@@ -160,7 +160,7 @@ impl Environment {
 // Gets the name of the user who invoked the shell (to be used when the shell is first initialized)
 fn get_parent_env_var(variable: EnvVariable) -> Result<String> {
     std::env::var(variable.to_legacy_string())
-        .replace_err(state_err!(MissingExternalEnvironmentVariable(variable)))
+        .replace_err(state_err!(MissingEnvironmentVariable(variable)))
 }
 
 // Converts the PATH environment variable from a string to a vector of Paths

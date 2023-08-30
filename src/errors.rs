@@ -91,12 +91,11 @@ pub enum DispatchError {
 
 /// Error type for errors which occur during execution of builtins.
 pub enum BuiltinError {
-    InvalidArgumentCount(usize),
+    InvalidArgumentCount(usize, usize),
     InvalidArgument(String),
     InvalidValue(String),
     // TODO: Break this into multiple error types
     FailedToRun,
-    FailedReadingPath(PathBuf),
     FailedReadingFileType(PathBuf),
     FailedReadingFileName(PathBuf),
     FailedReadingDir(PathBuf),
@@ -110,21 +109,18 @@ pub enum ExecutableError {
 
 /// Error type for errors which occur during state operations.
 pub enum StateError {
-    MissingExternalEnvironmentVariable(EnvVariable),
-    MissingInternalEnvironmentVariable(EnvVariable),
+    MissingEnvironmentVariable(EnvVariable),
     FailedToUpdateEnvironmentVariable(EnvVariable),
     NoPreviousDirectory,
     NoNextDirectory,
     FailedToOpenConfigFile(PathBuf),
     FailedToReadConfigFile(PathBuf),
-    Uncategorized,
 }
 
 /// Error type for errors which occur during path operations.
 pub enum PathError {
     FailedToConvertPathBufToString(PathBuf),
     FailedToCanonicalize(PathBuf),
-    FailedToAccess(PathBuf),
     UnknownDirectory(PathBuf),
 }
 
@@ -146,19 +142,19 @@ impl Display for DispatchError {
         use DispatchError::*;
         match self {
             UnknownCommand(command_name) => {
-                write!(f, "Unknown command: {}", command_name)
+                write!(f, "Command '{}' could not be found", command_name)
             }
             CommandNotExecutable(permission_code) => {
                 write!(
                     f,
-                    "Command is not executable. Permission code: {}",
+                    "File has permission code {:#o}, which disallows execution",
                     permission_code
                 )
             }
             FailedToReadExecutableMetadata(path) => {
                 write!(
                     f,
-                    "Failed to read metadata for executable: {}",
+                    "Executable metadata at '{}' could not be read",
                     path.display()
                 )
             }
@@ -170,25 +166,39 @@ impl Display for BuiltinError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         use BuiltinError::*;
         match self {
-            InvalidArgumentCount(count) => {
-                write!(f, "Incorrect number of arguments: {}", count)
+            InvalidArgumentCount(expected, actual) => {
+                write!(
+                    f,
+                    "Expected {} {}, found {}",
+                    expected,
+                    match expected {
+                        1 => "argument",
+                        _ => "arguments",
+                    },
+                    actual
+                )
             }
             InvalidArgument(argument) => {
-                write!(f, "Invalid argument: {}", argument)
+                write!(f, "Argument '{}' is invalid", argument)
             }
-            InvalidValue(value) => write!(f, "Invalid argument value: {}", value),
+            InvalidValue(value) => write!(f, "Argument value '{}' is invalid", value),
             FailedToRun => write!(f, "Failed to run builtin"),
-            FailedReadingPath(path) => {
-                write!(f, "Failed to read path: {}", path.display())
-            }
             FailedReadingFileType(path) => {
-                write!(f, "Failed to read file type from path: {}", path.display())
+                write!(
+                    f,
+                    "Filetype at path '{}' could not be determined",
+                    path.display()
+                )
             }
             FailedReadingFileName(path) => {
-                write!(f, "Failed to read file name from path: {}", path.display())
+                write!(
+                    f,
+                    "Filename at path '{}' could not be determined",
+                    path.display()
+                )
             }
             FailedReadingDir(path) => {
-                write!(f, "Failed to read dir: {}", path.display())
+                write!(f, "Directory '{}' could not be read", path.display())
             }
         }
     }
@@ -199,7 +209,7 @@ impl Display for ExecutableError {
         use ExecutableError::*;
         match self {
             PathNoLongerExists(path) => {
-                write!(f, "Path no longer exists: {}", path.display())
+                write!(f, "Path '{}' no longer exists", path.display())
             }
             FailedToExecute(exit_code) => {
                 write!(f, "Executable failed with exit code: {}", exit_code)
@@ -212,24 +222,36 @@ impl Display for StateError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         use StateError::*;
         match self {
-            MissingExternalEnvironmentVariable(variable) => {
-                write!(f, "Missing external environment variable: {}", variable)
-            }
-            MissingInternalEnvironmentVariable(variable) => {
-                write!(f, "Missing internal environment variable: {}", variable)
+            MissingEnvironmentVariable(variable) => {
+                write!(
+                    f,
+                    "Environment variable '{}' missing from parent process",
+                    variable
+                )
             }
             FailedToUpdateEnvironmentVariable(variable) => {
-                write!(f, "Failed to update environment variable: {}", variable)
+                write!(
+                    f,
+                    "Environment variable '{}' could not be updated",
+                    variable
+                )
             }
             NoPreviousDirectory => write!(f, "No previous directory"),
             NoNextDirectory => write!(f, "No next directory"),
             FailedToOpenConfigFile(path) => {
-                write!(f, "Failed to open configuration file: {}", path.display())
+                write!(
+                    f,
+                    "Configuration file '{}' could not be openeed",
+                    path.display()
+                )
             }
             FailedToReadConfigFile(path) => {
-                write!(f, "Failed to read configuration file: {}", path.display())
+                write!(
+                    f,
+                    "Configuration file '{}' could not be read",
+                    path.display()
+                )
             }
-            Uncategorized => write!(f, "Unknown error"),
         }
     }
 }
@@ -239,20 +261,18 @@ impl Display for PathError {
         use PathError::*;
         match self {
             FailedToConvertPathBufToString(path) => {
-                write!(f, "Failed to convert PathBuf to String: {}", path.display())
+                // ? Under what circumstances would a path fail to convert but still display?
+                write!(f, "Failed to convert path '{}' to string", path.display())
             }
             FailedToCanonicalize(path) => {
-                write!(
-                    f,
-                    "Failed to canonicalize directory path: {}",
-                    path.display()
-                )
-            }
-            FailedToAccess(path) => {
-                write!(f, "Failed to access directory path: {}", path.display())
+                write!(f, "Path '{}' could not be canonicalized", path.display())
             }
             UnknownDirectory(path) => {
-                write!(f, "Directory does not exist: {}", path.display())
+                write!(
+                    f,
+                    "Path '{}' does not exist or is inaccessible",
+                    path.display()
+                )
             }
         }
     }

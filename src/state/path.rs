@@ -120,7 +120,7 @@ impl Path {
 fn expand_home(path: PathBuf, home_directory: &PathBuf) -> Result<PathBuf> {
     let path_string = path
         .to_str()
-        .replace_err(path_err!(FailedToConvertPathBufToString(path.clone())))?;
+        .replace_err(path_err!(FailedToConvertPathBufToString(path)))?;
     if path_string.starts_with('~') {
         Ok(PathBuf::from(
             path_string.replace(
