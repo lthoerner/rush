@@ -46,7 +46,7 @@ pub fn change_directory(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     shell
         .environment
         .set_CWD(args[0], history_limit)
-        .replace_err(
+        .replace_err_with_msg(
             builtin_err!(FailedToRun),
             &format!("Invalid path: '{}'", args[0]),
         )?;
@@ -63,23 +63,22 @@ pub fn list_directory(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     };
 
     let read_dir_result = fs_err::read_dir(&path_to_read)
-        .replace_err_no_context(builtin_err!(FailedReadingPath(path_to_read)))?;
+        .replace_err(builtin_err!(FailedReadingPath(path_to_read)))?;
 
     let mut directories = Vec::new();
     let mut files = Vec::new();
 
     for dir_entry in read_dir_result {
-        let fs_object =
-            dir_entry.replace_err_no_context(builtin_err!(FailedReadingDir(path_to_read)))?;
+        let fs_object = dir_entry.replace_err(builtin_err!(FailedReadingDir(path_to_read)))?;
 
         let fs_object_name = fs_object
             .file_name()
             .to_str()
-            .replace_err_no_context(builtin_err!(FailedReadingFileName(path_to_read)))?;
+            .replace_err(builtin_err!(FailedReadingFileName(path_to_read)))?;
 
         let fs_object_type = fs_object
             .file_type()
-            .replace_err_no_context(builtin_err!(FailedReadingFileType(path_to_read)))?;
+            .replace_err(builtin_err!(FailedReadingFileType(path_to_read)))?;
 
         if fs_object_name.starts_with('.') && !show_hidden {
             continue;
@@ -108,7 +107,7 @@ pub fn list_directory(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
 
 pub fn previous_directory(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     check_args(&args, 0, "go-back")?;
-    shell.environment.previous_directory().replace_err(
+    shell.environment.previous_directory().replace_err_with_msg(
         builtin_err!(FailedToRun),
         "Previous directory does not exist or is invalid",
     )
@@ -116,7 +115,7 @@ pub fn previous_directory(shell: &mut ShellState, args: Vec<&str>) -> Result<()>
 
 pub fn next_directory(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     check_args(&args, 0, "go-forward")?;
-    shell.environment.next_directory().replace_err(
+    shell.environment.next_directory().replace_err_with_msg(
         builtin_err!(FailedToRun),
         "Next directory does not exist or is invalid",
     )
@@ -125,13 +124,13 @@ pub fn next_directory(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
 pub fn clear_terminal(_shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     check_args(&args, 0, "clear-terminal")?;
     let y_size = terminal::size()
-        .replace_err(builtin_err!(FailedToRun), "Failed to get terminal size")?
+        .replace_err_with_msg(builtin_err!(FailedToRun), "Failed to get terminal size")?
         .1;
 
     execute!(stderr(), Clear(ClearType::All))
-        .replace_err(builtin_err!(FailedToRun), "Failed to clear terminal")?;
+        .replace_err_with_msg(builtin_err!(FailedToRun), "Failed to clear terminal")?;
 
-    execute!(stderr(), MoveTo(0, y_size - 2)).replace_err(
+    execute!(stderr(), MoveTo(0, y_size - 2)).replace_err_with_msg(
         builtin_err!(FailedToRun),
         "Failed to move cursor to bottom of terminal",
     )
@@ -140,7 +139,7 @@ pub fn clear_terminal(_shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
 // TODO: Add prompt to confirm file overwrite
 pub fn make_file(_shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     check_args(&args, 1, "usage: make-file <path>")?;
-    fs_err::File::create(args[0]).replace_err(
+    fs_err::File::create(args[0]).replace_err_with_msg(
         builtin_err!(FailedToRun),
         &format!("Failed to create file: '{}'", args[0]),
     )?;
@@ -149,7 +148,7 @@ pub fn make_file(_shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
 
 pub fn make_directory(_shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     check_args(&args, 1, "make-directory <path>")?;
-    fs_err::create_dir(args[0]).replace_err(
+    fs_err::create_dir(args[0]).replace_err_with_msg(
         builtin_err!(FailedToRun),
         &format!("Failed to create directory: '{}'", args[0]),
     )
@@ -157,7 +156,7 @@ pub fn make_directory(_shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
 
 pub fn delete_file(_shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     check_args(&args, 1, "delete-file <path>")?;
-    fs_err::remove_file(args[0]).replace_err(
+    fs_err::remove_file(args[0]).replace_err_with_msg(
         builtin_err!(FailedToRun),
         &format!("Failed to delete file: '{}'", args[0]),
     )
@@ -166,7 +165,7 @@ pub fn delete_file(_shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
 pub fn read_file(_shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     check_args(&args, 1, "read-file <path>")?;
     let file_name = args[0].to_owned();
-    let file = fs_err::File::open(&file_name).replace_err(
+    let file = fs_err::File::open(&file_name).replace_err_with_msg(
         builtin_err!(FailedToRun),
         &format!("Failed to open file: '{}'", file_name),
     )?;
@@ -182,10 +181,11 @@ pub fn read_file(_shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
 
 pub fn run_executable(shell: &mut ShellState, mut args: Vec<&str>) -> Result<()> {
     let executable_name = args[0].to_owned();
-    let executable_path = Path::from_str(&executable_name, &shell.environment.HOME).replace_err(
-        builtin_err!(FailedToRun),
-        &format!("Failed to resolve executable path: '{}'", executable_name),
-    )?;
+    let executable_path = Path::from_str(&executable_name, &shell.environment.HOME)
+        .replace_err_with_msg(
+            builtin_err!(FailedToRun),
+            &format!("Failed to resolve executable path: '{}'", executable_name),
+        )?;
 
     // * Executable name is removed before running the executable because the std::process::Command
     // * process builder automatically adds the executable name as the first argument
@@ -205,13 +205,13 @@ pub fn configure(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
                 return Ok(());
             }
 
-            shell.config.truncation_factor = Some(value.parse::<usize>().replace_err(
+            shell.config.truncation_factor = Some(value.parse::<usize>().replace_err_with_msg(
                 builtin_err!(InvalidValue(value.to_owned())),
                 &format!("Invalid truncation length: '{}'", value),
             )?);
         }
         "multi-line-prompt" => {
-            shell.config.multi_line_prompt = value.parse::<bool>().replace_err(
+            shell.config.multi_line_prompt = value.parse::<bool>().replace_err_with_msg(
                 builtin_err!(InvalidValue(value.to_owned())),
                 &format!("Invalid value for multi-line-prompt: '{}'", value),
             )?;
@@ -222,13 +222,13 @@ pub fn configure(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
                 return Ok(());
             }
 
-            shell.config.history_limit = Some(value.parse::<usize>().replace_err(
+            shell.config.history_limit = Some(value.parse::<usize>().replace_err_with_msg(
                 builtin_err!(InvalidValue(value.to_owned())),
                 &format!("Invalid history limit: '{}'", value),
             )?);
         }
         "show-errors" => {
-            shell.config.show_errors = value.parse::<bool>().replace_err(
+            shell.config.show_errors = value.parse::<bool>().replace_err_with_msg(
                 builtin_err!(InvalidValue(value.to_owned())),
                 &format!("Invalid value for show-errors: '{}'", value),
             )?;
@@ -265,7 +265,7 @@ pub fn environment_variable(shell: &mut ShellState, args: Vec<&str>) -> Result<(
 pub fn edit_path(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     check_args(&args, 2, "edit-path <append | prepend> <path>")?;
     let action = args[0];
-    let path = Path::from_str(args[1], &shell.environment.HOME).replace_err(
+    let path = Path::from_str(args[1], &shell.environment.HOME).replace_err_with_msg(
         builtin_err!(FailedToRun),
         &format!("Invalid directory: '{}'", args[1]),
     )?;

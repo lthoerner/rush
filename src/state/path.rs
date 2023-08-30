@@ -39,7 +39,7 @@ impl Path {
         let expanded_path = expand_home(path, home_directory)?;
         // Canonicalizing a path will resolve any relative or absolute paths
         let absolute_path = canonicalize(expanded_path)
-            .replace_err_no_context(path_err!(FailedToCanonicalize(expanded_path)))?;
+            .replace_err(path_err!(FailedToCanonicalize(expanded_path)))?;
 
         // If the file system can canonicalize the path, it should exist,
         // but this is added for extra precaution
@@ -120,14 +120,18 @@ impl Path {
 fn expand_home(path: PathBuf, home_directory: &PathBuf) -> Result<PathBuf> {
     let path_string = path
         .to_str()
-        .replace_err_no_context(path_err!(FailedToConvertPathBufToString(path.clone())))?;
+        .replace_err(path_err!(FailedToConvertPathBufToString(path.clone())))?;
     if path_string.starts_with('~') {
-        Ok(PathBuf::from(path_string.replace(
-            '~',
-            home_directory.to_str().replace_err_no_context(path_err!(
-                FailedToConvertPathBufToString(home_directory.to_path_buf(),)
-            ))?,
-        )))
+        Ok(PathBuf::from(
+            path_string.replace(
+                '~',
+                home_directory
+                    .to_str()
+                    .replace_err(path_err!(FailedToConvertPathBufToString(
+                        home_directory.to_path_buf(),
+                    )))?,
+            ),
+        ))
     } else {
         Ok(PathBuf::from(path_string))
     }

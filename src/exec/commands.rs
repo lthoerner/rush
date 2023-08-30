@@ -84,7 +84,7 @@ impl Runnable for Executable {
         let mut process = Process::new(self.path.path())
             .args(arguments)
             .spawn()
-            .replace_err_no_context(executable_err!(PathNoLongerExists(self.path.into())))?;
+            .replace_err(executable_err!(PathNoLongerExists(self.path.into())))?;
 
         let status = process
             .wait()
