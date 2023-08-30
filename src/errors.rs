@@ -82,6 +82,52 @@ pub enum ErrorKind {
     Path(PathError),
 }
 
+/// Error type for errors which occur during command dispatch.
+pub enum DispatchError {
+    UnknownCommand(String),
+    CommandNotExecutable(u32),
+    FailedToReadExecutableMetadata(PathBuf),
+}
+
+/// Error type for errors which occur during execution of builtins.
+pub enum BuiltinError {
+    InvalidArgumentCount(usize),
+    InvalidArgument(String),
+    InvalidValue(String),
+    // TODO: Break this into multiple error types
+    FailedToRun,
+    FailedReadingPath(PathBuf),
+    FailedReadingFileType(PathBuf),
+    FailedReadingFileName(PathBuf),
+    FailedReadingDir(PathBuf),
+}
+
+/// Error type for errors which occur during execution of executable files.
+pub enum ExecutableError {
+    PathNoLongerExists(PathBuf),
+    FailedToExecute(isize),
+}
+
+/// Error type for errors which occur during state operations.
+pub enum StateError {
+    MissingExternalEnvironmentVariable(EnvVariable),
+    MissingInternalEnvironmentVariable(EnvVariable),
+    FailedToUpdateEnvironmentVariable(EnvVariable),
+    NoPreviousDirectory,
+    NoNextDirectory,
+    FailedToOpenConfigFile(PathBuf),
+    FailedToReadConfigFile(PathBuf),
+    Uncategorized,
+}
+
+/// Error type for errors which occur during path operations.
+pub enum PathError {
+    FailedToConvertPathBufToString(PathBuf),
+    FailedToCanonicalize(PathBuf),
+    FailedToAccess(PathBuf),
+    UnknownDirectory(PathBuf),
+}
+
 impl Display for ErrorKind {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         use ErrorKind::*;
@@ -93,13 +139,6 @@ impl Display for ErrorKind {
             Path(error) => write!(f, "{}", error),
         }
     }
-}
-
-/// Error type for errors which occur during command dispatch.
-pub enum DispatchError {
-    UnknownCommand(String),
-    CommandNotExecutable(u32),
-    FailedToReadExecutableMetadata(PathBuf),
 }
 
 impl Display for DispatchError {
@@ -125,19 +164,6 @@ impl Display for DispatchError {
             }
         }
     }
-}
-
-/// Error type for errors which occur during execution of builtins.
-pub enum BuiltinError {
-    InvalidArgumentCount(usize),
-    InvalidArgument(String),
-    InvalidValue(String),
-    // TODO: Break this into multiple error types
-    FailedToRun,
-    FailedReadingPath(PathBuf),
-    FailedReadingFileType(PathBuf),
-    FailedReadingFileName(PathBuf),
-    FailedReadingDir(PathBuf),
 }
 
 impl Display for BuiltinError {
@@ -168,12 +194,6 @@ impl Display for BuiltinError {
     }
 }
 
-/// Error type for errors which occur during execution of executable files.
-pub enum ExecutableError {
-    PathNoLongerExists(PathBuf),
-    FailedToExecute(isize),
-}
-
 impl Display for ExecutableError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         use ExecutableError::*;
@@ -186,18 +206,6 @@ impl Display for ExecutableError {
             }
         }
     }
-}
-
-/// Error type for errors which occur during state operations.
-pub enum StateError {
-    MissingExternalEnvironmentVariable(EnvVariable),
-    MissingInternalEnvironmentVariable(EnvVariable),
-    FailedToUpdateEnvironmentVariable(EnvVariable),
-    NoPreviousDirectory,
-    NoNextDirectory,
-    FailedToOpenConfigFile(PathBuf),
-    FailedToReadConfigFile(PathBuf),
-    Uncategorized,
 }
 
 impl Display for StateError {
@@ -224,14 +232,6 @@ impl Display for StateError {
             Uncategorized => write!(f, "Unknown error"),
         }
     }
-}
-
-/// Error type for errors which occur during path operations.
-pub enum PathError {
-    FailedToConvertPathBufToString(PathBuf),
-    FailedToCanonicalize(PathBuf),
-    FailedToAccess(PathBuf),
-    UnknownDirectory(PathBuf),
 }
 
 impl Display for PathError {
