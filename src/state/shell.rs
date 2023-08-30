@@ -1,10 +1,10 @@
 use std::sync::{Arc, RwLock};
 
-use anyhow::Result;
 use crossterm::style::Stylize;
 
 use super::config::Configuration;
 use super::environment::Environment;
+use crate::errors::Result;
 
 // Represents the shell state and provides methods for interacting with it
 // ? Miscellaneous shell state like command_success, command_history etc might be better off in some sort of bundle struct

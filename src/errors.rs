@@ -1,76 +1,279 @@
+use std::fmt::{Display, Formatter};
 use std::path::PathBuf;
 
-use thiserror::Error;
+use crate::state::EnvVariable;
 
-use crate::state::environment::EnvVariable;
-
-#[derive(Error, Debug)]
-pub enum DispatchError {
-    #[error("Command name could not be found as a builtin or an executable in PATH")]
-    UnknownCommand(String),
-    #[error("Command does not have the executable permissions set. Current permissions are: {0}")]
-    CommandNotExecutable(u32),
-    #[error("Failed to read metadata for executable: {0}")]
-    FailedToReadExecutableMetadata(String),
+pub type Result<T> = std::result::Result<T, RushError>;
+pub trait Handle<T> {
+    /// Replaces any error kind with a new one, with additional context
+    fn replace_err(self, new_error: RushError, context: &str) -> Result<T>;
+    /// Replaces any error kind with a new one, without additional context
+    fn replace_err_no_context(self, new_error: RushError) -> Result<T>;
 }
 
-#[derive(Error, Debug)]
+impl<T, E> Handle<T> for std::result::Result<T, E> {
+    fn replace_err(mut self, new_error: RushError, context: &str) -> Result<T> {
+        self.map_err(|_| new_error.set_context(context))
+    }
+
+    fn replace_err_no_context(mut self, new_error: RushError) -> Result<T> {
+        self.map_err(|_| new_error)
+    }
+}
+
+impl<T> Handle<T> for std::option::Option<T> {
+    fn replace_err(mut self, new_error: RushError, context: &str) -> Result<T> {
+        self.ok_or(new_error.set_context(context))
+    }
+
+    fn replace_err_no_context(mut self, new_error: RushError) -> Result<T> {
+        self.ok_or(new_error)
+    }
+}
+
+pub struct RushError {
+    kind: ErrorKind,
+    context: Option<String>,
+}
+
+impl Display for RushError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        if let Some(context) = &self.context {
+            write!(f, "{}: {}", self.kind, context)
+        } else {
+            write!(f, "{}", self.kind)
+        }
+    }
+}
+
+impl RushError {
+    pub fn new(kind: ErrorKind) -> Self {
+        Self {
+            kind,
+            context: None,
+        }
+    }
+
+    pub fn set_context(mut self, context: &str) -> Self {
+        self.context = Some(context.to_owned());
+        self
+    }
+}
+
+pub enum ErrorKind {
+    Dispatch(DispatchError),
+    Builtin(BuiltinError),
+    Executable(ExecutableError),
+    State(StateError),
+    Path(PathError),
+}
+
+impl Display for ErrorKind {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ErrorKind::Dispatch(error) => write!(f, "{}", error),
+            ErrorKind::Builtin(error) => write!(f, "{}", error),
+            ErrorKind::Executable(error) => write!(f, "{}", error),
+            ErrorKind::State(error) => write!(f, "{}", error),
+            ErrorKind::Path(error) => write!(f, "{}", error),
+        }
+    }
+}
+
+pub enum DispatchError {
+    UnknownCommand(String),
+    CommandNotExecutable(u32),
+    FailedToReadExecutableMetadata(PathBuf),
+}
+
+impl Display for DispatchError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DispatchError::UnknownCommand(command_name) => {
+                write!(f, "Unknown command: {}", command_name)
+            }
+            DispatchError::CommandNotExecutable(permission_code) => {
+                write!(
+                    f,
+                    "Command is not executable. Permission code: {}",
+                    permission_code
+                )
+            }
+            DispatchError::FailedToReadExecutableMetadata(path) => {
+                write!(
+                    f,
+                    "Failed to read metadata for executable: {}",
+                    path.display()
+                )
+            }
+        }
+    }
+}
+
 pub enum BuiltinError {
-    #[error("Wrong number of arguments: {0}")]
     InvalidArgumentCount(usize),
-    #[error("Invalid argument: {0}")]
     InvalidArgument(String),
-    #[error("Invalid value for argument: {0}")]
     InvalidValue(String),
-    // $ This is way too general
-    #[error("Runtime error")]
+    // TODO: Break this into multiple error types
     FailedToRun,
-    #[error("Unable to read Path: {0}")]
     FailedReadingPath(PathBuf),
-    #[error("Unable to read file type from path: {0}")]
     FailedReadingFileType(PathBuf),
-    #[error("Unable to read file name from path: {0}")]
     FailedReadingFileName(PathBuf),
-    #[error("Unable to read dir: {0}")]
     FailedReadingDir(PathBuf),
 }
 
-#[derive(Error, Debug)]
+impl Display for BuiltinError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BuiltinError::InvalidArgumentCount(count) => {
+                write!(f, "Incorrect number of arguments: {}", count)
+            }
+            BuiltinError::InvalidArgument(argument) => {
+                write!(f, "Invalid argument: {}", argument)
+            }
+            BuiltinError::InvalidValue(value) => write!(f, "Invalid argument value: {}", value),
+            BuiltinError::FailedToRun => write!(f, "Failed to run builtin"),
+            BuiltinError::FailedReadingPath(path) => {
+                write!(f, "Failed to read path: {}", path.display())
+            }
+            BuiltinError::FailedReadingFileType(path) => {
+                write!(f, "Failed to read file type from path: {}", path.display())
+            }
+            BuiltinError::FailedReadingFileName(path) => {
+                write!(f, "Failed to read file name from path: {}", path.display())
+            }
+            BuiltinError::FailedReadingDir(path) => {
+                write!(f, "Failed to read dir: {}", path.display())
+            }
+        }
+    }
+}
+
 pub enum ExecutableError {
-    #[error("Path no longer exists: {0}")]
     PathNoLongerExists(PathBuf),
-    #[error("Executable failed with exit code: {0}")]
     FailedToExecute(isize),
 }
 
-#[derive(Error, Debug)]
-pub enum ShellError {
-    #[error("Failed to get external environment variable: {0}")]
+impl Display for ExecutableError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ExecutableError::PathNoLongerExists(path) => {
+                write!(f, "Path no longer exists: {}", path.display())
+            }
+            ExecutableError::FailedToExecute(exit_code) => {
+                write!(f, "Executable failed with exit code: {}", exit_code)
+            }
+        }
+    }
+}
+
+pub enum StateError {
     MissingExternalEnvironmentVariable(EnvVariable),
-    #[error("Failed to get internal environment variable: {0}")]
     MissingInternalEnvironmentVariable(EnvVariable),
-    #[error("Failed to update shell environment variable: {0}")]
     FailedToUpdateEnvironmentVariable(EnvVariable),
-    #[error("Previous directory does not exist")]
     NoPreviousDirectory,
-    #[error("Next directory does not exist")]
     NoNextDirectory,
-    #[error("Failed to open configuration file: {0}")]
     FailedToOpenConfigFile(PathBuf),
-    #[error("Failed to read configuration file: {0}")]
     FailedToReadConfigFile(PathBuf),
-    #[error("Unknown error")]
     Uncategorized,
 }
 
-#[derive(Error, Debug)]
+impl Display for StateError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            StateError::MissingExternalEnvironmentVariable(variable) => {
+                write!(f, "Missing external environment variable: {}", variable)
+            }
+            StateError::MissingInternalEnvironmentVariable(variable) => {
+                write!(f, "Missing internal environment variable: {}", variable)
+            }
+            StateError::FailedToUpdateEnvironmentVariable(variable) => {
+                write!(f, "Failed to update environment variable: {}", variable)
+            }
+            StateError::NoPreviousDirectory => write!(f, "No previous directory"),
+            StateError::NoNextDirectory => write!(f, "No next directory"),
+            StateError::FailedToOpenConfigFile(path) => {
+                write!(f, "Failed to open configuration file: {}", path.display())
+            }
+            StateError::FailedToReadConfigFile(path) => {
+                write!(f, "Failed to read configuration file: {}", path.display())
+            }
+            StateError::Uncategorized => write!(f, "Unknown error"),
+        }
+    }
+}
+
 pub enum PathError {
-    #[error("Failed to convert PathBuf to String: {0}")]
     FailedToConvertPathBufToString(PathBuf),
-    #[error("Failed to canonicalize directory path: {0}")]
     FailedToCanonicalize(PathBuf),
-    #[error("Failed to access directory path: {0}")]
     FailedToAccess(PathBuf),
-    #[error("Directory does not exist: {0}")]
     UnknownDirectory(PathBuf),
+}
+
+impl Display for PathError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PathError::FailedToConvertPathBufToString(path) => {
+                write!(f, "Failed to convert PathBuf to String: {}", path.display())
+            }
+            PathError::FailedToCanonicalize(path) => {
+                write!(
+                    f,
+                    "Failed to canonicalize directory path: {}",
+                    path.display()
+                )
+            }
+            PathError::FailedToAccess(path) => {
+                write!(f, "Failed to access directory path: {}", path.display())
+            }
+            PathError::UnknownDirectory(path) => {
+                write!(f, "Directory does not exist: {}", path.display())
+            }
+        }
+    }
+}
+
+macro_rules! dispatch_err {
+    ($content:expr) => {{
+        use crate::errors::DispatchError::*;
+        use crate::errors::ErrorKind;
+        use crate::errors::RushError;
+        RushError::new(ErrorKind::Dispatch($content))
+    }};
+}
+
+macro_rules! builtin_err {
+    ($content:expr) => {{
+        use crate::errors::BuiltinError::*;
+        use crate::errors::ErrorKind;
+        use crate::errors::RushError;
+        RushError::new(ErrorKind::Builtin($content))
+    }};
+}
+
+macro_rules! executable_err {
+    ($content:expr) => {{
+        use crate::errors::ErrorKind;
+        use crate::errors::ExecutableError::*;
+        use crate::errors::RushError;
+        RushError::new(ErrorKind::Executable($content))
+    }};
+}
+
+macro_rules! state_err {
+    ($content:expr) => {{
+        use crate::errors::ErrorKind;
+        use crate::errors::RushError;
+        use crate::errors::StateError::*;
+        RushError::new(ErrorKind::State($content))
+    }};
+}
+
+macro_rules! path_err {
+    ($content:expr) => {{
+        use crate::errors::ErrorKind;
+        use crate::errors::PathError::*;
+        use crate::errors::RushError;
+        RushError::new(ErrorKind::Path($content))
+    }};
 }

@@ -7,9 +7,9 @@ use std::{
 use fs_err::{read, read_dir};
 use wasmtime::Engine;
 
-use crate::state::shell::ShellState;
-
 use super::plugin::{Plugin, WasmPluginBuilder};
+use crate::errors::Result;
+use crate::state::ShellState;
 
 /// Searches paths for files ending in .wasm and loads them as plugins.
 pub struct RecursivePluginLoader {
@@ -30,7 +30,7 @@ impl RecursivePluginLoader {
 }
 
 impl Iterator for RecursivePluginLoader {
-    type Item = anyhow::Result<Box<dyn Plugin>>;
+    type Item = Result<Box<dyn Plugin>>;
     fn next(&mut self) -> Option<Self::Item> {
         let path = match self.paths.pop()? {
             Ok(path) => path,

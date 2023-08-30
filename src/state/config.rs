@@ -1,12 +1,11 @@
-use fs_err::File;
 use std::{
     io::{BufRead, BufReader},
     path::PathBuf,
 };
 
-use anyhow::Result;
+use fs_err::File;
 
-use crate::errors::ShellError;
+use crate::errors::{Handle, Result};
 
 // Represents any settings for the shell, most of which can be configured by the user
 pub struct Configuration {
@@ -42,14 +41,15 @@ impl Configuration {
 
         let mut config = Self::default();
         let file = File::open(filename.clone())
-            .map_err(|_| ShellError::FailedToOpenConfigFile(filename.clone()))?;
+            .replace_err_no_context(state_err!(FailedToOpenConfigFile(filename.clone())))?;
         let reader = BufReader::new(file);
 
         for line in reader.lines() {
-            let line = line.map_err(|_| ShellError::FailedToOpenConfigFile(filename.clone()))?;
+            let line =
+                line.replace_err_no_context(state_err!(FailedToOpenConfigFile(filename.clone())))?;
             let tokens = line.split(": ").collect::<Vec<&str>>();
             if tokens.len() != 2 {
-                return Err(ShellError::FailedToReadConfigFile(filename).into());
+                return Err(state_err!(FailedToReadConfigFile(filename)));
             }
 
             let (key, value) = (tokens[0], tokens[1]);
@@ -84,7 +84,7 @@ impl Configuration {
                 "plugin-path" => {
                     config.plugin_paths.push(dirname.join(value));
                 }
-                _ => return Err(ShellError::FailedToReadConfigFile(filename).into()),
+                _ => return Err(state_err!(FailedToReadConfigFile(filename))),
             }
         }
 

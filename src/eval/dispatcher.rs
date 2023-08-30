@@ -1,15 +1,11 @@
 use std::os::unix::prelude::PermissionsExt;
 
-use anyhow::Result;
-
 use crate::exec::builtins;
 use crate::exec::commands::{Builtin, Executable, Runnable};
-use crate::state::path::Path;
-use crate::state::shell::ShellState;
+use crate::state::{Path, ShellState};
 
-use crate::errors::DispatchError;
-// use super::parser;
 use super::tokenizer::tokenize;
+use crate::errors::Result;
 
 // Represents a collection of builtin commands
 // Allows for command resolution and execution through aliases
@@ -83,11 +79,7 @@ impl Dispatcher {
         let args = tokenize(line);
         let command_name = args.get(0).unwrap().as_str();
         let command_args: Vec<&str> = args.iter().skip(1).map(|a| a.as_str()).collect();
-
-        let result = self.dispatch(shell, command_name, command_args);
-        if result.is_err() {
-            return Err(result.err().unwrap());
-        }
+        self.dispatch(shell, command_name, command_args)?;
 
         Ok(())
     }
@@ -112,16 +104,16 @@ impl Dispatcher {
                     let permission_code = metadata.permissions().mode();
                     // 0o111 is the octal representation of 73, which is the executable bit
                     if permission_code & 0o111 == 0 {
-                        Err(DispatchError::CommandNotExecutable(permission_code).into())
+                        Err(dispatch_err!(CommandNotExecutable(permission_code)))
                     } else {
                         Executable::new(path).run(shell, command_args)
                     }
                 } else {
                     // If the file cannot be read, return an error
-                    Err(DispatchError::FailedToReadExecutableMetadata(path.to_string()).into())
+                    Err(dispatch_err!(FailedToReadExecutableMetadata(path.into())))
                 }
             } else {
-                Err(DispatchError::UnknownCommand(command_name.to_string()).into())
+                Err(dispatch_err!(UnknownCommand(command_name.to_owned())))
             }
         }
     }

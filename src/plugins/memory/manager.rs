@@ -3,12 +3,11 @@ use std::{
     ops::{Index, IndexMut},
 };
 
-use anyhow::Context;
 use wasmtime::{AsContextMut, Instance, Memory, Store, StoreContextMut, TypedFunc};
 
-use crate::plugins::StoreData;
-
 use super::{WasmPtr, WasmSpan};
+use crate::errors::Result;
+use crate::plugins::StoreData;
 
 /// Controls sending and recieving data from the WebAssembly engine.
 pub trait WasmMemoryManager<T: Send + Sync = StoreData>: Send + Sync {
@@ -55,7 +54,7 @@ pub struct CooperativeMemoryManager<T: Send + Sync> {
 }
 
 impl<T: Send + Sync> CooperativeMemoryManager<T> {
-    pub fn new(mut store: &mut Store<StoreData>, instance: &Instance) -> anyhow::Result<Self> {
+    pub fn new(mut store: &mut Store<StoreData>, instance: &Instance) -> Result<Self> {
         Ok(Self {
             memory: instance
                 .get_memory(&mut store, "memory")
