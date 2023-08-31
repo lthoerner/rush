@@ -3,13 +3,13 @@ use std::process::Command as Process;
 use crate::errors::{Handle, Result};
 use crate::state::{Path, ShellState};
 
-// Represents either a builtin (internal command) or an executable (external command)
-// A Runnable may be executed by calling its .run() method
+/// Represents either a builtin (internal command) or an executable (external command)
+/// A `Runnable` may be executed by calling its `.run()` method
 pub trait Runnable {
     fn run(&self, shell: &mut ShellState, arguments: Vec<&str>) -> Result<()>;
 }
 
-// Wrapper type for Vec<String> that makes it easier to read code related to Builtins
+/// Wrapper type that makes it easier to read code related to builtins
 pub struct Aliases {
     aliases: Vec<String>,
 }
@@ -29,7 +29,7 @@ impl Aliases {
     }
 }
 
-// Represents a builtin function, its name and its aliases
+/// Represents a builtin function, its name and its aliases
 pub struct Builtin {
     pub true_name: String,
     pub aliases: Aliases,
@@ -61,7 +61,7 @@ impl Runnable for Builtin {
     }
 }
 
-// Represents an external binary/executable
+/// Represents an executable (external command)
 pub struct Executable {
     path: Path,
 }

@@ -7,15 +7,15 @@ use fs_err::File;
 
 use crate::errors::{Handle, Result};
 
-// Represents any settings for the shell, most of which can be configured by the user
+/// Represents any settings for the shell, most of which can be configured by the user
 pub struct Configuration {
-    // The truncation length for the prompt
+    /// The truncation length for the prompt
     pub truncation_factor: Option<usize>,
-    // Whether to show the prompt tick on a new line
+    /// Whether to show the prompt tick on a new line
     pub multi_line_prompt: bool,
-    // How many directories to store in the back/forward history
+    /// How many directories to store in the back/forward history
     pub history_limit: Option<usize>,
-    // Whether or not to print out full error messages and status codes when a command fails
+    /// Whether or not to print out full error messages and status codes when a command fails
     pub show_errors: bool,
     /// Paths to recursively search for plugins
     pub plugin_paths: Vec<PathBuf>,
@@ -34,7 +34,7 @@ impl Default for Configuration {
 }
 
 impl Configuration {
-    // Scans a configuration file for settings and updates the configuration accordingly
+    /// Scans a configuration file for settings and updates the configuration accordingly
     pub fn from_file(filename: &str) -> Result<Self> {
         let filename = PathBuf::from(filename);
         let dirname = filename

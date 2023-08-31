@@ -11,6 +11,7 @@ use rustyline::{
 use crate::errors::{Handle, Result};
 use crate::state::ShellState;
 
+/// Helper providing autocomplete, syntax highlighting, and other features to the `LineEditor`
 #[derive(Helper, Completer, Hinter, Validator, Highlighter)]
 struct LineEditorHelper {
     #[rustyline(Completer)]
@@ -34,12 +35,13 @@ impl LineEditorHelper {
     }
 }
 
+/// Editor for reading lines of input from the user
 pub struct LineEditor {
     editor: Editor<LineEditorHelper, DefaultHistory>,
 }
 
 impl LineEditor {
-    // Creates a LineEditor with the default configuration and history file
+    /// Creates a `LineEditor` with the default configuration and given history file
     pub fn new(history_file: &str) -> Result<Self> {
         let config = Config::builder()
             .history_ignore_space(true)
@@ -66,7 +68,8 @@ impl LineEditor {
         Ok(Self { editor })
     }
 
-    pub fn prompt_and_read_line(&mut self, shell: &ShellState) -> Option<String> {
+    /// Prints the shell prompt and reads a line of input from the user
+    pub fn prompt_and_read_line(&mut self, shell: &ShellState) -> String {
         loop {
             let input = self.editor.readline(&shell.generate_prompt());
             match input {
@@ -80,7 +83,7 @@ impl LineEditor {
                             println!("Failed to save history file.");
                         }
 
-                        return Some(line);
+                        return line;
                     } else {
                         // TODO: Do not reprompt on a blank line
                         continue;

@@ -3,6 +3,7 @@ use super::symbols::{
     SINGLE_QUOTE, WHITESPACE,
 };
 
+/// Separates a line of input into tokens, such as arguments, separators, and operators
 pub fn tokenize(input: &str) -> Vec<String> {
     let symbols = Symbols::new();
 
@@ -133,6 +134,7 @@ pub fn tokenize(input: &str) -> Vec<String> {
     tokens
 }
 
+/// Pushes the given token to the tokenized list and clears the token buffer
 fn delimit_token(tokens: &mut Vec<String>, curr_token: &mut String) {
     if !curr_token.is_empty() {
         tokens.push(curr_token.clone());

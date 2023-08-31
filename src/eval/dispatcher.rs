@@ -7,14 +7,14 @@ use crate::state::{Path, ShellState};
 use super::tokenizer::tokenize;
 use crate::errors::Result;
 
-// Represents a collection of builtin commands
-// Allows for command resolution and execution through aliases
+/// Represents a collection of builtin commands
+/// Allows for command resolution and execution through aliases
 pub struct Dispatcher {
     commands: Vec<Builtin>,
 }
 
 impl Default for Dispatcher {
-    // Initializes the Dispatcher with the default shell commands and aliases
+    /// Initializes the `Dispatcher` with the default shell commands and aliases
     #[rustfmt::skip]
     fn default() -> Self {
         let mut dispatcher = Self::new();
@@ -47,7 +47,7 @@ impl Dispatcher {
         }
     }
 
-    // Adds a builtin to the Dispatcher
+    /// Adds a builtin to the `Dispatcher`
     fn add_builtin<F: Fn(&mut ShellState, Vec<&str>) -> Result<()> + 'static>(
         &mut self,
         true_name: &str,
@@ -58,8 +58,7 @@ impl Dispatcher {
             .push(Builtin::new(true_name, aliases, function))
     }
 
-    // Finds a builtin command by name or alias
-    // Returns None if the builtin does not exist
+    /// Attempts to locate a builtin command by name or alias
     fn resolve(&self, command_name: &str) -> Option<&Builtin> {
         for command in &self.commands {
             if command.true_name == command_name {
@@ -74,7 +73,7 @@ impl Dispatcher {
         None
     }
 
-    // Evaluates and executes a command from a string
+    /// Evaluates and executes a command from a string
     pub fn eval(&self, shell: &mut ShellState, line: &str) -> Result<()> {
         let args = tokenize(line);
         let command_name = args.get(0).unwrap().as_str();
@@ -84,8 +83,7 @@ impl Dispatcher {
         Ok(())
     }
 
-    // Resolves and dispatches a command to the appropriate function or external binary
-    // If the command does not exist, returns None
+    /// Resolves and dispatches a command to the appropriate builtin or executable
     fn dispatch(
         &self,
         shell: &mut ShellState,
@@ -97,7 +95,7 @@ impl Dispatcher {
             command.run(shell, command_args)
         } else {
             // If the command is not in the Dispatcher, try to run it as an executable from the PATH
-            let path = Path::resolve_executable(command_name, &shell.environment.PATH);
+            let path = Path::try_resolve_executable(command_name, &shell.environment.PATH);
             if let Ok(path) = path {
                 // Check if the file is executable (has the executable bit set)
                 if let Ok(metadata) = fs_err::metadata(path.path()) {

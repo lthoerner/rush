@@ -32,10 +32,8 @@ fn main() {
 
     loop {
         let line = line_editor.prompt_and_read_line(&shell.read().unwrap());
-        if let Some(line) = line {
-            let status = dispatcher.eval(&mut shell.write().unwrap(), &line);
-            handle_error(status, &mut shell.write().unwrap());
-        }
+        let status = dispatcher.eval(&mut shell.write().unwrap(), &line);
+        handle_error(status, &mut shell.write().unwrap());
     }
 }
 
