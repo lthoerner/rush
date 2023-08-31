@@ -102,9 +102,8 @@ impl Environment {
         }
 
         if vars.contains(EnvVariables::CWD) {
-            env::set_current_dir(self.CWD.path()).replace_err(state_err!(
-                FailedToUpdateEnvironmentVariable(EnvVariable::Cwd)
-            ))?;
+            env::set_current_dir(self.CWD.path())
+                .replace_err(state_err!(CouldNotUpdateEnv(EnvVariable::Cwd)))?;
         }
 
         Ok(())
@@ -160,8 +159,7 @@ impl Environment {
 
 /// Gets the environment variables from the parent process during shell initialization
 fn get_parent_env_var(variable: EnvVariable) -> Result<String> {
-    std::env::var(variable.to_legacy_string())
-        .replace_err(state_err!(MissingEnvironmentVariable(variable)))
+    std::env::var(variable.to_legacy_string()).replace_err(state_err!(MissingEnv(variable)))
 }
 
 /// Converts the PATH environment variable from a string to a collection of `Path`s

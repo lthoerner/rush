@@ -68,16 +68,16 @@ pub fn list_directory(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     let mut files = Vec::new();
 
     for dir_entry in read_dir_result {
-        let fs_object = dir_entry.replace_err(builtin_err!(FailedReadingDir(path_to_read)))?;
+        let fs_object = dir_entry.replace_err(builtin_err!(UnreadableDirectory(path_to_read)))?;
 
         let fs_object_name = fs_object
             .file_name()
             .to_str()
-            .replace_err(builtin_err!(FailedReadingFileName(path_to_read)))?;
+            .replace_err(builtin_err!(UnreadableFileName(path_to_read)))?;
 
         let fs_object_type = fs_object
             .file_type()
-            .replace_err(builtin_err!(FailedReadingFileType(path_to_read)))?;
+            .replace_err(builtin_err!(UnreadableFileType(path_to_read)))?;
 
         if fs_object_name.starts_with('.') && !show_hidden {
             continue;
@@ -233,7 +233,7 @@ pub fn configure(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
             )?;
         }
         _ => {
-            return Err(builtin_err!(InvalidArgument(key.to_owned()))
+            return Err(builtin_err!(InvalidArg(key.to_owned()))
                 .set_context(&format!("Invalid configuration key: '{}'", key)));
         }
     }
@@ -253,7 +253,7 @@ pub fn environment_variable(shell: &mut ShellState, args: Vec<&str>) -> Result<(
         "HOME" => println!("{}", shell.environment.HOME.display()),
         "CWD" | "WORKING-DIRECTORY" => println!("{}", shell.environment.CWD),
         _ => {
-            return Err(builtin_err!(InvalidArgument(args[0].to_owned()))
+            return Err(builtin_err!(InvalidArg(args[0].to_owned()))
                 .set_context(&format!("Invalid environment variable: '{}'", args[0])));
         }
     }
@@ -273,7 +273,7 @@ pub fn edit_path(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
         "append" => shell.environment.PATH.push_front(path),
         "prepend" => shell.environment.PATH.push_back(path),
         _ => {
-            return Err(builtin_err!(InvalidArgument(action.to_owned()))
+            return Err(builtin_err!(InvalidArg(action.to_owned()))
                 .set_context(&format!("Invalid action: '{}'", action)));
         }
     }
@@ -286,9 +286,7 @@ fn check_args(args: &Vec<&str>, expected_args: usize, usage: &str) -> Result<()>
     if args.len() == expected_args {
         Ok(())
     } else {
-        Err(
-            builtin_err!(InvalidArgumentCount(expected_args, args.len()))
-                .set_context(&format!("Usage: {}", usage)),
-        )
+        Err(builtin_err!(WrongArgCount(expected_args, args.len()))
+            .set_context(&format!("Usage: {}", usage)))
     }
 }

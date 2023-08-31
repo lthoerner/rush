@@ -85,7 +85,7 @@ impl Runnable for Executable {
             .spawn()
             .replace_err(executable_err!(PathNoLongerExists(self.path.into())))?;
 
-        let status = process.wait().replace_err(executable_err!(FailedToWait))?;
+        let status = process.wait().replace_err(executable_err!(CouldNotWait))?;
 
         match status.success() {
             true => Ok(()),
