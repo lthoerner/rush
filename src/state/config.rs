@@ -37,7 +37,9 @@ impl Configuration {
     // Scans a configuration file for settings and updates the configuration accordingly
     pub fn from_file(filename: &str) -> Result<Self> {
         let filename = PathBuf::from(filename);
-        let dirname = filename.parent().unwrap();
+        let dirname = filename
+            .parent()
+            .replace_err(path_err!(FailedToGetParent(filename)))?;
 
         let mut config = Self::default();
         let file = File::open(filename.clone())

@@ -8,7 +8,8 @@ use rustyline::{
     Completer, CompletionType, Config, Editor, Helper, Highlighter, Hinter, Validator,
 };
 
-use crate::state::shell::ShellState;
+use crate::errors::{Handle, Result};
+use crate::state::ShellState;
 
 #[derive(Helper, Completer, Hinter, Validator, Highlighter)]
 struct LineEditorHelper {
@@ -39,7 +40,7 @@ pub struct LineEditor {
 
 impl LineEditor {
     // Creates a LineEditor with the default configuration and history file
-    pub fn new(history_file: &str) -> Self {
+    pub fn new(history_file: &str) -> Result<Self> {
         let config = Config::builder()
             .history_ignore_space(true)
             .completion_type(CompletionType::Fuzzy)
@@ -47,7 +48,8 @@ impl LineEditor {
 
         let helper = LineEditorHelper::new();
 
-        let mut editor = Editor::with_config(config).unwrap();
+        let mut editor =
+            Editor::with_config(config).replace_err(state_err!(UnsupportedTerminal))?;
         editor.set_helper(Some(helper));
         if editor.load_history(history_file).is_err() {
             println!("No existing history file found, attempting to create one...");
@@ -61,7 +63,7 @@ impl LineEditor {
             }
         }
 
-        Self { editor }
+        Ok(Self { editor })
     }
 
     pub fn prompt_and_read_line(&mut self, shell: &ShellState) -> Option<String> {

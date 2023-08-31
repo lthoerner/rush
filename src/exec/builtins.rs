@@ -16,7 +16,6 @@ use crossterm::cursor::MoveTo;
 use crossterm::execute;
 use crossterm::style::Stylize;
 use crossterm::terminal::{self, Clear, ClearType};
-use fs_err;
 
 use super::builtin_arguments::ListDirectoryArguments;
 use super::commands::{Executable, Runnable};
