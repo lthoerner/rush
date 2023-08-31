@@ -108,7 +108,7 @@ impl Dispatcher {
                     }
                 } else {
                     // If the file cannot be read, return an error
-                    Err(dispatch_err!(FailedToReadExecutableMetadata(path.into())))
+                    Err(dispatch_err!(UnreadableExecutableMetadata(path.into())))
                 }
             } else {
                 Err(dispatch_err!(UnknownCommand(command_name.to_owned())))

@@ -39,18 +39,18 @@ impl Configuration {
         let filename = PathBuf::from(filename);
         let dirname = filename
             .parent()
-            .replace_err(path_err!(FailedToGetParent(filename)))?;
+            .replace_err(path_err!(CouldNotGetParent(filename)))?;
 
         let mut config = Self::default();
         let file = File::open(filename.clone())
-            .replace_err(state_err!(FailedToOpenConfigFile(filename.clone())))?;
+            .replace_err(state_err!(UnopenableConfig(filename.clone())))?;
         let reader = BufReader::new(file);
 
         for line in reader.lines() {
-            let line = line.replace_err(state_err!(FailedToOpenConfigFile(filename.clone())))?;
+            let line = line.replace_err(state_err!(UnopenableConfig(filename.clone())))?;
             let tokens = line.split(": ").collect::<Vec<&str>>();
             if tokens.len() != 2 {
-                return Err(state_err!(FailedToReadConfigFile(filename)));
+                return Err(state_err!(UnreadableConfig(filename)));
             }
 
             let (key, value) = (tokens[0], tokens[1]);
@@ -63,13 +63,13 @@ impl Configuration {
                     } else if value == "false" {
                         config.truncation_factor = None;
                     } else {
-                        return Err(state_err!(FailedToReadConfigFile(filename)));
+                        return Err(state_err!(UnreadableConfig(filename)));
                     }
                 }
                 "multi-line-prompt" => {
                     config.multi_line_prompt = value
                         .parse::<bool>()
-                        .replace_err(state_err!(FailedToReadConfigFile(filename)))?;
+                        .replace_err(state_err!(UnreadableConfig(filename)))?;
                 }
                 "history-limit" => {
                     if let Ok(limit) = value.parse::<usize>() {
@@ -81,12 +81,12 @@ impl Configuration {
                 "show-errors" => {
                     config.show_errors = value
                         .parse::<bool>()
-                        .replace_err(state_err!(FailedToReadConfigFile(filename)))?;
+                        .replace_err(state_err!(UnreadableConfig(filename)))?;
                 }
                 "plugin-path" => {
                     config.plugin_paths.push(dirname.join(value));
                 }
-                _ => return Err(state_err!(FailedToReadConfigFile(filename))),
+                _ => return Err(state_err!(UnreadableConfig(filename))),
             }
         }
 

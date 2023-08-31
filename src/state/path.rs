@@ -34,7 +34,7 @@ impl Path {
         let expanded_path = expand_home(path, home_directory)?;
         // Canonicalizing a path will resolve any relative or absolute paths
         let absolute_path = canonicalize(expanded_path)
-            .replace_err(path_err!(FailedToCanonicalize(expanded_path)))?;
+            .replace_err(path_err!(CouldNotCanonicalize(expanded_path)))?;
 
         // If the file system can canonicalize the path, it should exist,
         // but this is added for extra precaution
@@ -61,7 +61,7 @@ impl Path {
             }
         }
 
-        Err(path_err!(FailedToCanonicalize(PathBuf::from(name))))
+        Err(path_err!(CouldNotCanonicalize(PathBuf::from(name))))
     }
 
     /// Returns the absolute path
