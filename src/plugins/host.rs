@@ -4,7 +4,7 @@ use std::thread::{spawn, JoinHandle};
 use serde_json::Value;
 use wasmtime::{Engine, WasmBacktraceDetails};
 
-use crate::state::shell::ShellState;
+use crate::state::ShellState;
 
 use super::loader::RecursivePluginLoader;
 use super::plugin::Plugin;

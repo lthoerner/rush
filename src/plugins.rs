@@ -2,7 +2,7 @@ use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use wasmtime_wasi::WasiCtx;
 
-use crate::state::shell::ShellState;
+use crate::state::ShellState;
 use memory::manager::WasmMemoryManager;
 
 pub mod host;

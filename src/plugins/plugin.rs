@@ -171,7 +171,7 @@ impl Plugin for WasmPlugin {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::state::shell::ShellState;
+    use crate::state::ShellState;
     use wasmtime::Engine;
 
     #[test]

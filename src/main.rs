@@ -5,7 +5,7 @@ mod exec;
 mod plugins;
 mod state;
 
-use errors::Result;
+use errors::{Result, RushError};
 use eval::{Dispatcher, LineEditor};
 use plugins::host::PluginHost;
 use state::ShellState;
@@ -18,9 +18,14 @@ fn main() {
     };
 
     let plugins = PluginHost::new(shell.clone());
+
     // The LineEditor type is responsible for reading lines of input from the user, storing history,
     // providing tab completion and other line-editing features
-    let mut line_editor = LineEditor::new("./config/history.rush");
+    let mut line_editor = match LineEditor::new("./config/history.rush") {
+        Ok(editor) => editor,
+        Err(err) => crash_with_error(err),
+    };
+
     // The Dispatcher type is responsible for resolving command names to actual function calls,
     // or executables if needed, and then invoking them with the given arguments
     let dispatcher = Dispatcher::default();
@@ -40,4 +45,11 @@ fn handle_error(potential_error: Result<()>, shell: &mut ShellState) {
     if let Err(error) = potential_error {
         eprintln!("{}", error);
     }
+}
+
+// Handles errors from which the shell cannot recover, mainly errors arising from shell setup
+fn crash_with_error(error: RushError) -> ! {
+    eprintln!("{}", error);
+    // TODO: Maybe return status code for each error type?
+    std::process::exit(1);
 }

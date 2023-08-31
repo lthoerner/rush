@@ -116,6 +116,7 @@ pub enum StateError {
     NoNextDirectory,
     FailedToOpenConfigFile(PathBuf),
     FailedToReadConfigFile(PathBuf),
+    UnsupportedTerminal,
 }
 
 /// Error type for errors which occur during path operations.
@@ -123,6 +124,7 @@ pub enum PathError {
     FailedToConvertStringToPath(String),
     FailedToConvertPathToString(PathBuf),
     FailedToCanonicalize(PathBuf),
+    FailedToGetParent(PathBuf),
     UnknownDirectory(PathBuf),
 }
 
@@ -255,6 +257,7 @@ impl Display for StateError {
                     path.display()
                 )
             }
+            UnsupportedTerminal => write!(f, "Terminal is not supported"),
         }
     }
 }
@@ -272,6 +275,13 @@ impl Display for PathError {
             }
             FailedToCanonicalize(path) => {
                 write!(f, "Path '{}' could not be canonicalized", path.display())
+            }
+            FailedToGetParent(path) => {
+                write!(
+                    f,
+                    "Parent directory of path '{}' could not be determined",
+                    path.display()
+                )
             }
             UnknownDirectory(path) => {
                 write!(
