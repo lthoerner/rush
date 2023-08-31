@@ -1,4 +1,4 @@
-// Separators
+// Separator tokens
 pub const WHITESPACE: char = ' ';
 pub const SEMICOLON: char = ';';
 pub const AMPERSAND: char = '&';
@@ -10,7 +10,7 @@ pub const DOUBLE_QUOTE: char = '"';
 pub const BACKSLASH: char = '\\';
 pub const DOLLAR: char = '$';
 
-//Operators
+// Operator tokens
 pub const AND_IF: &str = "&&";
 pub const OR_IF: &str = "||";
 pub const DSEMI: &str = ";;";

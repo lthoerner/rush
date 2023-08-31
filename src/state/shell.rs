@@ -6,8 +6,7 @@ use super::config::Configuration;
 use super::environment::Environment;
 use crate::errors::Result;
 
-// Represents the shell state and provides methods for interacting with it
-// ? Miscellaneous shell state like command_success, command_history etc might be better off in some sort of bundle struct
+/// Represents the shell state and provides methods for interacting with it
 pub struct ShellState {
     pub environment: Environment,
     pub config: Configuration,
@@ -28,7 +27,7 @@ impl ShellState {
         })))
     }
 
-    // Generates the prompt string used by the REPL
+    /// Generates the prompt string used by the `LineEditor`
     pub fn generate_prompt(&self) -> String {
         let user = self.environment.USER.clone();
         let home = &self.environment.HOME;

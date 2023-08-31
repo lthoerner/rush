@@ -6,9 +6,9 @@ use fs_err::canonicalize;
 
 use crate::errors::{Handle, Result};
 
-// Wrapper class for a directory path string
-// Adds convenience methods for displaying the path in a user-friendly way,
-// and adds guarantees about path validity that are not provided by PathBuf
+/// Wrapper class for a `PathBuf`
+/// Adds convenience methods for displaying the path in a user-friendly way,
+/// along with guarantees about path validity that are not provided by `PathBuf`
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Path {
     absolute_path: PathBuf,
@@ -27,8 +27,8 @@ impl From<Path> for PathBuf {
 }
 
 impl Path {
-    // Attempts to construct a new Path from a given path string by resolving it to an absolute path
-    pub fn from_str(path: &str, home_directory: &PathBuf) -> Result<Self> {
+    /// Attempts to construct a new `Path` from a string by resolving it to an absolute path
+    pub fn try_from_str(path: &str, home_directory: &PathBuf) -> Result<Self> {
         // The home directory shorthand must be expanded before resolving the path,
         // because PathBuf is not user-aware and only uses absolute and relative paths
         let expanded_path = expand_home(path, home_directory)?;
@@ -45,9 +45,9 @@ impl Path {
         }
     }
 
-    // Attempts to construct a new Path from the PATH environment variable,
-    // given the name of an executable that is in the PATH
-    pub fn resolve_executable(name: &str, path: &VecDeque<Path>) -> Result<Self> {
+    /// Attempts to locate an executable file in the PATH
+    // ? Should this be a method of `Environment` instead?
+    pub fn try_resolve_executable(name: &str, path: &VecDeque<Path>) -> Result<Self> {
         if !name.is_empty() {
             for dir in path {
                 let mut path = dir.path().clone();
@@ -64,14 +64,14 @@ impl Path {
         Err(path_err!(FailedToCanonicalize(PathBuf::from(name))))
     }
 
-    // Gets the absolute path, with all directory names included
+    /// Returns the absolute path
     pub fn path(&self) -> &PathBuf {
         &self.absolute_path
     }
 
-    // Gets the shortened version of the path
-    // If a truncation factor is provided, the path will be truncated
-    // The shortened path will always have the home directory collapsed
+    /// Gets the shortened version of the path
+    /// If a truncation factor is provided, the path will be truncated
+    /// The shortened path will always have the home directory collapsed
     pub fn collapse(&self, home_directory: &PathBuf, truncation_factor: Option<usize>) -> String {
         // ? Is there a less redundant way to write this?
         let path = match self.absolute_path.strip_prefix(home_directory) {
@@ -110,7 +110,7 @@ impl Path {
 }
 
 #[allow(clippy::ptr_arg)]
-// Expands the home directory shorthand in a path string
+/// Expands the home directory shorthand in a path string
 fn expand_home(path: &str, home_directory: &PathBuf) -> Result<PathBuf> {
     if path.starts_with('~') {
         Ok(PathBuf::from(

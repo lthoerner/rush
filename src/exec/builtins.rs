@@ -180,7 +180,7 @@ pub fn read_file(_shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
 
 pub fn run_executable(shell: &mut ShellState, mut args: Vec<&str>) -> Result<()> {
     let executable_name = args[0].to_owned();
-    let executable_path = Path::from_str(&executable_name, &shell.environment.HOME)
+    let executable_path = Path::try_from_str(&executable_name, &shell.environment.HOME)
         .replace_err_with_msg(
             builtin_err!(FailedToRun),
             &format!("Failed to resolve executable path: '{}'", executable_name),
@@ -264,7 +264,7 @@ pub fn environment_variable(shell: &mut ShellState, args: Vec<&str>) -> Result<(
 pub fn edit_path(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     check_args(&args, 2, "edit-path <append | prepend> <path>")?;
     let action = args[0];
-    let path = Path::from_str(args[1], &shell.environment.HOME).replace_err_with_msg(
+    let path = Path::try_from_str(args[1], &shell.environment.HOME).replace_err_with_msg(
         builtin_err!(FailedToRun),
         &format!("Invalid directory: '{}'", args[1]),
     )?;
