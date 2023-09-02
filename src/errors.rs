@@ -79,7 +79,7 @@ pub enum ErrorKind {
     Builtin(BuiltinError),
     Executable(ExecutableError),
     State(StateError),
-    Path(PathError),
+    Path(FileError),
 }
 
 /// Error type for errors which occur during command dispatch.
@@ -94,11 +94,7 @@ pub enum BuiltinError {
     WrongArgCount(usize, usize),
     InvalidArg(String),
     InvalidValue(String),
-    UnreadableFileType(PathBuf),
-    UnreadableFileName(PathBuf),
-    UnreadableDirectory(PathBuf),
-    // TODO: Break this into multiple error types
-    FailedToRun,
+    TerminalOperationFailed,
 }
 
 /// Error type for errors which occur during execution of executable files.
@@ -120,12 +116,19 @@ pub enum StateError {
 }
 
 /// Error type for errors which occur during path operations.
-pub enum PathError {
+pub enum FileError {
     FailedToConvertStringToPath(String),
     FailedToConvertPathToString(PathBuf),
     CouldNotCanonicalize(PathBuf),
     CouldNotGetParent(PathBuf),
-    UnknownDirectory(PathBuf),
+    CouldNotOpenFile(PathBuf),
+    CouldNotCreateFile(PathBuf),
+    CouldNotDeleteFile(PathBuf),
+    CouldNotCreateDirectory(PathBuf),
+    UnreadableFileType(PathBuf),
+    UnreadableFileName(PathBuf),
+    UnreadableDirectory(PathBuf),
+    UnknownPath(PathBuf),
 }
 
 impl Display for ErrorKind {
@@ -186,23 +189,6 @@ impl Display for BuiltinError {
                 write!(f, "Argument '{}' is invalid", argument)
             }
             InvalidValue(value) => write!(f, "Argument value '{}' is invalid", value),
-            UnreadableFileType(path) => {
-                write!(
-                    f,
-                    "Filetype at path '{}' could not be determined",
-                    path.display()
-                )
-            }
-            UnreadableFileName(path) => {
-                write!(
-                    f,
-                    "Filename at path '{}' could not be determined",
-                    path.display()
-                )
-            }
-            UnreadableDirectory(path) => {
-                write!(f, "Directory '{}' could not be read", path.display())
-            }
             FailedToRun => write!(f, "Failed to run builtin"),
         }
     }
@@ -262,9 +248,9 @@ impl Display for StateError {
     }
 }
 
-impl Display for PathError {
+impl Display for FileError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        use PathError::*;
+        use FileError::*;
         match self {
             FailedToConvertStringToPath(string) => {
                 write!(f, "Failed to convert string '{}' to path", string)
@@ -274,16 +260,45 @@ impl Display for PathError {
                 write!(f, "Failed to convert path '{}' to string", path.display())
             }
             CouldNotCanonicalize(path) => {
-                write!(f, "Path '{}' could not be canonicalized", path.display())
+                write!(f, "Could not canonicalize path '{}'", path.display())
             }
             CouldNotGetParent(path) => {
                 write!(
                     f,
-                    "Parent directory of path '{}' could not be determined",
+                    "Could not determine parent directory of path '{}'",
                     path.display()
                 )
             }
-            UnknownDirectory(path) => {
+            CouldNotOpenFile(path) => {
+                write!(f, "Could not open file at path '{}'", path.display())
+            }
+            CouldNotCreateFile(path) => {
+                write!(f, "Could not create file at path '{}'", path.display())
+            }
+            CouldNotDeleteFile(path) => {
+                write!(f, "Could not delete file at path '{}'", path.display())
+            }
+            CouldNotCreateDirectory(path) => {
+                write!(f, "Could not create directory at path '{}'", path.display())
+            }
+            UnreadableFileType(path) => {
+                write!(
+                    f,
+                    "Could not determine file type of path '{}'",
+                    path.display()
+                )
+            }
+            UnreadableFileName(path) => {
+                write!(
+                    f,
+                    "Could not determine file name of path '{}'",
+                    path.display()
+                )
+            }
+            UnreadableDirectory(path) => {
+                write!(f, "Could not read directory at path '{}'", path.display())
+            }
+            UnknownPath(path) => {
                 write!(
                     f,
                     "Path '{}' does not exist or is inaccessible",
@@ -335,10 +350,10 @@ macro_rules! state_err {
 }
 
 /// Shortcut for creating a `RushError::Path` without explicit imports
-macro_rules! path_err {
+macro_rules! file_err {
     ($content:expr) => {{
         use crate::errors::ErrorKind;
-        use crate::errors::PathError::*;
+        use crate::errors::FileError::*;
         use crate::errors::RushError;
         RushError::new(ErrorKind::Path($content))
     }};

@@ -168,7 +168,7 @@ fn convert_path(path: &str, home: &PathBuf) -> Result<VecDeque<Path>> {
 
     let path_strings = path.split(':').collect::<Vec<&str>>();
     for path_string in path_strings {
-        let path = Path::try_from_str(path_string, home).replace_err(path_err!(
+        let path = Path::try_from_str(path_string, home).replace_err(file_err!(
             FailedToConvertStringToPath(path_string.to_owned())
         ))?;
         paths.push_back(path);

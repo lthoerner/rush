@@ -39,7 +39,7 @@ impl Configuration {
         let filename = PathBuf::from(filename);
         let dirname = filename
             .parent()
-            .replace_err(path_err!(CouldNotGetParent(filename)))?;
+            .replace_err(file_err!(CouldNotGetParent(filename)))?;
 
         let mut config = Self::default();
         let file = File::open(filename.clone())
