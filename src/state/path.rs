@@ -34,12 +34,12 @@ impl Path {
         let expanded_path = expand_home(path, home_directory)?;
         // Canonicalizing a path will resolve any relative or absolute paths
         let absolute_path = canonicalize(expanded_path)
-            .replace_err(path_err!(CouldNotCanonicalize(expanded_path)))?;
+            .replace_err(file_err!(CouldNotCanonicalize(expanded_path)))?;
 
         // If the file system can canonicalize the path, it should exist,
         // but this is added for extra precaution
         if !absolute_path.exists() {
-            Err(path_err!(UnknownDirectory(absolute_path)))
+            Err(file_err!(UnknownPath(absolute_path)))
         } else {
             Ok(Self { absolute_path })
         }
@@ -61,7 +61,7 @@ impl Path {
             }
         }
 
-        Err(path_err!(CouldNotCanonicalize(PathBuf::from(name))))
+        Err(file_err!(CouldNotCanonicalize(PathBuf::from(name))))
     }
 
     /// Returns the absolute path
@@ -118,7 +118,7 @@ fn expand_home(path: &str, home_directory: &PathBuf) -> Result<PathBuf> {
                 '~',
                 home_directory
                     .to_str()
-                    .replace_err(path_err!(FailedToConvertPathToString(
+                    .replace_err(file_err!(FailedToConvertPathToString(
                         home_directory.to_path_buf(),
                     )))?,
             ),

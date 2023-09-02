@@ -45,10 +45,7 @@ pub fn change_directory(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     shell
         .environment
         .set_CWD(args[0], history_limit)
-        .replace_err_with_msg(
-            builtin_err!(FailedToRun),
-            &format!("Invalid path: '{}'", args[0]),
-        )?;
+        .replace_err(file_err!(UnknownPath(args[0].into())))?;
 
     Ok(())
 }
@@ -62,22 +59,22 @@ pub fn list_directory(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     };
 
     let read_dir_result =
-        fs_err::read_dir(&path_to_read).replace_err(path_err!(UnknownDirectory(path_to_read)))?;
+        fs_err::read_dir(&path_to_read).replace_err(file_err!(UnknownPath(path_to_read)))?;
 
     let mut directories = Vec::new();
     let mut files = Vec::new();
 
     for dir_entry in read_dir_result {
-        let fs_object = dir_entry.replace_err(builtin_err!(UnreadableDirectory(path_to_read)))?;
+        let fs_object = dir_entry.replace_err(file_err!(UnreadableDirectory(path_to_read)))?;
 
         let fs_object_name = fs_object
             .file_name()
             .to_str()
-            .replace_err(builtin_err!(UnreadableFileName(path_to_read)))?;
+            .replace_err(file_err!(UnreadableFileName(path_to_read)))?;
 
         let fs_object_type = fs_object
             .file_type()
-            .replace_err(builtin_err!(UnreadableFileType(path_to_read)))?;
+            .replace_err(file_err!(UnreadableFileType(path_to_read)))?;
 
         if fs_object_name.starts_with('.') && !show_hidden {
             continue;
@@ -106,68 +103,62 @@ pub fn list_directory(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
 
 pub fn previous_directory(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     check_args(&args, 0, "go-back")?;
-    shell.environment.previous_directory().replace_err_with_msg(
-        builtin_err!(FailedToRun),
-        "Previous directory does not exist or is invalid",
-    )
+    shell
+        .environment
+        .previous_directory()
+        .replace_err(state_err!(NoPreviousDirectory))
 }
 
 pub fn next_directory(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     check_args(&args, 0, "go-forward")?;
-    shell.environment.next_directory().replace_err_with_msg(
-        builtin_err!(FailedToRun),
-        "Next directory does not exist or is invalid",
-    )
+    shell
+        .environment
+        .next_directory()
+        .replace_err(state_err!(NoNextDirectory))
 }
 
 pub fn clear_terminal(_shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     check_args(&args, 0, "clear-terminal")?;
     let y_size = terminal::size()
-        .replace_err_with_msg(builtin_err!(FailedToRun), "Failed to get terminal size")?
+        .replace_err_with_msg(
+            builtin_err!(TerminalOperationFailed),
+            "Could not get terminal size",
+        )?
         .1;
 
-    execute!(stderr(), Clear(ClearType::All))
-        .replace_err_with_msg(builtin_err!(FailedToRun), "Failed to clear terminal")?;
+    execute!(stderr(), Clear(ClearType::All)).replace_err_with_msg(
+        builtin_err!(TerminalOperationFailed),
+        "Could not clear terminal",
+    )?;
 
     execute!(stderr(), MoveTo(0, y_size - 2)).replace_err_with_msg(
-        builtin_err!(FailedToRun),
-        "Failed to move cursor to bottom of terminal",
+        builtin_err!(TerminalOperationFailed),
+        "Could not move cursor to bottom of terminal",
     )
 }
 
 // TODO: Add prompt to confirm file overwrite
 pub fn make_file(_shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     check_args(&args, 1, "usage: make-file <path>")?;
-    fs_err::File::create(args[0]).replace_err_with_msg(
-        builtin_err!(FailedToRun),
-        &format!("Failed to create file: '{}'", args[0]),
-    )?;
+    fs_err::File::create(args[0]).replace_err(file_err!(CouldNotCreateFile(args[0].into())))?;
     Ok(())
 }
 
 pub fn make_directory(_shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     check_args(&args, 1, "make-directory <path>")?;
-    fs_err::create_dir(args[0]).replace_err_with_msg(
-        builtin_err!(FailedToRun),
-        &format!("Failed to create directory: '{}'", args[0]),
-    )
+    fs_err::create_dir(args[0]).replace_err(file_err!(CouldNotCreateDirectory(args[0].into())))
 }
 
 pub fn delete_file(_shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     check_args(&args, 1, "delete-file <path>")?;
-    fs_err::remove_file(args[0]).replace_err_with_msg(
-        builtin_err!(FailedToRun),
-        &format!("Failed to delete file: '{}'", args[0]),
-    )
+    fs_err::remove_file(args[0]).replace_err(file_err!(CouldNotDeleteFile(args[0].into())))
 }
 
 pub fn read_file(_shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     check_args(&args, 1, "read-file <path>")?;
     let file_name = args[0].to_owned();
-    let file = fs_err::File::open(&file_name).replace_err_with_msg(
-        builtin_err!(FailedToRun),
-        &format!("Failed to open file: '{}'", file_name),
-    )?;
+    let file = fs_err::File::open(&file_name)
+        .replace_err(file_err!(CouldNotOpenFile(file_name.into())))?;
 
     let reader = BufReader::new(file);
     for line in reader.lines() {
@@ -182,8 +173,8 @@ pub fn run_executable(shell: &mut ShellState, mut args: Vec<&str>) -> Result<()>
     let executable_name = args[0].to_owned();
     let executable_path = Path::try_from_str(&executable_name, &shell.environment.HOME)
         .replace_err_with_msg(
-            builtin_err!(FailedToRun),
-            &format!("Failed to resolve executable path: '{}'", executable_name),
+            file_err!(UnknownPath(executable_name.into())),
+            &format!("Could not find executable '{}'", executable_name),
         )?;
 
     // * Executable name is removed before running the executable because the std::process::Command
@@ -253,8 +244,7 @@ pub fn environment_variable(shell: &mut ShellState, args: Vec<&str>) -> Result<(
         "HOME" => println!("{}", shell.environment.HOME.display()),
         "CWD" | "WORKING-DIRECTORY" => println!("{}", shell.environment.CWD),
         _ => {
-            return Err(builtin_err!(InvalidArg(args[0].to_owned()))
-                .set_context(&format!("Invalid environment variable: '{}'", args[0])));
+            return Err(builtin_err!(InvalidArg(args[0].to_owned())));
         }
     }
 
@@ -264,17 +254,14 @@ pub fn environment_variable(shell: &mut ShellState, args: Vec<&str>) -> Result<(
 pub fn edit_path(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     check_args(&args, 2, "edit-path <append | prepend> <path>")?;
     let action = args[0];
-    let path = Path::try_from_str(args[1], &shell.environment.HOME).replace_err_with_msg(
-        builtin_err!(FailedToRun),
-        &format!("Invalid directory: '{}'", args[1]),
-    )?;
+    let path = Path::try_from_str(args[1], &shell.environment.HOME)
+        .replace_err(file_err!(UnknownPath(args[1].into())))?;
 
     match action {
         "append" => shell.environment.PATH.push_front(path),
         "prepend" => shell.environment.PATH.push_back(path),
         _ => {
-            return Err(builtin_err!(InvalidArg(action.to_owned()))
-                .set_context(&format!("Invalid action: '{}'", action)));
+            return Err(builtin_err!(InvalidArg(action.to_owned())));
         }
     }
 
