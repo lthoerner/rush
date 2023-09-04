@@ -1,4 +1,4 @@
-use thiserror::Error;
+use snafu::Snafu;
 use wasmtime::Val;
 
 pub mod manager;
@@ -6,8 +6,8 @@ pub mod manager;
 /// The address of a byte that may be controlled by the WASM engine.
 pub type WasmPtr = u32;
 
-#[derive(Debug, Error)]
-#[error("Val must be an i64 to convert to a WasmSpan")]
+#[derive(Debug, Snafu)]
+/// Val must be an i64 to convert to a WasmSpan
 pub struct TryFromWasmError;
 
 /// A span of bytes that may be controlled by the WASM engine.

@@ -3,10 +3,10 @@ use std::{
     ops::{Index, IndexMut},
 };
 
+use snafu::{Backtrace, OptionExt, ResultExt, Snafu};
 use wasmtime::{AsContextMut, Instance, Memory, Store, StoreContextMut, TypedFunc};
 
 use super::{WasmPtr, WasmSpan};
-use crate::errors::Result;
 use crate::plugins::StoreData;
 
 /// Controls sending and recieving data from the WebAssembly engine.
@@ -41,6 +41,23 @@ pub trait WasmMemoryManager<T: Send + Sync = StoreData>: Send + Sync {
     fn dealloc<'a>(&'a self, store: StoreContextMut<'a, T>, ptr: WasmPtr);
 }
 
+#[derive(Debug, Snafu)]
+pub enum CooperativeMemoryManagerError {
+    /// Users should try recompiling with `RUSTFLAGS="-Clink-arg=--export-table"`
+    #[snafu(display("WASM code must export a Memory table named `memory`"))]
+    MemoryNotFound { backtrace: Backtrace },
+    #[snafu(display("WASM code must export a `mem_alloc` function"))]
+    AllocNotFound {
+        backtrace: Backtrace,
+        source: wasmtime::Error,
+    },
+    #[snafu(display("WASM code must export a `mem_free` function"))]
+    DeallocNotFound {
+        backtrace: Backtrace,
+        source: wasmtime::Error,
+    },
+}
+
 /// Controls sending and recieving data from the WebAssembly engine.
 /// This manager cooperates with the sandboxed allocator using
 /// plugin-defined alloc and dealloc functions to keep it from accidentally
@@ -54,17 +71,20 @@ pub struct CooperativeMemoryManager<T: Send + Sync> {
 }
 
 impl<T: Send + Sync> CooperativeMemoryManager<T> {
-    pub fn new(mut store: &mut Store<StoreData>, instance: &Instance) -> Result<Self> {
+    pub fn new(
+        mut store: &mut Store<StoreData>,
+        instance: &Instance,
+    ) -> Result<Self, CooperativeMemoryManagerError> {
         Ok(Self {
             memory: instance
                 .get_memory(&mut store, "memory")
-                .context("WASM code must expose its memory")?,
+                .context(MemoryNotFoundSnafu)?,
             allocator: instance
                 .get_typed_func(&mut store, "mem_alloc")
-                .context("WASM code must expose a `mem_alloc` function")?,
+                .context(AllocNotFoundSnafu)?,
             deallocator: instance
                 .get_typed_func(&mut store, "mem_dealloc")
-                .context("WASM code must expose a `mem_free` function")?,
+                .context(DeallocNotFoundSnafu)?,
             _store_context: PhantomData,
         })
     }
