@@ -42,17 +42,18 @@ pub trait WasmMemoryManager<T: Send + Sync = StoreData>: Send + Sync {
 }
 
 #[derive(Debug, Snafu)]
-pub enum CooperativeMemoryManagerError {
+#[snafu(context(suffix(NotFoundSnafu)))]
+pub enum ExportNotFoundError {
     /// Users should try recompiling with `RUSTFLAGS="-Clink-arg=--export-table"`
     #[snafu(display("WASM code must export a Memory table named `memory`"))]
-    MemoryNotFound { backtrace: Backtrace },
+    Memory { backtrace: Backtrace },
     #[snafu(display("WASM code must export a `mem_alloc` function"))]
-    AllocNotFound {
+    Alloc {
         backtrace: Backtrace,
         source: wasmtime::Error,
     },
     #[snafu(display("WASM code must export a `mem_free` function"))]
-    DeallocNotFound {
+    Dealloc {
         backtrace: Backtrace,
         source: wasmtime::Error,
     },
@@ -74,7 +75,7 @@ impl<T: Send + Sync> CooperativeMemoryManager<T> {
     pub fn new(
         mut store: &mut Store<StoreData>,
         instance: &Instance,
-    ) -> Result<Self, CooperativeMemoryManagerError> {
+    ) -> Result<Self, ExportNotFoundError> {
         Ok(Self {
             memory: instance
                 .get_memory(&mut store, "memory")
