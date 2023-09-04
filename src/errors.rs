@@ -39,6 +39,7 @@ impl<T> Handle<T> for std::option::Option<T> {
 /// which is used to override the default error message.
 /// All error kinds have a default error message and an extended description of the error,
 /// including a detailed explanation of what the error kind represents and potential causes.
+#[derive(Debug)]
 pub struct RushError {
     kind: ErrorKind,
     custom_message: Option<String>,
@@ -74,6 +75,7 @@ impl RushError {
 /// Enum representing every type of error which can occur in Rush.
 /// Downstream error variants will typically include data providing basic information
 /// about how the error occurred, such as the name of a command which was not found.
+#[derive(Debug)]
 pub enum ErrorKind {
     Dispatch(DispatchError),
     Builtin(BuiltinError),
@@ -83,6 +85,7 @@ pub enum ErrorKind {
 }
 
 /// Error type for errors which occur during command dispatch.
+#[derive(Debug)]
 pub enum DispatchError {
     /// OVERVIEW
     /// This error occurs when a command cannot be resolved by the dispatcher.
@@ -147,6 +150,7 @@ pub enum DispatchError {
 }
 
 /// Error type for errors that occur during the execution of builtin commands.
+#[derive(Debug)]
 pub enum BuiltinError {
     /// OVERVIEW
     /// This error occurs when a builtin command is called with an incorrect number of arguments.
@@ -215,6 +219,7 @@ pub enum BuiltinError {
 }
 
 /// Error type for errors which occur during execution of executable files.
+#[derive(Debug)]
 pub enum ExecutableError {
     /// OVERVIEW
     /// This error occurs when an executable file is no longer accessible.
@@ -263,6 +268,7 @@ pub enum ExecutableError {
 }
 
 /// Error type for errors which occur during state operations.
+#[derive(Debug)]
 pub enum StateError {
     /// OVERVIEW
     /// This error occurs when an environment variable is missing from the parent process.
@@ -356,6 +362,7 @@ pub enum StateError {
 }
 
 /// Error type for errors which occur during path operations.
+#[derive(Debug)]
 pub enum FileError {
     /// OVERVIEW
     /// This error occurs when the shell is unable to convert a string to a path.
