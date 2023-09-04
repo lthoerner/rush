@@ -5,11 +5,25 @@ use std::{
 };
 
 use fs_err::{read, read_dir};
+use snafu::{Backtrace, Snafu};
 use wasmtime::Engine;
 
-use super::plugin::{Plugin, WasmPluginBuilder};
-use crate::errors::Result;
+use super::plugin::{Plugin, PluginBuilderError, WasmPluginBuilder};
 use crate::state::ShellState;
+
+#[derive(Debug, Snafu)]
+pub enum PluginLoaderError {
+    #[snafu(display("Failed to read plugin: {source}"), context(false))]
+    Io {
+        backtrace: Backtrace,
+        source: io::Error,
+    },
+    #[snafu(display("Failed to load plugin: {source}"), context(false))]
+    Loader {
+        backtrace: Backtrace,
+        source: PluginBuilderError,
+    },
+}
 
 /// Searches paths for files ending in .wasm and loads them as plugins.
 pub struct RecursivePluginLoader {
@@ -30,7 +44,7 @@ impl RecursivePluginLoader {
 }
 
 impl Iterator for RecursivePluginLoader {
-    type Item = Result<Box<dyn Plugin>>;
+    type Item = Result<Box<dyn Plugin>, PluginLoaderError>;
     fn next(&mut self) -> Option<Self::Item> {
         let path = match self.paths.pop()? {
             Ok(path) => path,
@@ -69,7 +83,7 @@ impl Iterator for RecursivePluginLoader {
             .build();
         Some(match plugin {
             Ok(plugin) => Ok(Box::new(plugin)),
-            Err(e) => Err(e),
+            Err(e) => Err(e.into()),
         })
     }
 }
