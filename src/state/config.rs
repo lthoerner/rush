@@ -37,20 +37,24 @@ impl Configuration {
     /// Scans a configuration file for settings and updates the configuration accordingly
     pub fn from_file(filename: &str) -> Result<Self> {
         let filename = PathBuf::from(filename);
+        let open_error_msg = format!("Config file '{}' could not be opened", filename.display());
+        let read_error_msg = format!("Config file '{}' could not be read", filename.display());
+
         let dirname = filename
             .parent()
             .replace_err(file_err!(CouldNotGetParent(filename)))?;
 
         let mut config = Self::default();
         let file = File::open(filename.clone())
-            .replace_err(state_err!(UnopenableConfig(filename.clone())))?;
+            .replace_err_with_msg(file_err!(CouldNotOpenFile(filename)), &open_error_msg)?;
         let reader = BufReader::new(file);
 
         for line in reader.lines() {
-            let line = line.replace_err(state_err!(UnopenableConfig(filename.clone())))?;
+            let line =
+                line.replace_err_with_msg(file_err!(CouldNotReadFile(filename)), &read_error_msg)?;
             let tokens = line.split(": ").collect::<Vec<&str>>();
             if tokens.len() != 2 {
-                return Err(state_err!(UnreadableConfig(filename)));
+                return Err(file_err!(CouldNotReadFile(filename)).set_context(&read_error_msg));
             }
 
             let (key, value) = (tokens[0], tokens[1]);
@@ -63,13 +67,16 @@ impl Configuration {
                     } else if value == "false" {
                         config.truncation_factor = None;
                     } else {
-                        return Err(state_err!(UnreadableConfig(filename)));
+                        return Err(
+                            file_err!(CouldNotReadFile(filename)).set_context(&read_error_msg)
+                        );
                     }
                 }
                 "multi-line-prompt" => {
-                    config.multi_line_prompt = value
-                        .parse::<bool>()
-                        .replace_err(state_err!(UnreadableConfig(filename)))?;
+                    config.multi_line_prompt = value.parse::<bool>().replace_err_with_msg(
+                        file_err!(CouldNotReadFile(filename)),
+                        &read_error_msg,
+                    )?;
                 }
                 "history-limit" => {
                     if let Ok(limit) = value.parse::<usize>() {
@@ -79,14 +86,15 @@ impl Configuration {
                     }
                 }
                 "show-errors" => {
-                    config.show_errors = value
-                        .parse::<bool>()
-                        .replace_err(state_err!(UnreadableConfig(filename)))?;
+                    config.show_errors = value.parse::<bool>().replace_err_with_msg(
+                        file_err!(CouldNotReadFile(filename)),
+                        &read_error_msg,
+                    )?;
                 }
                 "plugin-path" => {
                     config.plugin_paths.push(dirname.join(value));
                 }
-                _ => return Err(state_err!(UnreadableConfig(filename))),
+                _ => return Err(file_err!(CouldNotReadFile(filename)).set_context(&read_error_msg)),
             }
         }
 
