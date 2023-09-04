@@ -7,7 +7,7 @@ use wasmtime_wasi::WasiCtxBuilder;
 
 use super::{
     memory::{
-        manager::{CooperativeMemoryManager, CooperativeMemoryManagerError},
+        manager::{CooperativeMemoryManager, ExportNotFoundError},
         WasmSpan,
     },
     StoreData, WasmPluginContext,
@@ -31,7 +31,7 @@ pub enum PluginBuilderError {
     #[snafu(display("Failed to initialize memory: {source}"), context(false))]
     MemoryInit {
         backtrace: Backtrace,
-        source: CooperativeMemoryManagerError,
+        source: ExportNotFoundError,
     },
 }
 

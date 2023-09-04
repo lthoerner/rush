@@ -627,8 +627,8 @@ impl Display for ExecutableError {
             PathNoLongerExists(path) => {
                 write!(f, "Path '{}' no longer exists", path.display())
             }
-            FailedToExecute(exit_code) => {
-                write!(f, "Executable failed with exit code {}", exit_code)
+            FailedToExecute(status_code) => {
+                write!(f, "Executable failed with status code {}", status_code)
             }
             CouldNotWait => write!(f, "Failed to wait for executable to complete"),
         }
