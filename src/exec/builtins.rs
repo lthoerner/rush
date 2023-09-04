@@ -45,7 +45,7 @@ pub fn change_directory(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     shell
         .environment
         .set_CWD(args[0], history_limit)
-        .replace_err(file_err!(UnknownPath(args[0].into())))?;
+        .replace_err(|| file_err!(UnknownPath: args[0]))?;
 
     Ok(())
 }
@@ -59,22 +59,21 @@ pub fn list_directory(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     };
 
     let read_dir_result =
-        fs_err::read_dir(&path_to_read).replace_err(file_err!(UnknownPath(path_to_read)))?;
+        fs_err::read_dir(&path_to_read).replace_err(|| file_err!(UnknownPath: path_to_read))?;
 
     let mut directories = Vec::new();
     let mut files = Vec::new();
 
     for dir_entry in read_dir_result {
-        let fs_object = dir_entry.replace_err(file_err!(UnreadableDirectory(path_to_read)))?;
-
-        let fs_object_name = fs_object
-            .file_name()
+        let fs_object = dir_entry.replace_err(|| file_err!(UnreadableDirectory: path_to_read))?;
+        let fs_object_name = fs_object.file_name();
+        let fs_object_name = fs_object_name
             .to_str()
-            .replace_err(file_err!(UnreadableFileName(path_to_read)))?;
+            .replace_err(|| file_err!(UnreadableFileName: path_to_read))?;
 
         let fs_object_type = fs_object
             .file_type()
-            .replace_err(file_err!(UnreadableFileType(path_to_read)))?;
+            .replace_err(|| file_err!(UnreadableFileType: path_to_read))?;
 
         if fs_object_name.starts_with('.') && !show_hidden {
             continue;
@@ -106,7 +105,7 @@ pub fn previous_directory(shell: &mut ShellState, args: Vec<&str>) -> Result<()>
     shell
         .environment
         .previous_directory()
-        .replace_err(state_err!(NoPreviousDirectory))
+        .replace_err(|| state_err!(NoPreviousDirectory))
 }
 
 pub fn next_directory(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
@@ -114,25 +113,25 @@ pub fn next_directory(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     shell
         .environment
         .next_directory()
-        .replace_err(state_err!(NoNextDirectory))
+        .replace_err(|| state_err!(NoNextDirectory))
 }
 
 pub fn clear_terminal(_shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     check_args(&args, 0, "clear-terminal")?;
     let y_size = terminal::size()
         .replace_err_with_msg(
-            builtin_err!(TerminalOperationFailed),
+            || builtin_err!(TerminalOperationFailed),
             "Could not get terminal size",
         )?
         .1;
 
     execute!(stderr(), Clear(ClearType::All)).replace_err_with_msg(
-        builtin_err!(TerminalOperationFailed),
+        || builtin_err!(TerminalOperationFailed),
         "Could not clear terminal",
     )?;
 
     execute!(stderr(), MoveTo(0, y_size - 2)).replace_err_with_msg(
-        builtin_err!(TerminalOperationFailed),
+        || builtin_err!(TerminalOperationFailed),
         "Could not move cursor to bottom of terminal",
     )
 }
@@ -140,25 +139,25 @@ pub fn clear_terminal(_shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
 // TODO: Add prompt to confirm file overwrite
 pub fn make_file(_shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     check_args(&args, 1, "usage: make-file <path>")?;
-    fs_err::File::create(args[0]).replace_err(file_err!(CouldNotCreateFile(args[0].into())))?;
+    fs_err::File::create(args[0]).replace_err(|| file_err!(CouldNotCreateFile: args[0]))?;
     Ok(())
 }
 
 pub fn make_directory(_shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     check_args(&args, 1, "make-directory <path>")?;
-    fs_err::create_dir(args[0]).replace_err(file_err!(CouldNotCreateDirectory(args[0].into())))
+    fs_err::create_dir(args[0]).replace_err(|| file_err!(CouldNotCreateDirectory: args[0]))
 }
 
 pub fn delete_file(_shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     check_args(&args, 1, "delete-file <path>")?;
-    fs_err::remove_file(args[0]).replace_err(file_err!(CouldNotDeleteFile(args[0].into())))
+    fs_err::remove_file(args[0]).replace_err(|| file_err!(CouldNotDeleteFile: args[0]))
 }
 
 pub fn read_file(_shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     check_args(&args, 1, "read-file <path>")?;
     let file_name = args[0].to_owned();
-    let file = fs_err::File::open(&file_name)
-        .replace_err(file_err!(CouldNotOpenFile(file_name.into())))?;
+    let file =
+        fs_err::File::open(&file_name).replace_err(|| file_err!(CouldNotOpenFile: file_name))?;
 
     let reader = BufReader::new(file);
     for line in reader.lines() {
@@ -173,7 +172,7 @@ pub fn run_executable(shell: &mut ShellState, mut args: Vec<&str>) -> Result<()>
     let executable_name = args[0].to_owned();
     let executable_path = Path::try_from_str(&executable_name, &shell.environment.HOME)
         .replace_err_with_msg(
-            file_err!(UnknownPath(executable_name.into())),
+            || file_err!(UnknownPath: executable_name),
             &format!("Could not find executable '{}'", executable_name),
         )?;
 
@@ -196,13 +195,13 @@ pub fn configure(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
             }
 
             shell.config.truncation_factor = Some(value.parse::<usize>().replace_err_with_msg(
-                builtin_err!(InvalidValue(value.to_owned())),
+                || builtin_err!(InvalidValue: value),
                 &format!("Invalid truncation length: '{}'", value),
             )?);
         }
         "multi-line-prompt" => {
             shell.config.multi_line_prompt = value.parse::<bool>().replace_err_with_msg(
-                builtin_err!(InvalidValue(value.to_owned())),
+                || builtin_err!(InvalidValue: value),
                 &format!("Invalid value for multi-line-prompt: '{}'", value),
             )?;
         }
@@ -213,18 +212,18 @@ pub fn configure(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
             }
 
             shell.config.history_limit = Some(value.parse::<usize>().replace_err_with_msg(
-                builtin_err!(InvalidValue(value.to_owned())),
+                || builtin_err!(InvalidValue: value),
                 &format!("Invalid history limit: '{}'", value),
             )?);
         }
         "show-errors" => {
             shell.config.show_errors = value.parse::<bool>().replace_err_with_msg(
-                builtin_err!(InvalidValue(value.to_owned())),
+                || builtin_err!(InvalidValue: value),
                 &format!("Invalid value for show-errors: '{}'", value),
             )?;
         }
         _ => {
-            return Err(builtin_err!(InvalidArg(key.to_owned()))
+            return Err(builtin_err!(InvalidArg: value)
                 .set_context(&format!("Invalid configuration key: '{}'", key)));
         }
     }
@@ -244,7 +243,7 @@ pub fn environment_variable(shell: &mut ShellState, args: Vec<&str>) -> Result<(
         "HOME" => println!("{}", shell.environment.HOME.display()),
         "CWD" | "WORKING-DIRECTORY" => println!("{}", shell.environment.CWD),
         _ => {
-            return Err(builtin_err!(InvalidArg(args[0].to_owned())));
+            return Err(builtin_err!(InvalidArg: args[0]));
         }
     }
 
@@ -255,13 +254,13 @@ pub fn edit_path(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     check_args(&args, 2, "edit-path <append | prepend> <path>")?;
     let action = args[0];
     let path = Path::try_from_str(args[1], &shell.environment.HOME)
-        .replace_err(file_err!(UnknownPath(args[1].into())))?;
+        .replace_err(|| file_err!(UnknownPath: args[1]))?;
 
     match action {
         "append" => shell.environment.PATH.push_front(path),
         "prepend" => shell.environment.PATH.push_back(path),
         _ => {
-            return Err(builtin_err!(InvalidArg(action.to_owned())));
+            return Err(builtin_err!(InvalidArg: action));
         }
     }
 
@@ -273,7 +272,7 @@ fn check_args(args: &Vec<&str>, expected_args: usize, usage: &str) -> Result<()>
     if args.len() == expected_args {
         Ok(())
     } else {
-        Err(builtin_err!(WrongArgCount(expected_args, args.len()))
+        Err(builtin_err!(WrongArgCount: expected_args, args.len())
             .set_context(&format!("Usage: {}", usage)))
     }
 }

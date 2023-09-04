@@ -42,19 +42,19 @@ impl Configuration {
 
         let dirname = filename
             .parent()
-            .replace_err(file_err!(CouldNotGetParent(filename)))?;
+            .replace_err(|| file_err!(CouldNotGetParent: filename))?;
 
         let mut config = Self::default();
-        let file = File::open(filename.clone())
-            .replace_err_with_msg(file_err!(CouldNotOpenFile(filename)), &open_error_msg)?;
+        let file = File::open(&filename)
+            .replace_err_with_msg(|| file_err!(CouldNotOpenFile: filename), &open_error_msg)?;
         let reader = BufReader::new(file);
 
         for line in reader.lines() {
-            let line =
-                line.replace_err_with_msg(file_err!(CouldNotReadFile(filename)), &read_error_msg)?;
+            let line = line
+                .replace_err_with_msg(|| file_err!(CouldNotReadFile: filename), &read_error_msg)?;
             let tokens = line.split(": ").collect::<Vec<&str>>();
             if tokens.len() != 2 {
-                return Err(file_err!(CouldNotReadFile(filename)).set_context(&read_error_msg));
+                return Err(file_err!(CouldNotReadFile: filename).set_context(&read_error_msg));
             }
 
             let (key, value) = (tokens[0], tokens[1]);
@@ -68,13 +68,13 @@ impl Configuration {
                         config.truncation_factor = None;
                     } else {
                         return Err(
-                            file_err!(CouldNotReadFile(filename)).set_context(&read_error_msg)
+                            file_err!(CouldNotReadFile: filename).set_context(&read_error_msg)
                         );
                     }
                 }
                 "multi-line-prompt" => {
                     config.multi_line_prompt = value.parse::<bool>().replace_err_with_msg(
-                        file_err!(CouldNotReadFile(filename)),
+                        || file_err!(CouldNotReadFile: filename),
                         &read_error_msg,
                     )?;
                 }
@@ -87,14 +87,14 @@ impl Configuration {
                 }
                 "show-errors" => {
                     config.show_errors = value.parse::<bool>().replace_err_with_msg(
-                        file_err!(CouldNotReadFile(filename)),
+                        || file_err!(CouldNotReadFile: filename),
                         &read_error_msg,
                     )?;
                 }
                 "plugin-path" => {
                     config.plugin_paths.push(dirname.join(value));
                 }
-                _ => return Err(file_err!(CouldNotReadFile(filename)).set_context(&read_error_msg)),
+                _ => return Err(file_err!(CouldNotReadFile: filename).set_context(&read_error_msg)),
             }
         }
 

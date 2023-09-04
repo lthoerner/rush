@@ -1,7 +1,7 @@
 use std::collections::{HashMap, VecDeque};
 use std::env;
 use std::fmt::{Display, Formatter};
-use std::path::PathBuf;
+use std::path::{Path as StdPath, PathBuf};
 
 use bitflags::bitflags;
 
@@ -103,7 +103,7 @@ impl Environment {
 
         if vars.contains(EnvVariables::CWD) {
             env::set_current_dir(self.CWD.path())
-                .replace_err(state_err!(CouldNotUpdateEnv(EnvVariable::Cwd)))?;
+                .replace_err(|| state_err!(CouldNotUpdateEnv: EnvVariable::Cwd))?;
         }
 
         Ok(())
@@ -159,19 +159,18 @@ impl Environment {
 
 /// Gets the environment variables from the parent process during shell initialization
 fn get_parent_env_var(variable: EnvVariable) -> Result<String> {
-    std::env::var(variable.to_legacy_string()).replace_err(state_err!(MissingEnv(variable)))
+    std::env::var(variable.to_legacy_string()).replace_err(|| state_err!(MissingEnv: variable))
 }
 
 /// Converts the PATH environment variable from a string to a collection of `Path`s
-fn convert_path(path: &str, home: &PathBuf) -> Result<VecDeque<Path>> {
+fn convert_path(path: &str, home: &StdPath) -> Result<VecDeque<Path>> {
     let mut paths = VecDeque::new();
 
     let path_strings = path.split(':').collect::<Vec<&str>>();
     for path_string in path_strings {
-        let path = Path::try_from_str(path_string, home).replace_err(file_err!(
-            FailedToConvertStringToPath(path_string.to_owned())
-        ))?;
-        paths.push_back(path);
+        if let Ok(path) = Path::try_from_str(path_string, home) {
+            paths.push_back(path);
+        }
     }
 
     Ok(paths)

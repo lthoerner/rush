@@ -8,29 +8,41 @@ pub type Result<T> = std::result::Result<T, RushError>;
 pub trait Handle<T> {
     /// Replaces any error kind with a new one, without overriding the default error message.
     /// Useful in situations where additional context provides no additional clarity.
-    fn replace_err(self, new_error: RushError) -> Result<T>;
+    fn replace_err<F: FnOnce() -> RushError>(self, new_error: F) -> Result<T>;
     /// Replaces any error kind with a new one, overriding the default error message with the
     /// provided one. Useful in situations where additional context can provide additional clarity.
-    fn replace_err_with_msg(self, new_error: RushError, context: &str) -> Result<T>;
+    fn replace_err_with_msg<F: FnOnce() -> RushError>(
+        self,
+        new_error: F,
+        context: &str,
+    ) -> Result<T>;
 }
 
 impl<T, E> Handle<T> for std::result::Result<T, E> {
-    fn replace_err(mut self, new_error: RushError) -> Result<T> {
-        self.map_err(|_| new_error)
+    fn replace_err<F: FnOnce() -> RushError>(self, new_error: F) -> Result<T> {
+        self.map_err(|_| new_error())
     }
 
-    fn replace_err_with_msg(mut self, new_error: RushError, context: &str) -> Result<T> {
-        self.map_err(|_| new_error.set_context(context))
+    fn replace_err_with_msg<F: FnOnce() -> RushError>(
+        self,
+        new_error: F,
+        context: &str,
+    ) -> Result<T> {
+        self.map_err(|_| new_error().set_context(context))
     }
 }
 
 impl<T> Handle<T> for std::option::Option<T> {
-    fn replace_err_with_msg(mut self, new_error: RushError, context: &str) -> Result<T> {
-        self.ok_or(new_error.set_context(context))
+    fn replace_err_with_msg<F: FnOnce() -> RushError>(
+        self,
+        new_error: F,
+        context: &str,
+    ) -> Result<T> {
+        self.ok_or_else(|| new_error().set_context(context))
     }
 
-    fn replace_err(mut self, new_error: RushError) -> Result<T> {
-        self.ok_or(new_error)
+    fn replace_err<F: FnOnce() -> RushError>(self, new_error: F) -> Result<T> {
+        self.ok_or_else(new_error)
     }
 }
 
@@ -51,7 +63,7 @@ impl Display for RushError {
         write!(
             f,
             "{}",
-            self.custom_message.unwrap_or(self.kind.to_string())
+            self.custom_message.clone().unwrap_or(self.kind.to_string())
         )
     }
 }
@@ -362,7 +374,7 @@ pub enum StateError {
 }
 
 /// Error type for errors which occur during path operations.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum FileError {
     /// OVERVIEW
     /// This error occurs when the shell is unable to convert a string to a path.
@@ -603,7 +615,7 @@ impl Display for BuiltinError {
                 write!(f, "Argument '{}' is invalid", argument)
             }
             InvalidValue(value) => write!(f, "Argument value '{}' is invalid", value),
-            FailedToRun => write!(f, "Failed to run builtin"),
+            TerminalOperationFailed => write!(f, "Terminal operation failed"),
         }
     }
 }
@@ -714,50 +726,54 @@ impl Display for FileError {
 
 /// Shortcut for creating a `RushError::Dispatch` without explicit imports
 macro_rules! dispatch_err {
-    ($content:expr) => {{
-        use crate::errors::DispatchError::*;
+    ($variant:ident) => {{
+        use crate::errors::DispatchError;
         use crate::errors::ErrorKind;
         use crate::errors::RushError;
-        RushError::new(ErrorKind::Dispatch($content))
+        RushError::new(ErrorKind::Dispatch(DispatchError::$variant))
+    }};
+    ($variant:ident: $content:expr) => {{
+        use crate::errors::DispatchError;
+        use crate::errors::ErrorKind;
+        use crate::errors::RushError;
+        RushError::new(ErrorKind::Dispatch(DispatchError::$variant(
+            $content.clone().into(),
+        )))
     }};
 }
 
 /// Shortcut for creating a `RushError::Builtin` without explicit imports
 macro_rules! builtin_err {
-    ($content:expr) => {{
-        use crate::errors::BuiltinError::*;
-        use crate::errors::ErrorKind;
-        use crate::errors::RushError;
-        RushError::new(ErrorKind::Builtin($content))
+    ($variant:ident$(: $($content:expr),* $(,)?)?) => {{
+        crate::errors::RushError::new(crate::errors::ErrorKind::Builtin(
+            crate::errors::BuiltinError::$variant$(($($content.clone().into()),*))?
+        ))
     }};
 }
 
 /// Shortcut for creating a `RushError::Executable` without explicit imports
 macro_rules! executable_err {
-    ($content:expr) => {{
-        use crate::errors::ErrorKind;
-        use crate::errors::ExecutableError::*;
-        use crate::errors::RushError;
-        RushError::new(ErrorKind::Executable($content))
+    ($variant:ident$(: $($content:expr),* $(,)?)?) => {{
+        crate::errors::RushError::new(crate::errors::ErrorKind::Executable(
+            crate::errors::ExecutableError::$variant$(($($content.clone().into()),*))?
+        ))
     }};
 }
 
 /// Shortcut for creating a `RushError::State` without explicit imports
 macro_rules! state_err {
-    ($content:expr) => {{
-        use crate::errors::ErrorKind;
-        use crate::errors::RushError;
-        use crate::errors::StateError::*;
-        RushError::new(ErrorKind::State($content))
+    ($variant:ident$(: $($content:expr),* $(,)?)?) => {{
+        crate::errors::RushError::new(crate::errors::ErrorKind::State(
+            crate::errors::StateError::$variant$(($($content.clone().into()),*))?
+        ))
     }};
 }
 
 /// Shortcut for creating a `RushError::Path` without explicit imports
 macro_rules! file_err {
-    ($content:expr) => {{
-        use crate::errors::ErrorKind;
-        use crate::errors::FileError::*;
-        use crate::errors::RushError;
-        RushError::new(ErrorKind::Path($content))
+    ($variant:ident$(: $($content:expr),* $(,)?)?) => {{
+        crate::errors::RushError::new(crate::errors::ErrorKind::Path(
+            crate::errors::FileError::$variant$(($($content.clone().into()),*))?
+        ))
     }};
 }

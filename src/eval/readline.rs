@@ -51,7 +51,7 @@ impl LineEditor {
         let helper = LineEditorHelper::new();
 
         let mut editor =
-            Editor::with_config(config).replace_err(state_err!(UnsupportedTerminal))?;
+            Editor::with_config(config).replace_err(|| state_err!(UnsupportedTerminal))?;
         editor.set_helper(Some(helper));
         if editor.load_history(history_file).is_err() {
             println!("No existing history file found, attempting to create one...");
