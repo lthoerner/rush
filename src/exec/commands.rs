@@ -83,9 +83,11 @@ impl Runnable for Executable {
         let mut process = Process::new(self.path.path())
             .args(arguments)
             .spawn()
-            .replace_err(executable_err!(PathNoLongerExists(self.path.into())))?;
+            .replace_err(|| executable_err!(PathNoLongerExists: self.path))?;
 
-        let status = process.wait().replace_err(executable_err!(CouldNotWait))?;
+        let status = process
+            .wait()
+            .replace_err(|| executable_err!(CouldNotWait))?;
 
         match status.success() {
             true => Ok(()),
@@ -94,9 +96,9 @@ impl Runnable for Executable {
                 // * as per https://tldp.org/LDP/abs/html/exitcodes.html
                 // * It can be assumed that the command was found here because the Executable path must have been validated already
                 // * Otherwise it could be a 127 for "command not found"
-                Err(executable_err!(FailedToExecute(
+                Err(executable_err!(FailedToExecute:
                     status.code().unwrap_or(126) as isize
-                )))
+                ))
             }
         }
     }

@@ -102,16 +102,16 @@ impl Dispatcher {
                     let permission_code = metadata.permissions().mode();
                     // 0o111 is the octal representation of 73, which is the executable bit
                     if permission_code & 0o111 == 0 {
-                        Err(dispatch_err!(CommandNotExecutable(permission_code)))
+                        Err(dispatch_err!(CommandNotExecutable: permission_code))
                     } else {
                         Executable::new(path).run(shell, command_args)
                     }
                 } else {
                     // If the file cannot be read, return an error
-                    Err(dispatch_err!(UnreadableExecutableMetadata(path.into())))
+                    Err(dispatch_err!(UnreadableExecutableMetadata: path))
                 }
             } else {
-                Err(dispatch_err!(UnknownCommand(command_name.to_owned())))
+                Err(dispatch_err!(UnknownCommand: command_name))
             }
         }
     }

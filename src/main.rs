@@ -13,11 +13,12 @@ use state::ShellState;
 fn main() {
     // The ShellState type stores all of the state for the shell, including its configuration,
     // its environment, and other miscellaneous data like command history
-    let Ok(shell) = ShellState::new() else {
-        std::process::exit(1);
+    let shell = match ShellState::new() {
+        Ok(shell) => shell,
+        Err(err) => crash_with_error(err),
     };
 
-    let plugins = PluginHost::new(shell.clone());
+    let _plugins = PluginHost::new(shell.clone());
 
     // The LineEditor type is responsible for reading lines of input from the user, storing history,
     // providing tab completion and other line-editing features
