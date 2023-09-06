@@ -1,65 +1,8 @@
 use std::process::Command as Process;
 
+use super::Runnable;
 use crate::errors::{Handle, Result};
 use crate::state::{Path, ShellState};
-
-/// Represents either a builtin (internal command) or an executable (external command)
-/// A `Runnable` may be executed by calling its `.run()` method
-pub trait Runnable {
-    fn run(&self, shell: &mut ShellState, arguments: Vec<&str>) -> Result<()>;
-}
-
-/// Wrapper type that makes it easier to read code related to builtins
-pub struct Aliases {
-    aliases: Vec<String>,
-}
-
-// * This implementation is here to make it easier to define aliases using string literals
-impl From<Vec<&str>> for Aliases {
-    fn from(aliases: Vec<&str>) -> Self {
-        Self {
-            aliases: aliases.iter().map(|a| a.to_string()).collect(),
-        }
-    }
-}
-
-impl Aliases {
-    pub fn contains(&self, alias: &str) -> bool {
-        self.aliases.contains(&alias.to_string())
-    }
-}
-
-/// Represents a builtin function, its name and its aliases
-pub struct Builtin {
-    pub true_name: String,
-    pub aliases: Aliases,
-    #[allow(clippy::type_complexity)]
-    function: Box<dyn Fn(&mut ShellState, Vec<&str>) -> Result<()>>,
-}
-
-impl Builtin {
-    pub fn new<F: Fn(&mut ShellState, Vec<&str>) -> Result<()> + 'static>(
-        true_name: &str,
-        aliases: Vec<&str>,
-        function: F,
-    ) -> Self {
-        let true_name = true_name.to_string();
-        let aliases = Aliases::from(aliases);
-        let function = Box::new(function);
-
-        Self {
-            true_name,
-            aliases,
-            function,
-        }
-    }
-}
-
-impl Runnable for Builtin {
-    fn run(&self, shell: &mut ShellState, arguments: Vec<&str>) -> Result<()> {
-        (self.function)(shell, arguments)
-    }
-}
 
 /// Represents an executable (external command)
 pub struct Executable {
