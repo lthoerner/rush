@@ -28,10 +28,14 @@ impl From<Path> for PathBuf {
 
 impl Path {
     /// Attempts to construct a new `Path` from a string by resolving it to an absolute path
-    pub fn try_from_str(path: &str, home_directory: &StdPath) -> Result<Self> {
+    pub fn try_from_str(path: &str, home_directory: Option<&StdPath>) -> Result<Self> {
         // The home directory shorthand must be expanded before resolving the path,
         // because PathBuf is not user-aware and only uses absolute and relative paths
-        let expanded_path = expand_home(path, home_directory)?;
+        let expanded_path = match home_directory {
+            Some(home_directory) => expand_home(path, home_directory)?,
+            None => PathBuf::from(path),
+        };
+
         // Canonicalizing a path will resolve any relative or absolute paths
         let absolute_path = canonicalize(&expanded_path)
             .replace_err(|| file_err!(CouldNotCanonicalize: expanded_path))?;
@@ -43,6 +47,15 @@ impl Path {
         } else {
             Ok(Self { absolute_path })
         }
+    }
+
+    /// Attempts to construct a new `Path` from a `std::path::Path` by resolving it to an absolute path
+    pub fn try_from_path(path: &StdPath, home_directory: Option<&StdPath>) -> Result<Self> {
+        let path_string = path
+            .to_str()
+            .replace_err(|| file_err!(FailedToConvertPathToString: path))?;
+
+        Self::try_from_str(path_string, home_directory)
     }
 
     /// Attempts to locate an executable file in the PATH

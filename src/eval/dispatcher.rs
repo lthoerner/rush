@@ -76,7 +76,7 @@ impl Dispatcher {
     pub fn eval(&self, shell: &mut ShellState, line: &str) -> Result<()> {
         let args = tokenize(line);
         let command_name = args.get(0).unwrap().as_str();
-        let command_args: Vec<&str> = args.iter().skip(1).map(|a| a.as_str()).collect();
+        let command_args: Vec<&str> = args.iter().map(|a| a.as_str()).collect();
         self.dispatch(shell, command_name, command_args)?;
 
         Ok(())

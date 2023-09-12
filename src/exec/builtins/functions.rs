@@ -9,7 +9,6 @@ An executable will only have access to its arguments and environment variables, 
  */
 
 use std::io::{stderr, BufRead, BufReader};
-use std::path::PathBuf;
 
 use clap::Parser;
 use crossterm::cursor::MoveTo;
@@ -17,46 +16,53 @@ use crossterm::execute;
 use crossterm::style::Stylize;
 use crossterm::terminal::{self, Clear, ClearType};
 
-use super::args::ListDirectoryArguments;
+use super::args::{
+    ChangeDirectoryArgs, ClearTerminalArgs, ConfigureArgs, DeleteFileArgs, EditPathArgs,
+    EditPathSubcommand, EnvironmentVariableArgs, ExitArgs, ListDirectoryArgs, MakeDirectoryArgs,
+    MakeFileArgs, NextDirectoryArgs, PreviousDirectoryArgs, ReadFileArgs, RunExecutableArgs,
+    WorkingDirectoryArgs,
+};
 use crate::errors::{Handle, Result};
+use crate::exec::builtins::args::{
+    AppendPathCommand, DeletePathCommand, InsertPathCommand, PrependPathCommand, TestArgs,
+};
 use crate::exec::{Executable, Runnable};
-use crate::state::{Path, ShellState};
+use crate::state::{EnvVariable, Path, ShellState};
 
 pub fn test(_shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
-    check_args(&args, 0, "test")?;
+    clap_handle!(TestArgs::try_parse_from(args));
     println!("{}", "Test command!".yellow());
     Ok(())
 }
 
 pub fn exit(_shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
-    check_args(&args, 0, "exit")?;
+    clap_handle!(ExitArgs::try_parse_from(args));
     std::process::exit(0);
 }
 
 pub fn working_directory(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
-    check_args(&args, 0, "working-directory")?;
+    clap_handle!(WorkingDirectoryArgs::try_parse_from(args));
     println!("{}", shell.environment.CWD);
     Ok(())
 }
 
 pub fn change_directory(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
-    check_args(&args, 1, "change-directory <path>")?;
+    let arguments = clap_handle!(ChangeDirectoryArgs::try_parse_from(args));
     let history_limit = shell.config.history_limit;
     shell
         .environment
-        .set_CWD(args[0], history_limit)
-        .replace_err(|| file_err!(UnknownPath: args[0]))?;
+        .set_CWD(&arguments.path, history_limit)
+        .replace_err(|| file_err!(UnknownPath: arguments.path))?;
 
     Ok(())
 }
 
 pub fn list_directory(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
-    let arguments = ListDirectoryArguments::parse_from(&args);
-    let show_hidden = arguments.all;
-    let path_to_read = match arguments.path {
-        Some(path) => PathBuf::from(path),
-        None => shell.environment.CWD.path().to_path_buf(),
-    };
+    let arguments = clap_handle!(ListDirectoryArgs::try_parse_from(&args));
+    let show_hidden = arguments.show_hidden;
+    let path_to_read = arguments
+        .path
+        .unwrap_or(shell.environment.CWD.path().to_path_buf());
 
     let read_dir_result =
         fs_err::read_dir(&path_to_read).replace_err(|| file_err!(UnknownPath: path_to_read))?;
@@ -101,7 +107,7 @@ pub fn list_directory(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
 }
 
 pub fn previous_directory(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
-    check_args(&args, 0, "go-back")?;
+    clap_handle!(PreviousDirectoryArgs::try_parse_from(args));
     shell
         .environment
         .previous_directory()
@@ -109,7 +115,7 @@ pub fn previous_directory(shell: &mut ShellState, args: Vec<&str>) -> Result<()>
 }
 
 pub fn next_directory(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
-    check_args(&args, 0, "go-forward")?;
+    clap_handle!(NextDirectoryArgs::try_parse_from(args));
     shell
         .environment
         .next_directory()
@@ -117,7 +123,7 @@ pub fn next_directory(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
 }
 
 pub fn clear_terminal(_shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
-    check_args(&args, 0, "clear-terminal")?;
+    clap_handle!(ClearTerminalArgs::try_parse_from(args));
     let y_size = terminal::size()
         .replace_err_with_msg(
             || builtin_err!(TerminalOperationFailed),
@@ -138,24 +144,27 @@ pub fn clear_terminal(_shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
 
 // TODO: Add prompt to confirm file overwrite
 pub fn make_file(_shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
-    check_args(&args, 1, "usage: make-file <path>")?;
-    fs_err::File::create(args[0]).replace_err(|| file_err!(CouldNotCreateFile: args[0]))?;
+    let arguments = clap_handle!(MakeFileArgs::try_parse_from(args));
+    fs_err::File::create(&arguments.path)
+        .replace_err(|| file_err!(CouldNotCreateFile: arguments.path))?;
     Ok(())
 }
 
 pub fn make_directory(_shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
-    check_args(&args, 1, "make-directory <path>")?;
-    fs_err::create_dir(args[0]).replace_err(|| file_err!(CouldNotCreateDirectory: args[0]))
+    let arguments = clap_handle!(MakeDirectoryArgs::try_parse_from(args));
+    fs_err::create_dir(&arguments.path)
+        .replace_err(|| file_err!(CouldNotCreateDirectory: arguments.path))
 }
 
 pub fn delete_file(_shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
-    check_args(&args, 1, "delete-file <path>")?;
-    fs_err::remove_file(args[0]).replace_err(|| file_err!(CouldNotDeleteFile: args[0]))
+    let arguments = clap_handle!(DeleteFileArgs::try_parse_from(args));
+    fs_err::remove_file(&arguments.path)
+        .replace_err(|| file_err!(CouldNotDeleteFile: arguments.path))
 }
 
 pub fn read_file(_shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
-    check_args(&args, 1, "read-file <path>")?;
-    let file_name = args[0].to_owned();
+    let arguments = clap_handle!(ReadFileArgs::try_parse_from(args));
+    let file_name = arguments.path;
     let file =
         fs_err::File::open(&file_name).replace_err(|| file_err!(CouldNotOpenFile: file_name))?;
 
@@ -168,82 +177,52 @@ pub fn read_file(_shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     Ok(())
 }
 
-pub fn run_executable(shell: &mut ShellState, mut args: Vec<&str>) -> Result<()> {
-    let executable_name = args[0].to_owned();
-    let executable_path = Path::try_from_str(&executable_name, &shell.environment.HOME)
+pub fn run_executable(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
+    let arguments = clap_handle!(RunExecutableArgs::try_parse_from(&args));
+    let executable_name = arguments.path;
+    let executable_path = Path::try_from_path(&executable_name, Some(&shell.environment.HOME))
         .replace_err_with_msg(
             || file_err!(UnknownPath: executable_name),
-            &format!("Could not find executable '{}'", executable_name),
+            &format!("Could not find executable '{}'", executable_name.display()),
         )?;
 
-    // * Executable name is removed before running the executable because the std::process::Command
-    // * process builder automatically adds the executable name as the first argument
-    args.remove(0);
+    // TODO: Fix the usage of args and arg parsing here
     Executable::new(executable_path).run(shell, args)
 }
 
 pub fn configure(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
-    check_args(&args, 2, "configure <key> <value>")?;
-    let key = args[0];
-    let value = args[1];
+    let arguments = clap_handle!(ConfigureArgs::try_parse_from(args));
 
-    match key {
-        "truncation" => {
-            if value == "false" {
-                shell.config.truncation_factor = None;
-                return Ok(());
-            }
+    if let Some(truncation_factor) = arguments.truncation_factor {
+        shell.config.truncation_factor = truncation_factor.into();
+    }
 
-            shell.config.truncation_factor = Some(value.parse::<usize>().replace_err_with_msg(
-                || builtin_err!(InvalidValue: value),
-                &format!("Invalid truncation length: '{}'", value),
-            )?);
-        }
-        "multi-line-prompt" => {
-            shell.config.multi_line_prompt = value.parse::<bool>().replace_err_with_msg(
-                || builtin_err!(InvalidValue: value),
-                &format!("Invalid value for multi-line-prompt: '{}'", value),
-            )?;
-        }
-        "history-limit" => {
-            if value == "false" {
-                shell.config.history_limit = None;
-                return Ok(());
-            }
+    if let Some(history_limit) = arguments.history_limit {
+        shell.config.history_limit = history_limit.into();
+    }
 
-            shell.config.history_limit = Some(value.parse::<usize>().replace_err_with_msg(
-                || builtin_err!(InvalidValue: value),
-                &format!("Invalid history limit: '{}'", value),
-            )?);
-        }
-        "show-errors" => {
-            shell.config.show_errors = value.parse::<bool>().replace_err_with_msg(
-                || builtin_err!(InvalidValue: value),
-                &format!("Invalid value for show-errors: '{}'", value),
-            )?;
-        }
-        _ => {
-            return Err(builtin_err!(InvalidArg: value)
-                .set_context(&format!("Invalid configuration key: '{}'", key)));
-        }
+    if let Some(multiline_prompt) = arguments.multiline_prompt {
+        shell.config.multiline_prompt = multiline_prompt.into();
+    }
+
+    if let Some(show_errors) = arguments.show_errors {
+        shell.config.show_errors = show_errors.into();
     }
 
     Ok(())
 }
 
 pub fn environment_variable(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
-    check_args(&args, 1, "environment-variable <var>")?;
-    match args[0].to_uppercase().as_str() {
-        "PATH" => {
+    let arguments = clap_handle!(EnvironmentVariableArgs::try_parse_from(args));
+    use EnvVariable::*;
+    match arguments.variable {
+        USER => println!("{}", shell.environment.USER),
+        HOME => println!("{}", shell.environment.HOME.display()),
+        CWD => println!("{}", shell.environment.CWD),
+        PATH => {
             for (i, path) in shell.environment.PATH.iter().enumerate() {
                 println!("[{i}]: {path}");
             }
-        }
-        "USER" => println!("{}", shell.environment.USER),
-        "HOME" => println!("{}", shell.environment.HOME.display()),
-        "CWD" | "WORKING-DIRECTORY" => println!("{}", shell.environment.CWD),
-        _ => {
-            return Err(builtin_err!(InvalidArg: args[0]));
         }
     }
 
@@ -251,28 +230,26 @@ pub fn environment_variable(shell: &mut ShellState, args: Vec<&str>) -> Result<(
 }
 
 pub fn edit_path(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
-    check_args(&args, 2, "edit-path <append | prepend> <path>")?;
-    let action = args[0];
-    let path = Path::try_from_str(args[1], &shell.environment.HOME)
-        .replace_err(|| file_err!(UnknownPath: args[1]))?;
-
-    match action {
-        "append" => shell.environment.PATH.push_front(path),
-        "prepend" => shell.environment.PATH.push_back(path),
-        _ => {
-            return Err(builtin_err!(InvalidArg: action));
+    // TODO: Needs to update the real PATH
+    let arguments = clap_handle!(EditPathArgs::try_parse_from(args));
+    use EditPathSubcommand::*;
+    match arguments.subcommand {
+        Append(AppendPathCommand { path }) => shell
+            .environment
+            .PATH
+            .push_front(Path::try_from_path(&path, Some(&shell.environment.HOME))?),
+        Prepend(PrependPathCommand { path }) => shell
+            .environment
+            .PATH
+            .push_front(Path::try_from_path(&path, Some(&shell.environment.HOME))?),
+        Insert(InsertPathCommand { index, path }) => shell.environment.PATH.insert(
+            index,
+            Path::try_from_path(&path, Some(&shell.environment.HOME))?,
+        ),
+        Delete(DeletePathCommand { index }) => {
+            shell.environment.PATH.remove(index);
         }
     }
 
     Ok(())
-}
-
-// Convenience function for exiting a builtin on invalid argument count
-fn check_args(args: &Vec<&str>, expected_args: usize, usage: &str) -> Result<()> {
-    if args.len() == expected_args {
-        Ok(())
-    } else {
-        Err(builtin_err!(WrongArgCount: expected_args, args.len())
-            .set_context(&format!("Usage: {}", usage)))
-    }
 }

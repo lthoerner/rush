@@ -11,10 +11,10 @@ use crate::errors::{Handle, Result};
 pub struct Configuration {
     /// The truncation length for the prompt
     pub truncation_factor: Option<usize>,
-    /// Whether to show the prompt tick on a new line
-    pub multi_line_prompt: bool,
     /// How many directories to store in the back/forward history
     pub history_limit: Option<usize>,
+    /// Whether to show the prompt tick on a new line
+    pub multiline_prompt: bool,
     /// Whether or not to print out full error messages and status codes when a command fails
     pub show_errors: bool,
     /// Paths to recursively search for plugins
@@ -25,8 +25,8 @@ impl Default for Configuration {
     fn default() -> Self {
         Self {
             truncation_factor: None,
-            multi_line_prompt: false,
             history_limit: None,
+            multiline_prompt: false,
             show_errors: true,
             plugin_paths: vec![],
         }
@@ -72,18 +72,18 @@ impl Configuration {
                         );
                     }
                 }
-                "multi-line-prompt" => {
-                    config.multi_line_prompt = value.parse::<bool>().replace_err_with_msg(
-                        || file_err!(CouldNotReadFile: filename),
-                        &read_error_msg,
-                    )?;
-                }
                 "history-limit" => {
                     if let Ok(limit) = value.parse::<usize>() {
                         config.history_limit = Some(limit);
                     } else if value == "false" {
                         config.history_limit = None;
                     }
+                }
+                "multiline-prompt" => {
+                    config.multiline_prompt = value.parse::<bool>().replace_err_with_msg(
+                        || file_err!(CouldNotReadFile: filename),
+                        &read_error_msg,
+                    )?;
                 }
                 "show-errors" => {
                     config.show_errors = value.parse::<bool>().replace_err_with_msg(

@@ -1,7 +1,7 @@
 mod config;
-pub mod environment;
-pub mod path;
-pub mod shell;
+mod environment;
+mod path;
+mod shell;
 
 pub use environment::{EnvVariable, EnvVariables, Environment};
 pub use path::Path;
