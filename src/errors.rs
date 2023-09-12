@@ -165,49 +165,25 @@ pub enum DispatchError {
 #[derive(Debug)]
 pub enum BuiltinError {
     /// OVERVIEW
-    /// This error occurs when a builtin command is called with an incorrect number of arguments.
+    /// This error occurs when a builtin command is provided with invalid argument(s).
     ///
-    /// CAUSE
-    /// - The number of arguments supplied does not match the number of arguments expected.
+    /// COMMON CAUSES
+    /// - The builtin received a different number of arguments than it expected.
+    /// - An argument was misspelled or malformed.
+    /// - An argument which should have been escaped or enclosed in quotes, but was not.
     ///
-    /// SOLUTION
-    /// - Check the builtin's documentation and adjust arguments accordingly.
-    ///
-    /// TECHNICAL DETAILS
-    /// When executing a builtin command, it checks the number of arguments provided by the user,
-    /// and if it does not match the expected count, this error is returned in order to prevent the
-    /// builtin from executing with malformed input.
-    WrongArgCount(usize, usize),
-
-    /// OVERVIEW
-    /// This error occurs when a builtin command receives an argument it does not recognize.
-    ///
-    /// CAUSE
-    /// - The builtin command is provided with an argument that it is unable to process.
+    /// RARE CAUSES
+    /// - A bug in the parsing logic prevented a valid argument from being parsed correctly.
     ///
     /// SOLUTION
     /// - Check the builtin's documentation and adjust arguments accordingly.
+    /// - File an issue on the Rush repository if an internal bug is suspected.
     ///
     /// TECHNICAL DETAILS
-    /// When executing a builtin command, if it encounters an argument it does not recognize, this
-    /// error is returned in order to prevent the builtin from executing with malformed input.
-    InvalidArg(String),
-
-    /// OVERVIEW
-    /// This error occurs when a builtin command receives an invalid value for a valid argument.
-    ///
-    /// CAUSE
-    /// - The builtin command receives a value that it cannot use for its associated argument.
-    ///
-    /// SOLUTION
-    /// - Check the builtin's documentation and adjust arguments accordingly.
-    ///
-    /// TECHNICAL DETAILS
-    /// When executing a builtin command, if it encounters a valid argument, it will typically try
-    /// to parse the provided value for the argument. If the value is not expected by the parsing
-    /// logic, this error is returned in order to prevent the builtin from executing with malformed
-    /// input.
-    InvalidValue(String),
+    /// When executing a builtin command, it will parse the provided arguments into values it can
+    /// use to perform an operation. If there is some error in parsing these arguments, it is unable
+    /// to run without proper input, so this error is returned.
+    CouldNotParseArgs,
 
     /// OVERVIEW
     /// This error occurs when a builtin is unable to interact with the terminal.
@@ -599,22 +575,7 @@ impl Display for BuiltinError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         use BuiltinError::*;
         match self {
-            WrongArgCount(expected, actual) => {
-                write!(
-                    f,
-                    "Expected {} {}, found {}",
-                    expected,
-                    match expected {
-                        1 => "argument",
-                        _ => "arguments",
-                    },
-                    actual
-                )
-            }
-            InvalidArg(argument) => {
-                write!(f, "Argument '{}' is invalid", argument)
-            }
-            InvalidValue(value) => write!(f, "Argument value '{}' is invalid", value),
+            CouldNotParseArgs => write!(f, "Unable to parse the provided arguments"),
             TerminalOperationFailed => write!(f, "Terminal operation failed"),
         }
     }
@@ -776,4 +737,14 @@ macro_rules! file_err {
             crate::errors::FileError::$variant$(($($content.clone().into()),*))?
         ))
     }};
+}
+
+/// Shortcut for printing a `clap::Error` and returning a `BuiltinError::CouldNotParseArgs`
+macro_rules! clap_handle {
+    ($expr:expr) => {
+        $expr.map_err(|e| {
+            eprintln!("{}", e.render().ansi());
+            builtin_err!(CouldNotParseArgs)
+        })?
+    };
 }

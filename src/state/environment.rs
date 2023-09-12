@@ -4,17 +4,19 @@ use std::fmt::{Display, Formatter};
 use std::path::{Path as StdPath, PathBuf};
 
 use bitflags::bitflags;
+use clap::ValueEnum;
 
 use super::path::Path;
 use crate::errors::{Handle, Result};
 
 /// Identifier enum for safely accessing environment variables
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[allow(clippy::upper_case_acronyms)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, ValueEnum)]
 pub enum EnvVariable {
-    User,
-    Home,
-    Cwd,
-    Path,
+    USER,
+    HOME,
+    CWD,
+    PATH,
 }
 
 impl Display for EnvVariable {
@@ -23,10 +25,10 @@ impl Display for EnvVariable {
             f,
             "{}",
             match self {
-                Self::User => "USER",
-                Self::Home => "HOME",
-                Self::Cwd => "CWD",
-                Self::Path => "PATH",
+                Self::USER => "USER",
+                Self::HOME => "HOME",
+                Self::CWD => "CWD",
+                Self::PATH => "PATH",
             }
         )
     }
@@ -36,10 +38,10 @@ impl EnvVariable {
     /// Does the same thing as `.to_string()`, but uses legacy environment variable names
     fn to_legacy_string(self) -> String {
         match self {
-            Self::User => "USER".to_string(),
-            Self::Home => "HOME".to_string(),
-            Self::Cwd => "PWD".to_string(),
-            Self::Path => "PATH".to_string(),
+            Self::USER => "USER".to_owned(),
+            Self::HOME => "HOME".to_owned(),
+            Self::CWD => "PWD".to_owned(),
+            Self::PATH => "PATH".to_owned(),
         }
     }
 }
@@ -74,10 +76,10 @@ pub struct Environment {
 #[allow(non_snake_case)]
 impl Environment {
     pub fn new() -> Result<Self> {
-        let USER = get_parent_env_var(EnvVariable::User)?;
-        let HOME = PathBuf::from(get_parent_env_var(EnvVariable::Home)?);
-        let CWD = Path::try_from_str(get_parent_env_var(EnvVariable::Cwd)?.as_str(), &HOME)?;
-        let PATH = convert_path(get_parent_env_var(EnvVariable::Path)?.as_str(), &HOME)?;
+        let USER = get_parent_env_var(EnvVariable::USER)?;
+        let HOME = PathBuf::from(get_parent_env_var(EnvVariable::HOME)?);
+        let CWD = Path::try_from_str(get_parent_env_var(EnvVariable::CWD)?.as_str(), Some(&HOME))?;
+        let PATH = convert_path_var(get_parent_env_var(EnvVariable::PATH)?.as_str())?;
 
         Ok(Self {
             USER,
@@ -103,16 +105,16 @@ impl Environment {
 
         if vars.contains(EnvVariables::CWD) {
             env::set_current_dir(self.CWD.path())
-                .replace_err(|| state_err!(CouldNotUpdateEnv: EnvVariable::Cwd))?;
+                .replace_err(|| state_err!(CouldNotUpdateEnv: EnvVariable::CWD))?;
         }
 
         Ok(())
     }
 
     /// Sets the current working directory and stores the previous working directory
-    pub fn set_CWD(&mut self, new_directory: &str, history_limit: Option<usize>) -> Result<()> {
+    pub fn set_CWD(&mut self, new_directory: &StdPath, history_limit: Option<usize>) -> Result<()> {
         let starting_directory = self.CWD.clone();
-        let new_directory = Path::try_from_str(new_directory, &self.HOME)?;
+        let new_directory = Path::try_from_path(new_directory, Some(&self.HOME))?;
 
         // Add the old directory to the history, avoiding duplicates
         if new_directory != starting_directory {
@@ -163,12 +165,12 @@ fn get_parent_env_var(variable: EnvVariable) -> Result<String> {
 }
 
 /// Converts the PATH environment variable from a string to a collection of `Path`s
-fn convert_path(path: &str, home: &StdPath) -> Result<VecDeque<Path>> {
+fn convert_path_var(path: &str) -> Result<VecDeque<Path>> {
     let mut paths = VecDeque::new();
-
     let path_strings = path.split(':').collect::<Vec<&str>>();
+
     for path_string in path_strings {
-        if let Ok(path) = Path::try_from_str(path_string, home) {
+        if let Ok(path) = Path::try_from_str(path_string, None) {
             paths.push_back(path);
         }
     }

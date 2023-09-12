@@ -23,8 +23,10 @@ impl Runnable for Executable {
     // * Executables do not have access to the shell state, but the context argument is required by the Runnable trait
     fn run(&self, _shell: &mut ShellState, arguments: Vec<&str>) -> Result<()> {
         // Create the Process, pass the provided arguments to it, and execute it
+        // * Executable name has to be removed because `std::process::Command`
+        // * automatically adds the executable name as the first argument
         let mut process = Process::new(self.path.path())
-            .args(arguments)
+            .args(&arguments[1..])
             .spawn()
             .replace_err(|| executable_err!(PathNoLongerExists: self.path))?;
 

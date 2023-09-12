@@ -33,7 +33,7 @@ impl ShellState {
         let home = &self.environment.HOME;
         let truncation = self.config.truncation_factor;
         let cwd = self.environment.CWD.collapse(home, truncation);
-        let prompt_delimiter = match self.config.multi_line_prompt {
+        let prompt_delimiter = match self.config.multiline_prompt {
             true => "\n",
             false => " ",
         };
