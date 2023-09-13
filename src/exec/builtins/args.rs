@@ -22,13 +22,15 @@ pub struct WorkingDirectoryArgs {}
 
 #[derive(Parser, Debug)]
 pub struct ChangeDirectoryArgs {
+    #[arg(help = "The path of the directory to switch to")]
     pub path: PathBuf,
 }
 
 #[derive(Parser, Debug)]
 pub struct ListDirectoryArgs {
-    #[arg(short = 'a', long = "all")]
+    #[arg(short = 'a', long = "all", help = "Show hidden files and directories")]
     pub show_hidden: bool,
+    #[arg(help = "The path of the directory to read")]
     pub path: Option<PathBuf>,
 }
 
@@ -43,66 +45,82 @@ pub struct ClearTerminalArgs {}
 
 #[derive(Parser, Debug)]
 pub struct MakeFileArgs {
+    #[arg(help = "The path of the file to create")]
     pub path: PathBuf,
 }
 
 #[derive(Parser, Debug)]
 pub struct MakeDirectoryArgs {
+    #[arg(help = "The path of the directory to create")]
     pub path: PathBuf,
 }
 
 #[derive(Parser, Debug)]
 pub struct DeleteFileArgs {
+    #[arg(help = "The path of the file to delete")]
     pub path: PathBuf,
 }
 
 #[derive(Parser, Debug)]
 pub struct ReadFileArgs {
+    #[arg(help = "The path of the file to read")]
     pub path: PathBuf,
 }
 
 #[derive(Parser, Debug)]
 pub struct RunExecutableArgs {
+    #[arg(help = "The path to the executable")]
     pub path: PathBuf,
+    #[arg(help = "The arguments to pass to the executable")]
     pub arguments: Vec<String>,
 }
 
 #[derive(Parser, Debug)]
+#[command(arg_required_else_help = true)]
 pub struct ConfigureArgs {
-    #[arg(long = "truncation-factor")]
-    pub truncation_factor: Option<MaybeUsize>,
-    #[arg(long = "history-limit")]
+    #[arg(
+        long = "truncation",
+        help = "The number of characters to trim each directory name to in the prompt"
+    )]
+    pub truncation: Option<MaybeUsize>,
+    #[arg(
+        long = "history-limit",
+        help = "The maximum number of commands to store in the history"
+    )]
     pub history_limit: Option<MaybeUsize>,
-    #[arg(long = "multiline-prompt")]
-    pub multiline_prompt: Option<FancyBool>,
-    #[arg(long = "show-errors")]
-    pub show_errors: Option<FancyBool>,
+    #[arg(
+        long = "multiline-prompt",
+        help = "Whether to display the prompt on multiple lines"
+    )]
+    pub multiline_prompt: Option<Bool>,
+    #[arg(long = "show-errors", help = "Whether to display error messages")]
+    pub show_errors: Option<Bool>,
 }
 
 #[derive(Debug, Clone)]
-pub enum FancyBool {
+pub enum Bool {
     True,
     False,
 }
 
-impl FromStr for FancyBool {
+impl FromStr for Bool {
     type Err = String;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if TRUE_ARGS.contains(&s) {
-            Ok(FancyBool::True)
+            Ok(Bool::True)
         } else if FALSE_ARGS.contains(&s) {
-            Ok(FancyBool::False)
+            Ok(Bool::False)
         } else {
             Err("invalid boolean value".to_owned())
         }
     }
 }
 
-impl From<FancyBool> for bool {
-    fn from(b: FancyBool) -> Self {
+impl From<Bool> for bool {
+    fn from(b: Bool) -> Self {
         match b {
-            FancyBool::True => true,
-            FancyBool::False => false,
+            Bool::True => true,
+            Bool::False => false,
         }
     }
 }
@@ -137,6 +155,7 @@ impl From<MaybeUsize> for Option<usize> {
 
 #[derive(Parser, Debug)]
 pub struct EnvironmentVariableArgs {
+    #[arg(help = "The environment variable to display")]
     pub variable: EnvVariable,
 }
 
@@ -166,21 +185,26 @@ pub enum EditPathSubcommand {
 
 #[derive(Args, Debug, Clone)]
 pub struct AppendPathCommand {
+    #[arg(help = "The path to append to the PATH variable")]
     pub path: PathBuf,
 }
 
 #[derive(Args, Debug, Clone)]
 pub struct PrependPathCommand {
+    #[arg(help = "The path to prepend to the PATH variable")]
     pub path: PathBuf,
 }
 
 #[derive(Args, Debug, Clone)]
 pub struct InsertPathCommand {
+    #[arg(help = "The index to insert the provided path at")]
     pub index: usize,
+    #[arg(help = "The path to insert into the PATH variable")]
     pub path: PathBuf,
 }
 
 #[derive(Args, Debug, Clone)]
 pub struct DeletePathCommand {
+    #[arg(help = "The index of the path to delete from the PATH variable")]
     pub index: usize,
 }

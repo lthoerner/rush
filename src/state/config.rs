@@ -10,7 +10,7 @@ use crate::errors::{Handle, Result};
 /// Represents any settings for the shell, most of which can be configured by the user
 pub struct Configuration {
     /// The truncation length for the prompt
-    pub truncation_factor: Option<usize>,
+    pub truncation: Option<usize>,
     /// How many directories to store in the back/forward history
     pub history_limit: Option<usize>,
     /// Whether to show the prompt tick on a new line
@@ -24,7 +24,7 @@ pub struct Configuration {
 impl Default for Configuration {
     fn default() -> Self {
         Self {
-            truncation_factor: None,
+            truncation: None,
             history_limit: None,
             multiline_prompt: false,
             show_errors: true,
@@ -61,11 +61,11 @@ impl Configuration {
 
             // ? Should these be underscores instead of hyphens?
             match key {
-                "truncation-factor" => {
+                "truncation" => {
                     if let Ok(length) = value.parse::<usize>() {
-                        config.truncation_factor = Some(length);
+                        config.truncation = Some(length);
                     } else if value == "false" {
-                        config.truncation_factor = None;
+                        config.truncation = None;
                     } else {
                         return Err(
                             file_err!(CouldNotReadFile: filename).set_context(&read_error_msg)

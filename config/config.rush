@@ -1,4 +1,4 @@
-truncation-factor: false
+truncation: false
 multiline-prompt: true
 history-limit: false
 show-errors: true

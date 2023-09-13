@@ -31,7 +31,7 @@ impl ShellState {
     pub fn generate_prompt(&self) -> String {
         let user = self.environment.USER.clone();
         let home = &self.environment.HOME;
-        let truncation = self.config.truncation_factor;
+        let truncation = self.config.truncation;
         let cwd = self.environment.CWD.collapse(home, truncation);
         let prompt_delimiter = match self.config.multiline_prompt {
             true => "\n",
