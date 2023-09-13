@@ -193,8 +193,8 @@ pub fn run_executable(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
 pub fn configure(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     let arguments = clap_handle!(ConfigureArgs::try_parse_from(args));
 
-    if let Some(truncation_factor) = arguments.truncation_factor {
-        shell.config.truncation_factor = truncation_factor.into();
+    if let Some(truncation) = arguments.truncation {
+        shell.config.truncation = truncation.into();
     }
 
     if let Some(history_limit) = arguments.history_limit {

@@ -85,7 +85,7 @@ impl Path {
     /// Gets the shortened version of the path
     /// If a truncation factor is provided, the path will be truncated
     /// The shortened path will always have the home directory collapsed
-    pub fn collapse(&self, home_directory: &PathBuf, truncation_factor: Option<usize>) -> String {
+    pub fn collapse(&self, home_directory: &PathBuf, truncation: Option<usize>) -> String {
         // ? Is there a less redundant way to write this?
         let path = match self.absolute_path.strip_prefix(home_directory) {
             Ok(path) => {
@@ -105,11 +105,11 @@ impl Path {
         let directories: Vec<String> = path.split('/').map(|d| d.to_string()).collect();
         let mut truncated_directories = Vec::new();
 
-        if let Some(factor) = truncation_factor {
+        if let Some(trunctation) = truncation {
             for dir in directories {
                 let mut truncated_dir = dir.clone();
-                if dir.len() > factor {
-                    truncated_dir.truncate(factor);
+                if dir.len() > trunctation {
+                    truncated_dir.truncate(trunctation);
                 }
 
                 truncated_directories.push(truncated_dir);
