@@ -42,7 +42,7 @@ pub fn exit(_shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
 
 pub fn working_directory(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     clap_handle!(WorkingDirectoryArgs::try_parse_from(args));
-    println!("{}", shell.environment.CWD);
+    println!("{}", shell.CWD());
     Ok(())
 }
 
@@ -60,9 +60,7 @@ pub fn change_directory(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
 pub fn list_directory(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     let arguments = clap_handle!(ListDirectoryArgs::try_parse_from(&args));
     let show_hidden = arguments.show_hidden;
-    let path_to_read = arguments
-        .path
-        .unwrap_or(shell.environment.CWD.path().to_path_buf());
+    let path_to_read = arguments.path.unwrap_or(shell.CWD().path().to_path_buf());
 
     let read_dir_result =
         fs_err::read_dir(&path_to_read).replace_err(|| file_err!(UnknownPath: path_to_read))?;
@@ -218,9 +216,9 @@ pub fn environment_variable(shell: &mut ShellState, args: Vec<&str>) -> Result<(
     match arguments.variable {
         USER => println!("{}", shell.environment.USER),
         HOME => println!("{}", shell.environment.HOME.display()),
-        CWD => println!("{}", shell.environment.CWD),
+        CWD => println!("{}", shell.CWD()),
         PATH => {
-            for (i, path) in shell.environment.PATH.iter().enumerate() {
+            for (i, path) in shell.environment.PATH().iter().enumerate() {
                 println!("[{i}]: {path}");
             }
         }
@@ -230,26 +228,19 @@ pub fn environment_variable(shell: &mut ShellState, args: Vec<&str>) -> Result<(
 }
 
 pub fn edit_path(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
-    // TODO: Needs to update the real PATH
     let arguments = clap_handle!(EditPathArgs::try_parse_from(args));
     use EditPathSubcommand::*;
     match arguments.subcommand {
         Append(AppendPathCommand { path }) => shell
             .environment
-            .PATH
-            .push_front(Path::try_from_path(&path, Some(&shell.environment.HOME))?),
+            .PATH_append(Path::try_from_path(&path, Some(&shell.environment.HOME))?),
         Prepend(PrependPathCommand { path }) => shell
             .environment
-            .PATH
-            .push_front(Path::try_from_path(&path, Some(&shell.environment.HOME))?),
-        Insert(InsertPathCommand { index, path }) => shell.environment.PATH.insert(
+            .PATH_prepend(Path::try_from_path(&path, Some(&shell.environment.HOME))?),
+        Insert(InsertPathCommand { index, path }) => shell.environment.PATH_insert(
             index,
             Path::try_from_path(&path, Some(&shell.environment.HOME))?,
         ),
-        Delete(DeletePathCommand { index }) => {
-            shell.environment.PATH.remove(index);
-        }
+        Delete(DeletePathCommand { index }) => shell.environment.PATH_delete(index),
     }
-
-    Ok(())
 }

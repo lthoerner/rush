@@ -4,6 +4,7 @@ use crossterm::style::Stylize;
 
 use super::config::Configuration;
 use super::environment::Environment;
+use super::Path;
 use crate::errors::Result;
 
 /// Represents the shell state and provides methods for interacting with it
@@ -32,7 +33,7 @@ impl ShellState {
         let user = self.environment.USER.clone();
         let home = &self.environment.HOME;
         let truncation = self.config.truncation;
-        let cwd = self.environment.CWD.collapse(home, truncation);
+        let cwd = self.CWD().collapse(home, truncation);
         let prompt_delimiter = match self.config.multiline_prompt {
             true => "\n",
             false => " ",
@@ -52,5 +53,11 @@ impl ShellState {
             prompt_delimiter,
             prompt_tick
         )
+    }
+
+    /// Convenience getter for the current working directory
+    #[allow(non_snake_case)]
+    pub fn CWD(&self) -> &Path {
+        self.environment.CWD()
     }
 }
