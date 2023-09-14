@@ -63,10 +63,11 @@ bitflags! {
 pub struct Environment {
     pub USER: String,
     pub HOME: PathBuf,
-    pub CWD: Path,
+    CWD: Path,
     // * PATH is not to be confused with the WORKING_DIRECTORY. PATH is a list of directories which
     // * the shell will search for executables in. WORKING_DIRECTORY is the current directory the user is in.
-    pub PATH: VecDeque<Path>,
+    PATH: VecDeque<Path>,
+    // ? Should these be `ShellState` fields instead?
     backward_directories: VecDeque<Path>,
     forward_directories: VecDeque<Path>,
     #[allow(dead_code)]
@@ -156,6 +157,46 @@ impl Environment {
         } else {
             Err(state_err!(NoNextDirectory))
         }
+    }
+
+    /// Appends a path to the PATH variable
+    pub fn PATH_append(&mut self, path: Path) -> Result<()> {
+        self.PATH.push_back(path);
+        self.update_process_env_vars(EnvVariables::PATH)
+    }
+
+    /// Prepends a path to the PATH variable
+    pub fn PATH_prepend(&mut self, path: Path) -> Result<()> {
+        self.PATH.push_front(path);
+        self.update_process_env_vars(EnvVariables::PATH)
+    }
+
+    /// Inserts a path at the specified index in the PATH variable
+    pub fn PATH_insert(&mut self, index: usize, path: Path) -> Result<()> {
+        if index > self.PATH.len() {
+            return Err(state_err!(InvalidPathIndex: index));
+        }
+
+        self.PATH.insert(index, path);
+        self.update_process_env_vars(EnvVariables::PATH)
+    }
+
+    /// Deletes the path at the specified index in the PATH variable
+    pub fn PATH_delete(&mut self, index: usize) -> Result<()> {
+        self.PATH
+            .remove(index)
+            .replace_err(|| state_err!(InvalidPathIndex: index))?;
+        self.update_process_env_vars(EnvVariables::PATH)
+    }
+
+    /// Getter for the current working directory
+    pub fn CWD(&self) -> &Path {
+        &self.CWD
+    }
+
+    /// Getter for the PATH
+    pub fn PATH(&self) -> &VecDeque<Path> {
+        &self.PATH
     }
 }
 

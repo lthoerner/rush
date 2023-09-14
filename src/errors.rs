@@ -334,6 +334,24 @@ pub enum StateError {
     NoNextDirectory,
 
     /// OVERVIEW
+    /// This error occurs when the shell tries to update the PATH variable using an invalid index.
+    ///
+    /// CAUSE
+    /// - A non-existent index was provided to the 'edit-path' builtin using the 'insert' or
+    /// 'delete' subcommand.
+    ///
+    /// SOLUTION
+    /// - Check the PATH variable using the 'environment' builtin and ensure that the index provided
+    /// is valid.
+    ///
+    /// TECHNICAL DETAILS
+    /// The 'edit-path' builtin allows the user to modify the PATH variable. The PATH variable is
+    /// represented using a vector (list) of paths, which is indexed when the user provides an index
+    /// to insert or delete a path. If the user provides an index which does not exist, this error
+    /// is returned.
+    InvalidPathIndex(usize),
+
+    /// OVERVIEW
     /// This error occurs when the line editor is unable to interact with the terminal.
     ///
     /// CAUSE
@@ -616,6 +634,9 @@ impl Display for StateError {
             }
             NoPreviousDirectory => write!(f, "No previous directory"),
             NoNextDirectory => write!(f, "No next directory"),
+            InvalidPathIndex(index) => {
+                write!(f, "Path index {} is invalid", index)
+            }
             UnsupportedTerminal => write!(f, "Terminal is not supported"),
         }
     }
