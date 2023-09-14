@@ -763,9 +763,15 @@ macro_rules! file_err {
 /// Shortcut for printing a `clap::Error` and returning a `BuiltinError::CouldNotParseArgs`
 macro_rules! clap_handle {
     ($expr:expr) => {
-        $expr.map_err(|e| {
-            eprintln!("{}", e.render().ansi());
-            builtin_err!(CouldNotParseArgs)
-        })?
+        match $expr {
+            Ok(val) => val,
+            Err(e) => {
+                eprintln!("{}", e.render().ansi());    
+                match e.kind() {
+                    clap::error::ErrorKind::DisplayHelp => return crate::errors::Result::Ok(()),
+                    _ => return crate::errors::Result::Err(builtin_err!(CouldNotParseArgs)),
+                }
+            },
+        }
     };
 }
