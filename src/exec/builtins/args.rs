@@ -30,6 +30,8 @@ pub struct ChangeDirectoryArgs {
 pub struct ListDirectoryArgs {
     #[arg(short = 'a', long = "all", help = "Show hidden files and directories")]
     pub show_hidden: bool,
+    #[arg(short = 'l', long = "long", help = "Show files with details as a table")]
+    pub long_view: bool, 
     #[arg(help = "The path of the directory to read")]
     pub path: Option<PathBuf>,
 }
