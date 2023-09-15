@@ -11,6 +11,8 @@ An executable will only have access to its arguments and environment variables, 
 use std::io::{stderr, BufRead, BufReader, Write};
 use std::path::PathBuf;
 use std::os::unix::fs::PermissionsExt;
+use std::os::unix::fs::MetadataExt;
+
 
 use clap::Parser;
 use crossterm::cursor::MoveTo;
@@ -34,6 +36,7 @@ use crate::exec::builtins::args::{
 use crate::exec::{Executable, Runnable};
 use crate::state::{EnvVariable, Path, ShellState};
 
+#[derive(PartialEq)]
 enum DirectoryListItemType {
     IFile,
     IDirectory,
@@ -206,11 +209,28 @@ fn list_directory_long(item: &str, i_type: DirectoryListItemType, permission_for
         },
     };
 
+    let file_size = std::fs::metadata(path.to_path_buf()).unwrap().size();
+    let formatted_fsize = if file_size < 1000 {
+        format!("{}", file_size.to_string().green()).white()
+    } else { 
+        let fsize_string = (file_size as f64 / 1000 as f64).round().to_string();
+        let mut c: Vec<char> = fsize_string.chars().collect();
+        let cstring = c.iter().collect::<String>();
+
+        if cstring.len() > 3 {
+            format!("{1}{0}", "k".dark_green(), cstring.as_str().green()).to_string().white()
+        } else if cstring.len() < 2 {
+            format!(" {1}{0}", "k".dark_green(), cstring.as_str().green()).to_string().white()
+        } else {
+            format!("{1}{0}", "k".dark_green(), cstring.as_str().green()).to_string().white()
+        }
+    };
+
     println!("{4} {3} {2} {1} {0}", 
         if item.content().starts_with('.') { item.dark_grey() } else { item }, 
         format!("{}", <std::time::SystemTime as Into<DateTime<Local>>>::into(std::fs::metadata(path.to_path_buf()).unwrap().modified().unwrap()).format("%b %d %Y %T")).dark_cyan(),
         path.owner().unwrap().to_string().yellow(),
-        "-".dark_grey(),
+        if i_type == DirectoryListItemType::IDirectory { "  -".to_string().dark_grey() } else { formatted_fsize },
         permissions
     );
 }
