@@ -8,17 +8,13 @@ Users are free to create their own builtins if they wish to modify the source co
 An executable will only have access to its arguments and environment variables, but not the shell's state, mostly for security reasons.
  */
 
-use std::io::{stderr, BufRead, BufReader, Write};
-use std::os::unix::fs::PermissionsExt;
+use std::io::{stderr, BufRead, BufReader};
 
 use clap::Parser;
 use crossterm::cursor::MoveTo;
 use crossterm::execute;
 use crossterm::style::Stylize;
 use crossterm::terminal::{self, Clear, ClearType};
-use file_owner::PathExt;
-use chrono::offset::Local;
-use chrono::DateTime;
 
 use super::args::{
     ChangeDirectoryArgs, ClearTerminalArgs, ConfigureArgs, DeleteFileArgs, EditPathArgs,
@@ -64,7 +60,6 @@ pub fn change_directory(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
 pub fn list_directory(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     let arguments = clap_handle!(ListDirectoryArgs::try_parse_from(&args));
     let show_hidden = arguments.show_hidden;
-    let long_view = arguments.long_view;
     let path_to_read = arguments.path.unwrap_or(shell.CWD().path().to_path_buf());
 
     let read_dir_result =
@@ -72,7 +67,7 @@ pub fn list_directory(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
 
     let mut directories = Vec::new();
     let mut files = Vec::new();
-    
+
     for dir_entry in read_dir_result {
         let fs_object = dir_entry.replace_err(|| file_err!(UnreadableDirectory: path_to_read))?;
         let fs_object_name = fs_object.file_name();
@@ -89,50 +84,22 @@ pub fn list_directory(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
         }
 
         if fs_object_type.is_dir() {
-            directories.push(format!("{}/", fs_object_name).to_string());
+            directories.push(format!("{}/", fs_object_name).green().to_string());
         } else {
-            files.push(fs_object_name.to_string());
-        }
+            files.push(fs_object_name.cyan().to_string());
+        };
     }
 
     directories.sort();
     files.sort();
 
     for directory in directories {
-        if !long_view {
-            print!("{}  ", &directory.green());
-        } else {
-            let path = path_to_read.join(&directory);
-            let permissions_octal = format!("{:o}", std::fs::metadata(path.to_path_buf()).unwrap().permissions().mode());
-
-            println!("{4} {3} {2} {1} {0}", 
-                &directory.clone().green(), 
-                format!("{}", <std::time::SystemTime as Into<DateTime<Local>>>::into(std::fs::metadata(path.to_path_buf()).unwrap().modified().unwrap()).format("%b %d %Y %T")).dark_cyan(),
-                path.owner().unwrap().to_string().yellow(),
-                "-".dark_grey(),
-                permissions_octal[permissions_octal.len() - 3..].to_string().dark_magenta()
-            );
-        }
+        println!("{}", &directory);
     }
 
     for file in files {
-        if !long_view {
-            print!("{}  ", &file.cyan());
-        } else {
-            let path = path_to_read.join(&file);
-            let permissions_octal = format!("{:o}", std::fs::metadata(path.to_path_buf()).unwrap().permissions().mode());
-
-            println!("{4} {3} {2} {1} {0}", 
-                &file.clone().cyan(), 
-                format!("{}", <std::time::SystemTime as Into<DateTime<Local>>>::into(std::fs::metadata(path.to_path_buf()).unwrap().modified().unwrap()).format("%b %d %Y %T")).dark_cyan(),
-                path.owner().unwrap().to_string().yellow(),
-                "-".dark_grey(),
-                permissions_octal[permissions_octal.len() - 3..].to_string().dark_magenta()
-            );
-        }
+        println!("{}", &file);
     }
-
-    println!();
 
     Ok(())
 }
