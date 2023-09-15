@@ -31,7 +31,11 @@ pub struct ListDirectoryArgs {
     #[arg(short = 'a', long = "all", help = "Show hidden files and directories")]
     pub show_hidden: bool,
     #[arg(short = 'l', long = "long", help = "Show files with details as a table")]
-    pub long_view: bool, 
+    pub long_view: bool,
+    #[arg(short = 'o', long = "octal-permissions", help = "Use octal permissions instead of string representation")]
+    pub octal_permissions: bool,
+    #[arg(long = "permission-seperator", help = "Show sperators for each permission group (eg. Current user, current group, and other users and groups)")]
+    pub permission_seperator: bool,
     #[arg(help = "The path of the directory to read")]
     pub path: Option<PathBuf>,
 }

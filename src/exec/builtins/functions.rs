@@ -9,12 +9,13 @@ An executable will only have access to its arguments and environment variables, 
  */
 
 use std::io::{stderr, BufRead, BufReader, Write};
+use std::path::PathBuf;
 use std::os::unix::fs::PermissionsExt;
 
 use clap::Parser;
 use crossterm::cursor::MoveTo;
 use crossterm::execute;
-use crossterm::style::Stylize;
+use crossterm::style::{Stylize, style};
 use crossterm::terminal::{self, Clear, ClearType};
 use file_owner::PathExt;
 use chrono::offset::Local;
@@ -32,6 +33,16 @@ use crate::exec::builtins::args::{
 };
 use crate::exec::{Executable, Runnable};
 use crate::state::{EnvVariable, Path, ShellState};
+
+enum DirectoryListItemType {
+    IFile,
+    IDirectory,
+}
+
+enum DirectoryListPermissionMode {
+    Octal,
+    String,
+}
 
 pub fn test(_shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     clap_handle!(TestArgs::try_parse_from(args));
@@ -65,6 +76,8 @@ pub fn list_directory(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     let arguments = clap_handle!(ListDirectoryArgs::try_parse_from(&args));
     let show_hidden = arguments.show_hidden;
     let long_view = arguments.long_view;
+    let octal_permissions = arguments.octal_permissions;
+    let permission_seperator = arguments.permission_seperator;
     let path_to_read = arguments.path.unwrap_or(shell.CWD().path().to_path_buf());
 
     let read_dir_result =
@@ -100,41 +113,106 @@ pub fn list_directory(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
 
     for directory in directories {
         if !long_view {
-            print!("{}  ", &directory.green());
+            print!("{}  ", if directory.starts_with('.') { directory.dark_green() } else { directory.green() });
         } else {
-            let path = path_to_read.join(&directory);
-            let permissions_octal = format!("{:o}", std::fs::metadata(path.to_path_buf()).unwrap().permissions().mode());
-
-            println!("{4} {3} {2} {1} {0}", 
-                &directory.clone().green(), 
-                format!("{}", <std::time::SystemTime as Into<DateTime<Local>>>::into(std::fs::metadata(path.to_path_buf()).unwrap().modified().unwrap()).format("%b %d %Y %T")).dark_cyan(),
-                path.owner().unwrap().to_string().yellow(),
-                "-".dark_grey(),
-                permissions_octal[permissions_octal.len() - 3..].to_string().dark_magenta()
-            );
+            if !octal_permissions {
+                list_directory_long(&directory, DirectoryListItemType::IDirectory, DirectoryListPermissionMode::String, path_to_read.clone(), permission_seperator);
+            } else {
+                list_directory_long(&directory, DirectoryListItemType::IDirectory, DirectoryListPermissionMode::Octal, path_to_read.clone(), permission_seperator);
+            }
         }
     }
 
     for file in files {
         if !long_view {
-            print!("{}  ", &file.cyan());
+            print!("{}  ", if file.starts_with('.') { file.dark_grey() } else { file.white() });
         } else {
-            let path = path_to_read.join(&file);
-            let permissions_octal = format!("{:o}", std::fs::metadata(path.to_path_buf()).unwrap().permissions().mode());
-
-            println!("{4} {3} {2} {1} {0}", 
-                &file.clone().cyan(), 
-                format!("{}", <std::time::SystemTime as Into<DateTime<Local>>>::into(std::fs::metadata(path.to_path_buf()).unwrap().modified().unwrap()).format("%b %d %Y %T")).dark_cyan(),
-                path.owner().unwrap().to_string().yellow(),
-                "-".dark_grey(),
-                permissions_octal[permissions_octal.len() - 3..].to_string().dark_magenta()
-            );
+            if !octal_permissions {
+                list_directory_long(&file, DirectoryListItemType::IFile, DirectoryListPermissionMode::String, path_to_read.clone(), permission_seperator);
+            } else {
+                list_directory_long(&file, DirectoryListItemType::IFile, DirectoryListPermissionMode::Octal, path_to_read.clone(), permission_seperator);
+            }
         }
     }
 
-    println!();
+    if !long_view {
+        println!();
+    }
 
     Ok(())
+}
+
+fn list_directory_long(item: &str, i_type: DirectoryListItemType, permission_format: DirectoryListPermissionMode, cwd: PathBuf, permission_seperator: bool) {
+    // ! TODO: Show file sizes in place of dashes
+
+    let path_to_read = cwd;
+    let path = path_to_read.join(item);
+    let permission_octal =  { 
+        let x = format!("{:o}", std::fs::metadata(path.to_path_buf()).unwrap().permissions().mode()); 
+        x[x.len() - 3..].to_string() 
+    };
+
+    let item = match i_type {
+        DirectoryListItemType::IFile => item.white(),      
+        DirectoryListItemType::IDirectory => item.green(), 
+    };
+
+    let permissions = match permission_format {
+        DirectoryListPermissionMode::Octal => {
+            permission_octal.dark_magenta()
+        },
+            
+        DirectoryListPermissionMode::String => {
+            let permission_str = permission_octal;
+            let mut result = String::new();
+
+            let dash = "-".dark_grey();
+            let r = "r".white();
+            let w = "w".white();
+            let x = "x".white();
+
+            let mapping = vec![
+                format!("{0}{0}{0}", dash),
+                format!("{0}{0}{1}", dash, x), 
+                format!("{0}{1}{0}", dash, w), 
+                format!("{}{}{}", dash, w, x),
+                format!("{}{1}{1}", r, dash),
+                format!("{}{}{}", r, dash, x),
+                format!("{}{}{}", r, w, dash),
+                format!("{}{}{}", r, w, x)
+            ];
+
+            for (i, c) in permission_str.chars().enumerate() {
+                let digit = c.to_digit(8).unwrap() as usize;
+
+                if permission_seperator {
+                    if i == 0 {
+                        result.push_str(format!("{} ", "U".grey()).as_str());
+                    }
+
+                    if i == 1 {
+                        result.push_str(format!(" {} ", "G".grey()).as_str());
+                    }
+
+                    if i == 2 {
+                        result.push_str(format!(" {} ", "O".grey()).as_str());
+                    }
+                }
+
+                result.push_str(&mapping[digit]);
+            }
+
+            result.white()
+        },
+    };
+
+    println!("{4} {3} {2} {1} {0}", 
+        if item.content().starts_with('.') { item.dark_grey() } else { item }, 
+        format!("{}", <std::time::SystemTime as Into<DateTime<Local>>>::into(std::fs::metadata(path.to_path_buf()).unwrap().modified().unwrap()).format("%b %d %Y %T")).dark_cyan(),
+        path.owner().unwrap().to_string().yellow(),
+        "-".dark_grey(),
+        permissions
+    );
 }
 
 pub fn previous_directory(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
