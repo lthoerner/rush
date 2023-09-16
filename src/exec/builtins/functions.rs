@@ -22,6 +22,7 @@ use crossterm::terminal::{self, Clear, ClearType};
 use file_owner::PathExt;
 use chrono::offset::Local;
 use chrono::DateTime;
+use size::{Size, Style};
 
 use super::args::{
     ChangeDirectoryArgs, ClearTerminalArgs, ConfigureArgs, DeleteFileArgs, EditPathArgs,
@@ -35,12 +36,6 @@ use crate::exec::builtins::args::{
 };
 use crate::exec::{Executable, Runnable};
 use crate::state::{EnvVariable, Path, ShellState};
-
-#[derive(PartialEq)]
-enum DirectoryListItemType {
-    IFile,
-    IDirectory,
-}
 
 enum DirectoryListPermissionMode {
     Octal,
@@ -113,126 +108,153 @@ pub fn list_directory(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
 
     directories.sort();
     files.sort();
-
-    for directory in directories {
-        if !long_view {
-            print!("{}  ", if directory.starts_with('.') { directory.dark_green() } else { directory.green() });
-        } else {
-            if !octal_permissions {
-                list_directory_long(&directory, DirectoryListItemType::IDirectory, DirectoryListPermissionMode::String, path_to_read.clone(), permission_seperator);
-            } else {
-                list_directory_long(&directory, DirectoryListItemType::IDirectory, DirectoryListPermissionMode::Octal, path_to_read.clone(), permission_seperator);
-            }
-        }
-    }
-
-    for file in files {
-        if !long_view {
-            print!("{}  ", if file.starts_with('.') { file.dark_grey() } else { file.white() });
-        } else {
-            if !octal_permissions {
-                list_directory_long(&file, DirectoryListItemType::IFile, DirectoryListPermissionMode::String, path_to_read.clone(), permission_seperator);
-            } else {
-                list_directory_long(&file, DirectoryListItemType::IFile, DirectoryListPermissionMode::Octal, path_to_read.clone(), permission_seperator);
-            }
-        }
-    }
-
+    
     if !long_view {
+        for i in &directories {
+            if i.starts_with('.') {
+                print!("{}  ", i.clone().dark_green())
+            } else {
+                print!("{}  ", i.clone().green())
+            }
+        }
+
+        for i in &files {
+            if i.starts_with('.') {
+                print!("{}  ", i.clone().grey())
+            } else {
+                print!("{}  ", i.clone().white())
+            }
+
+        }
+
         println!();
+
+        return Ok(());
     }
+
+    directories.append(&mut files);
+
+    let permission_view = match octal_permissions {
+        true => DirectoryListPermissionMode::Octal,
+        false => DirectoryListPermissionMode::String,
+    };
+
+    list_directory_long(directories, permission_view, path_to_read.clone(), permission_seperator);
 
     Ok(())
 }
 
-fn list_directory_long(item: &str, i_type: DirectoryListItemType, permission_format: DirectoryListPermissionMode, cwd: PathBuf, permission_seperator: bool) {
-    // ! TODO: Show file sizes in place of dashes
-
+fn list_directory_long(item: Vec<String>, permission_format: DirectoryListPermissionMode, cwd: PathBuf, permission_seperator: bool) {
     let path_to_read = cwd;
-    let path = path_to_read.join(item);
-    let permission_octal =  { 
-        let x = format!("{:o}", std::fs::metadata(path.to_path_buf()).unwrap().permissions().mode()); 
-        x[x.len() - 3..].to_string() 
-    };
+    let mut file_size_len: usize = 0;
+    let mut file_size_len_last: usize = 0;
+    let mut username_len: usize = 0;
+    let mut username_len_last: usize = 0;
 
-    let item = match i_type {
-        DirectoryListItemType::IFile => item.white(),      
-        DirectoryListItemType::IDirectory => item.green(), 
-    };
+    for i in &item {
+        let path = path_to_read.join(i);
+        let file_size = std::fs::metadata(path.to_path_buf()).unwrap().size();
+        let formatted_fsize = Size::from_bytes(file_size).to_string();
 
-    let permissions = match permission_format {
-        DirectoryListPermissionMode::Octal => {
-            permission_octal.dark_magenta()
-        },
-            
-        DirectoryListPermissionMode::String => {
-            let permission_str = permission_octal;
-            let mut result = String::new();
+        file_size_len_last = formatted_fsize.len();
 
-            let dash = "-".dark_grey();
-            let r = "r".white();
-            let w = "w".white();
-            let x = "x".white();
+        if file_size_len_last > file_size_len {
+                file_size_len = file_size_len_last;
+        }
+    }
 
-            let mapping = vec![
-                format!("{0}{0}{0}", dash),
-                format!("{0}{0}{1}", dash, x), 
-                format!("{0}{1}{0}", dash, w), 
-                format!("{}{}{}", dash, w, x),
-                format!("{}{1}{1}", r, dash),
-                format!("{}{}{}", r, dash, x),
-                format!("{}{}{}", r, w, dash),
-                format!("{}{}{}", r, w, x)
-            ];
+    for i in &item {
+        let path = path_to_read.join(i);
+        
+        username_len_last = path.owner().unwrap().to_string().len();
 
-            for (i, c) in permission_str.chars().enumerate() {
-                let digit = c.to_digit(8).unwrap() as usize;
+        if username_len_last > username_len {
+            username_len = username_len_last;
+        }
+    }
 
-                if permission_seperator {
-                    if i == 0 {
-                        result.push_str(format!("{} ", "U".grey()).as_str());
+    for i in &item {
+        let path = path_to_read.join(i);
+        let permission_octal =  { 
+            let x = format!("{:o}", std::fs::metadata(path.to_path_buf()).unwrap().permissions().mode()); 
+            x[x.len() - 3..].to_string() 
+        };
+
+        let permissions = match permission_format {
+            DirectoryListPermissionMode::Octal => {
+                permission_octal.white()
+            },
+                
+            DirectoryListPermissionMode::String => {
+                let permission_str = permission_octal;
+                let mut result = String::new();
+
+                let dash = "-".dark_grey();
+                let r = "r".white();
+                let w = "w".white();
+                let x = "x".white();
+
+                let mapping = vec![
+                    format!("{0}{0}{0}", dash),
+                    format!("{0}{0}{1}", dash, x), 
+                    format!("{0}{1}{0}", dash, w), 
+                    format!("{}{}{}", dash, w, x),
+                    format!("{}{1}{1}", r, dash),
+                    format!("{}{}{}", r, dash, x),
+                    format!("{}{}{}", r, w, dash),
+                    format!("{}{}{}", r, w, x)
+                ];
+
+                for (i, c) in permission_str.chars().enumerate() {
+                    let digit = c.to_digit(8).unwrap() as usize;
+
+                    if permission_seperator {
+                        if i == 0 {
+                            result.push_str(format!("{} ", "U".grey()).as_str());
+                        }
+
+                        if i == 1 {
+                            result.push_str(format!(" {} ", "G".grey()).as_str());
+                        }
+
+                        if i == 2 {
+                            result.push_str(format!(" {} ", "O".grey()).as_str());
+                        }
                     }
 
-                    if i == 1 {
-                        result.push_str(format!(" {} ", "G".grey()).as_str());
-                    }
-
-                    if i == 2 {
-                        result.push_str(format!(" {} ", "O".grey()).as_str());
-                    }
+                    result.push_str(&mapping[digit]);
                 }
 
-                result.push_str(&mapping[digit]);
-            }
+                result.white()
+            },
+        };
 
-            result.white()
-        },
-    };
+        let file_size = std::fs::metadata(path.to_path_buf()).unwrap().size();
+        let formatted_fsize = Size::from_bytes(file_size);
 
-    let file_size = std::fs::metadata(path.to_path_buf()).unwrap().size();
-    let formatted_fsize = if file_size < 1000 {
-        format!("{}", file_size.to_string().green()).white()
-    } else { 
-        let fsize_string = (file_size as f64 / 1000 as f64).round().to_string();
-        let mut c: Vec<char> = fsize_string.chars().collect();
-        let cstring = c.iter().collect::<String>();
-
-        if cstring.len() > 3 {
-            format!("{1}{0}", "k".dark_green(), cstring.as_str().green()).to_string().white()
-        } else if cstring.len() < 2 {
-            format!(" {1}{0}", "k".dark_green(), cstring.as_str().green()).to_string().white()
-        } else {
-            format!("{1}{0}", "k".dark_green(), cstring.as_str().green()).to_string().white()
-        }
-    };
-
-    println!("{4} {3} {2} {1} {0}", 
-        if item.content().starts_with('.') { item.dark_grey() } else { item }, 
-        format!("{}", <std::time::SystemTime as Into<DateTime<Local>>>::into(std::fs::metadata(path.to_path_buf()).unwrap().modified().unwrap()).format("%b %d %Y %T")).dark_cyan(),
-        path.owner().unwrap().to_string().yellow(),
-        if i_type == DirectoryListItemType::IDirectory { "  -".to_string().dark_grey() } else { formatted_fsize },
-        permissions
-    );
+        println!("{4} {3} {2} {1} {0}", 
+            if i.starts_with('.') { 
+                i.as_str().dark_grey() 
+            } else if i.chars().last().unwrap() == '/' {
+                if i.starts_with('.') {
+                    i.as_str().dark_green()
+                } else {
+                    i.as_str().green() 
+                }
+            } else { 
+                i.as_str().white() 
+            }, 
+            format!("{}", <std::time::SystemTime as Into<DateTime<Local>>>::into(std::fs::metadata(path.to_path_buf()).unwrap().modified().unwrap()).format("%b %d %Y %T")).dark_cyan(),
+            format!("{}{}", " ".repeat(username_len - path.owner().unwrap().to_string().len()), path.owner().unwrap().to_string().yellow()),
+            if i.chars().last().unwrap() == '/' {
+                let spacing = " ".repeat(file_size_len - "-".len());
+                format!("{}{}", spacing, "-".to_string().dark_grey()).white()
+            } else { 
+                format!("{}{}", formatted_fsize, " ".repeat(file_size_len - formatted_fsize.to_string().len())).green()
+            },
+            permissions
+        );
+    }
 }
 
 pub fn previous_directory(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
