@@ -195,13 +195,13 @@ fn list_directory_long(item: Vec<String>, permission_format: DirectoryListPermis
                 let x = "x".white();
 
                 let mapping = vec![
-                    format!("{0}{0}{0}", dash),
-                    format!("{0}{0}{1}", dash, x), 
-                    format!("{0}{1}{0}", dash, w), 
-                    format!("{}{}{}", dash, w, x),
-                    format!("{}{1}{1}", r, dash),
-                    format!("{}{}{}", r, dash, x),
-                    format!("{}{}{}", r, w, dash),
+                    format!("{dash}{dash}{dash}"),
+                    format!("{dash}{dash}{x}"), 
+                    format!("{dash}{w}{dash}"), 
+                    format!("{dash}{w}{x}"),
+                    format!("{r}{dash}{dash}"),
+                    format!("{r}{dash}{x}"),
+                    format!("{r}{w}{dash}"),
                     format!("{r}{w}{x}")
                 ];
 
