@@ -202,7 +202,7 @@ fn list_directory_long(item: Vec<String>, permission_format: DirectoryListPermis
                     format!("{}{1}{1}", r, dash),
                     format!("{}{}{}", r, dash, x),
                     format!("{}{}{}", r, w, dash),
-                    format!("{}{}{}", r, w, x)
+                    format!("{r}{w}{x}")
                 ];
 
                 for (i, c) in permission_str.chars().enumerate() {
