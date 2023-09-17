@@ -13,16 +13,15 @@ use std::path::PathBuf;
 use std::os::unix::fs::PermissionsExt;
 use std::os::unix::fs::MetadataExt;
 
-
 use clap::Parser;
 use crossterm::cursor::MoveTo;
-use crossterm::execute;
 use crossterm::style::{Stylize, style};
 use crossterm::terminal::{self, Clear, ClearType};
 use file_owner::PathExt;
 use chrono::offset::Local;
 use chrono::DateTime;
 use size::{Size, Style};
+
 
 use super::args::{
     ChangeDirectoryArgs, ClearTerminalArgs, ConfigureArgs, DeleteFileArgs, EditPathArgs,
@@ -83,7 +82,7 @@ pub fn list_directory(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
 
     let mut directories = Vec::new();
     let mut files = Vec::new();
-    
+
     for dir_entry in read_dir_result {
         let fs_object = dir_entry.replace_err(|| file_err!(UnreadableDirectory: path_to_read))?;
         let fs_object_name = fs_object.file_name();
@@ -108,7 +107,7 @@ pub fn list_directory(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
 
     directories.sort();
     files.sort();
-    
+
     if !long_view {
         for i in &directories {
             if i.starts_with('.') {

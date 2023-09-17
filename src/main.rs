@@ -2,11 +2,13 @@
 mod errors;
 mod eval;
 mod exec;
+#[cfg(feature = "plugin")]
 mod plugins;
 mod state;
 
 use errors::{Result, RushError};
 use eval::{Dispatcher, LineEditor};
+#[cfg(feature = "plugin")]
 use plugins::host::PluginHost;
 use state::ShellState;
 
@@ -18,6 +20,7 @@ fn main() {
         Err(err) => crash_with_error(err),
     };
 
+    #[cfg(feature = "plugin")]
     let _plugins = PluginHost::new(shell.clone());
 
     // The LineEditor type is responsible for reading lines of input from the user, storing history,
