@@ -11,8 +11,8 @@ literal_char = _{ char | "(" | ")" | "\\\'" | "\"" }
 
 nonliteral_argument = @{ nonliteral_char+ }
 literal_argument = @{ literal_char+ }
-single_quoted_argument = { "\'" ~ literal_argument* ~ "\'" }
-double_quoted_argument = { "\"" ~ nonliteral_argument* ~ "\"" }
+single_quoted_argument = _{ "\'" ~ literal_argument* ~ "\'" }
+double_quoted_argument = _{ "\"" ~ nonliteral_argument* ~ "\"" }
 
 // A command substitution is a way to inject the output of a given command into the outer line of inputS
 substitution = { "(" ~ command ~ ")" }
