@@ -15,6 +15,7 @@ use std::os::unix::fs::MetadataExt;
 
 use clap::Parser;
 use crossterm::cursor::MoveTo;
+use crossterm::execute;
 use crossterm::style::{Stylize, style};
 use crossterm::terminal::{self, Clear, ClearType};
 use file_owner::PathExt;
@@ -243,7 +244,7 @@ fn list_directory_long(item: Vec<String>, permission_format: DirectoryListPermis
             } else { 
                 i.as_str().white() 
             }, 
-            format!("{}", <std::time::SystemTime as Into<DateTime<Local>>>::into(std::fs::metadata(path.to_path_buf()).unwrap().modified().unwrap()).format("%b %d %Y %T")).dark_cyan(),
+            format!("{}", <chrono::DateTime<Local>>::from(std::fs::metadata(path.to_path_buf()).unwrap().modified().unwrap()).format("%b %d %Y %T")).dark_cyan(),
             format!("{}{}", " ".repeat(username_len - path.owner().unwrap().to_string().len()), path.owner().unwrap().to_string().yellow()),
             if i.chars().last().unwrap() == '/' {
                 let spacing = " ".repeat(file_size_len - "-".len());
