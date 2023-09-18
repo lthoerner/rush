@@ -34,8 +34,22 @@ pub struct ListDirectoryArgs {
     pub long_view: bool,
     #[arg(short = 'o', long = "octal-permissions", help = "Use octal permissions instead of string representation")]
     pub octal_permissions: bool,
+    #[arg(short = 'm', long = "modified", help = "Use modified timestamp")]
+    pub use_modified_time: bool,
+    #[arg(short = 'U', long = "created", help = "Use created timestamp")]
+    pub use_created_time: bool,
+    #[arg(short = 'u', long = "accessed", help = "Use accessed timestamp")]
+    pub use_accessed_time: bool,
+    #[arg(long = "hide-timestamps", help = "Do not show the timestamp field")]
+    pub hide_timestamps: bool,
     #[arg(long = "permission-seperator", help = "Show sperators for each permission group (eg. Current user, current group, and other users and groups)")]
     pub permission_seperator: bool,
+    #[arg(long = "hide-permissions", help = "Do not show permissions field")]
+    pub hide_permissions: bool,
+    #[arg(long = "hide-user",  help = "Do not show user field")]
+    pub hide_user: bool,
+    #[arg(long = "hide-file-sizes", help = "Do not show file size field")]
+    pub hide_file_sizes: bool,
     #[arg(help = "The path of the directory to read")]
     pub path: Option<PathBuf>,
 }

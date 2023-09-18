@@ -40,6 +40,14 @@ use crate::state::{EnvVariable, Path, ShellState};
 enum DirectoryListPermissionMode {
     Octal,
     String,
+    Hidden,
+}
+
+enum DirectoryListTimestampMode {
+    Modified,
+    Created,
+    Accessed,
+    Hidden,
 }
 
 pub fn test(_shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
@@ -76,6 +84,13 @@ pub fn list_directory(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
     let long_view = arguments.long_view;
     let octal_permissions = arguments.octal_permissions;
     let permission_seperator = arguments.permission_seperator;
+    let use_modified_time = arguments.use_modified_time;
+    let use_created_time = arguments.use_created_time;
+    let use_accessed_time = arguments.use_accessed_time;
+    let hide_timestamps = arguments.hide_timestamps;
+    let hide_permissions = arguments.hide_permissions;
+    let hide_user = arguments.hide_user;
+    let hide_file_sizes = arguments.hide_file_sizes;
     let path_to_read = arguments.path.unwrap_or(shell.CWD().path().to_path_buf());
 
     let read_dir_result =
@@ -134,42 +149,85 @@ pub fn list_directory(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
 
     directories.append(&mut files);
 
-    let permission_view = match octal_permissions {
-        true => DirectoryListPermissionMode::Octal,
-        false => DirectoryListPermissionMode::String,
+    let permission_view = { 
+        if hide_permissions {
+            DirectoryListPermissionMode::Hidden
+        } else {
+            match octal_permissions {
+                true => DirectoryListPermissionMode::Octal,
+                false => DirectoryListPermissionMode::String,
+            }
+        }
     };
 
-    list_directory_long(directories, permission_view, path_to_read.clone(), permission_seperator);
+    let timestamp =  {
+        if hide_timestamps {
+            DirectoryListTimestampMode::Hidden
+        } else {
+            let mut seen_true = 0;
+            let mut true_indx = 0;
+            let times = [
+                use_modified_time,
+                use_accessed_time,
+                use_created_time
+            ];
+
+            for (i, timemode) in times.iter().enumerate() {
+                if *timemode {
+                    seen_true += 1;
+                    true_indx = i;
+                }
+            };
+
+            match seen_true {
+                1 => {
+                    match true_indx {
+                        0 => DirectoryListTimestampMode::Modified,
+                        1 => DirectoryListTimestampMode::Accessed,
+                        2 => DirectoryListTimestampMode::Created,
+                        _ => DirectoryListTimestampMode::Modified,
+                    }
+                },
+                _ => DirectoryListTimestampMode::Modified,
+            }
+        }
+    };
+
+    list_directory_long(directories, permission_view, path_to_read.clone(), permission_seperator, timestamp, hide_user, hide_file_sizes);
 
     Ok(())
 }
 
-fn list_directory_long(item: Vec<String>, permission_format: DirectoryListPermissionMode, cwd: PathBuf, permission_seperator: bool) {
+fn list_directory_long(item: Vec<String>, permission_format: DirectoryListPermissionMode, cwd: PathBuf, permission_seperator: bool, timestamp: DirectoryListTimestampMode, hide_user: bool, hide_file_sizes: bool) {
     let path_to_read = cwd;
     let mut file_size_len: usize = 0;
     let mut file_size_len_last: usize = 0;
     let mut username_len: usize = 0;
     let mut username_len_last: usize = 0;
+    
+    if !hide_file_sizes {
+        for i in &item {
+            let path = path_to_read.join(i);
+            let file_size = std::fs::metadata(path.to_path_buf()).unwrap().size();
+            let formatted_fsize = Size::from_bytes(file_size).to_string();
 
-    for i in &item {
-        let path = path_to_read.join(i);
-        let file_size = std::fs::metadata(path.to_path_buf()).unwrap().size();
-        let formatted_fsize = Size::from_bytes(file_size).to_string();
+            file_size_len_last = formatted_fsize.len();
 
-        file_size_len_last = formatted_fsize.len();
-
-        if file_size_len_last > file_size_len {
-                file_size_len = file_size_len_last;
+            if file_size_len_last > file_size_len {
+                    file_size_len = file_size_len_last;
+            }
         }
     }
 
-    for i in &item {
-        let path = path_to_read.join(i);
-        
-        username_len_last = path.owner().unwrap().to_string().len();
+    if !hide_user {
+        for i in &item {
+            let path = path_to_read.join(i);
+            
+            username_len_last = path.owner().unwrap().to_string().len();
 
-        if username_len_last > username_len {
-            username_len = username_len_last;
+            if username_len_last > username_len {
+                username_len = username_len_last;
+            }
         }
     }
 
@@ -227,12 +285,20 @@ fn list_directory_long(item: Vec<String>, permission_format: DirectoryListPermis
 
                 result.white()
             },
+            DirectoryListPermissionMode::Hidden => "".to_string().white(),
+            
         };
 
         let file_size = std::fs::metadata(path.to_path_buf()).unwrap().size();
-        let formatted_fsize = Size::from_bytes(file_size);
+        let formatted_fsize = Size::from_bytes(file_size).to_string();
+        let timestamp = match timestamp {
+            DirectoryListTimestampMode::Modified => format!("{}", DateTime::<Local>::from(std::fs::metadata(path.to_path_buf()).unwrap().modified().unwrap()).format("%b %d %Y %T")).dark_cyan(),
+            DirectoryListTimestampMode::Created => format!("{}", DateTime::<Local>::from(std::fs::metadata(path.to_path_buf()).unwrap().created().unwrap()).format("%b %d %Y %T")).dark_cyan(),
+            DirectoryListTimestampMode::Accessed => format!("{}", DateTime::<Local>::from(std::fs::metadata(path.to_path_buf()).unwrap().accessed().unwrap()).format("%b %d %Y %T")).dark_cyan(),
+            DirectoryListTimestampMode::Hidden => "".to_string().white(),
+        };
 
-        println!("{4} {3} {2} {1} {0}", 
+        println!("{4}{3}{2}{1}{0}", 
             if i.starts_with('.') { 
                 i.as_str().dark_grey() 
             } else if i.chars().last().unwrap() == '/' {
@@ -244,13 +310,17 @@ fn list_directory_long(item: Vec<String>, permission_format: DirectoryListPermis
             } else { 
                 i.as_str().white() 
             }, 
-            format!("{}", DateTime::<Local>::from(std::fs::metadata(path.to_path_buf()).unwrap().modified().unwrap()).format("%b %d %Y %T")).dark_cyan(),
-            format!("{}{}", " ".repeat(username_len - path.owner().unwrap().to_string().len()), path.owner().unwrap().to_string().yellow()),
-            if i.chars().last().unwrap() == '/' {
-                let spacing = " ".repeat(file_size_len - "-".len());
-                format!("{}{}", spacing, "-".to_string().dark_grey()).white()
-            } else { 
-                format!("{}{}", formatted_fsize, " ".repeat(file_size_len - formatted_fsize.to_string().len())).green()
+            format!(" {timestamp} "),
+            if !hide_user { format!(" {}{}", " ".repeat(username_len - path.owner().unwrap().to_string().len()), path.owner().unwrap().to_string().yellow()) } else { "".to_string() },
+            if !hide_file_sizes { 
+                if i.chars().last().unwrap() == '/' {
+                    let spacing = " ".repeat(file_size_len - "-".len());
+                    format!(" {}{}", spacing, "-".to_string().dark_grey()).white()
+                } else { 
+                    format!(" {}{}", formatted_fsize, " ".repeat(file_size_len - formatted_fsize.len())).green()
+                }
+            } else {
+                "".to_string().white()
             },
             permissions
         );
