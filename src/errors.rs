@@ -766,12 +766,12 @@ macro_rules! clap_handle {
         match $expr {
             Ok(val) => val,
             Err(e) => {
-                eprintln!("{}", e.render().ansi());    
+                eprintln!("{}", e.render().ansi());
                 match e.kind() {
                     clap::error::ErrorKind::DisplayHelp => return crate::errors::Result::Ok(()),
                     _ => return crate::errors::Result::Err(builtin_err!(CouldNotParseArgs)),
                 }
-            },
+            }
         }
     };
 }
