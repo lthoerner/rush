@@ -531,6 +531,30 @@ pub enum FileError {
     UnreadableFileName(PathBuf),
 
     /// OVERVIEW
+    /// This error occurs when the shell cannot read the permissions of a file or directory.
+    ///
+    /// CAUSE
+    /// - Inadequate user permissions.
+    /// - File or directory doesn't exist.
+    ///
+    /// SOLUTION
+    /// - Enure the user has adequate permissions to read the file.
+    /// - Enure the directory or file exists.
+    UnreadablePermissions(PathBuf),
+
+    /// OVERVIEW
+    /// This error occurs when a files metadata cannot be read.
+    ///
+    /// CAUSE
+    /// - Inadequate user permissions.
+    /// - File doesn't exist
+    ///
+    /// SOLUTION
+    /// - Enure the user has adequate permissions to read the file.
+    /// - Enure the file exists.
+    UnreadableMetadata(PathBuf),
+
+    /// OVERVIEW
     /// This error occurs when the shell is unable to read the contents of a directory.
     ///
     /// CAUSE
@@ -689,6 +713,20 @@ impl Display for FileError {
                 write!(
                     f,
                     "Could not determine file name of path '{}'",
+                    path.display()
+                )
+            }
+            UnreadablePermissions(path) => {
+                write!(
+                    f,
+                    "Could not get permissions at path '{}'",
+                    path.display()
+                )
+            }
+            UnreadableMetadata(path) => {
+                write!(
+                    f,
+                    "Could not read metadata at path '{}'",
                     path.display()
                 )
             }
