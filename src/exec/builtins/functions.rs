@@ -206,7 +206,7 @@ fn list_directory_long(
     timestamp: DirectoryListTimestampMode,
     hide_user: bool,
     hide_file_sizes: bool,
-) {
+) -> Result<()> {
     let path_to_read = cwd;
     let mut file_size_len: usize = 0;
     let mut file_size_len_last: usize = 0;
@@ -216,7 +216,7 @@ fn list_directory_long(
     if !hide_file_sizes {
         for i in &item {
             let path = path_to_read.join(i);
-            let file_size = std::fs::metadata(path.clone()).unwrap().size();
+            let file_size = std::fs::metadata(path.clone()).replace_err(|| file_err!(UnreadableMetadata: path_to_read))?.size();
             let formatted_fsize = Size::from_bytes(file_size).to_string();
 
             file_size_len_last = formatted_fsize.len();
@@ -231,7 +231,7 @@ fn list_directory_long(
         for i in &item {
             let path = path_to_read.join(i);
 
-            username_len_last = path.owner().unwrap().to_string().len();
+            username_len_last = path.owner().replace_err(|| file_err!(UnreadableMetadata: path_to_read))?.to_string().len();
 
             if username_len_last > username_len {
                 username_len = username_len_last;
@@ -245,7 +245,7 @@ fn list_directory_long(
             let x = format!(
                 "{:o}",
                 std::fs::metadata(path.clone())
-                    .unwrap()
+                    .replace_err(|| file_err!(UnreadableMetadata: path_to_read))?
                     .permissions()
                     .mode()
             );
@@ -300,13 +300,13 @@ fn list_directory_long(
             DirectoryListPermissionMode::Hidden => "".to_string().white(),
         };
 
-        let file_size = std::fs::metadata(path.clone()).unwrap().size();
+        let file_size = std::fs::metadata(path.clone()).replace_err(|| file_err!(UnreadableMetadata: path_to_read))?.size();
         let formatted_fsize = Size::from_bytes(file_size).to_string();
         let timestamp = match timestamp {
             DirectoryListTimestampMode::Modified => format!(
                 "{}",
                 DateTime::<Local>::from(
-                    std::fs::metadata(path.clone()).unwrap().modified().unwrap()
+                    std::fs::metadata(path.clone()).replace_err(|| file_err!(UnreadableMetadata: path_to_read))?.modified().unwrap()
                 )
                 .format("%b %d %Y %T")
             )
@@ -314,7 +314,7 @@ fn list_directory_long(
             DirectoryListTimestampMode::Created => format!(
                 "{}",
                 DateTime::<Local>::from(
-                    std::fs::metadata(path.clone()).unwrap().created().unwrap()
+                    std::fs::metadata(path.clone()).replace_err(|| file_err!(UnreadableMetadata: path_to_read))?.created().unwrap()
                 )
                 .format("%b %d %Y %T")
             )
@@ -322,7 +322,7 @@ fn list_directory_long(
             DirectoryListTimestampMode::Accessed => format!(
                 "{}",
                 DateTime::<Local>::from(
-                    std::fs::metadata(path.clone()).unwrap().accessed().unwrap()
+                    std::fs::metadata(path.clone()).replace_err(|| file_err!(UnreadableMetadata: path_to_read))?.accessed().unwrap()
                 )
                 .format("%b %d %Y %T")
             )
@@ -347,7 +347,7 @@ fn list_directory_long(
             if !hide_user {
                 format!(
                     " {}{}",
-                    " ".repeat(username_len - path.owner().unwrap().to_string().len()),
+                    " ".repeat(username_len - path.owner().replace_err(|| file_err!(UnreadableMetadata: path_to_read))?.to_string().len()),
                     path.owner().unwrap().to_string().yellow()
                 )
             } else {
@@ -371,6 +371,7 @@ fn list_directory_long(
             permissions
         );
     }
+    Ok(())
 }
 
 pub fn previous_directory(shell: &mut ShellState, args: Vec<&str>) -> Result<()> {
