@@ -1,40 +1,44 @@
-// Whitespace characters can occur in any non-atomic rule and any amount of Unicode space is accepted
+// Whitespace characters can occur in any non-atomic rule and any amount of Unicode space is accepted.
 WHITESPACE = _{ SPACE_SEPARATOR }
-// Most "non-significant" chars are accepted in both nonliteral and literal syntax
-char = _{ CASED_LETTER | NUMBER | "." | "," | "-" }
-// Nonliteral chars are chars which can be recognized in the context of an unquoted or double-quoted argument
-// This is generally to allow for special characters prefixed by an escape ('\'), such as '\n'
+// Most "non-significant" chars are accepted in both nonliteral and literal syntax.
+char = _{ CASED_LETTER | NUMBER | "." | "," | "-" | "!" }
+// Nonliteral chars are chars which can be recognized in the context of an unquoted or double-quoted argument.
+// This is generally to allow for special characters prefixed by an escape ('\'), such as '\n'.
 nonliteral_char = _{ char | "\\(" | "\\)" | "\\\'" | "\\\"" }
-// Literal chars are chars which can only be recognized in the context of a single-quoted argument
-// This is generally to interpret all characters to have no special significance
+// Literal chars are chars which can only be recognized in the context of a single-quoted argument.
+// This is generally to interpret all characters to have no special significance.
 literal_char = _{ char | "(" | ")" | "\\\'" | "\"" }
 
 nonliteral_argument = @{ nonliteral_char+ }
 literal_argument = @{ literal_char+ }
-single_quoted_argument = _{ "\'" ~ literal_argument* ~ "\'" }
-double_quoted_argument = _{ "\"" ~ nonliteral_argument* ~ "\"" }
+nonliteral_arguments = { nonliteral_argument* }
+literal_arguments = { literal_argument* }
+single_quoted_argument = _{ "\'" ~ literal_arguments ~ "\'" }
+double_quoted_argument = _{ "\"" ~ nonliteral_arguments ~ "\"" }
 
-// A command substitution is a way to inject the output of a given command into the outer line of inputS
-substitution = { "(" ~ command ~ ")" }
+// A command substitution is a way to inject the output of a given command into the arguments of another command.
+substitution_argument = { "*(" ~ suboperation ~ ")" }
 // Quoted arguments are treated mostly the same as any bare nonliteral argument
 quoted_argument = _{ single_quoted_argument | double_quoted_argument }
-any_argument = { quoted_argument | nonliteral_argument }
-// A command will always have an argument in the first position (command name) and may include additional arguments
-command = { any_argument ~ (substitution | any_argument)* }
+string_argument = { quoted_argument | nonliteral_argument }
+argument = _{ substitution_argument | string_argument }
+// A command will always have an argument in the first position (command name) and may include additional arguments.
+command = { string_argument ~ argument* }
 
-pipe_operator = { "|" }
-logical_operator = { "&&" | "||" }
+redirect_operator = { ">>" | "<" | ">" | "|" }
+logic_operator = { "&&" | "||" }
 
-// Pipe operations can be chained but always include at least one left command, pipe operator, and right command
-right_pipe_operations = { pipe_operator ~ command }
-pipe_operations = { command ~ right_pipe_operations+ }
+// Redirect operations can be chained but always include at least one left command operator, and right command.
+redirect_operation_rhs = { redirect_operator ~ command }
+redirect_operation = { command ~ redirect_operation_rhs+ }
 
-// Logical operations can be chained but always include at least one left command, logical operator, and right command
-// Pipe operations and chains of pipe operations are treated as the same as single commands, because the logical
-// operations take place on a higher level than pipes
-right_logical_operation = { logical_operator ~ (pipe_operations | command) }
-logical_operations = { (pipe_operations | command) ~ right_logical_operation+ }
+// Logic operations can be chained but always include at least one left suboperation, operator, and right suboperation.
+// Redirect operations are treated as the same as single commands, because logical operations take a lower precedence
+// than redirect operations.
+suboperation = { redirect_operation | command }
+logic_operation_rhs = { logic_operator ~ suboperation }
+logic_operation = { suboperation ~ logic_operation_rhs+ }
 
-// An input line will fit one of three classifications from most complex to least complex
-// This ordering is because parsers will often skip elements if a less complex rule is presented first
-input_line = { logical_operations | pipe_operations | command }
+// A line of input (expression) will fit one of three classifications from most complex to least complex.
+// This ordering is used because parsers will often skip elements if a less complex rule is presented first.
+expression = { logic_operation | redirect_operation | command }
