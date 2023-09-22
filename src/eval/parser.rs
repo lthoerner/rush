@@ -98,37 +98,6 @@ fn parse_expression(line: &str) -> Expression {
     }
 }
 
-fn parse_command(command: Pair<Rule>) -> Command {
-    assert_eq!(command.as_rule(), Rule::command);
-    let mut command_content = command.into_inner();
-    let name = command_content.next().unwrap().as_str().to_owned();
-
-    let mut args = Vec::new();
-    for arg in command_content {
-        match arg.as_rule() {
-            Rule::string_argument => args.push(Arg::String(StringArg(arg.as_str().to_owned()))),
-            Rule::substitution_argument => {
-                let subop = parse_substitution_arg(arg);
-                args.push(Arg::Substitution(Box::new(subop)));
-            }
-            _ => unreachable!(),
-        }
-    }
-
-    Command {
-        name: StringArg(name),
-        args: Args(args),
-    }
-}
-
-fn parse_substitution_arg(arg: Pair<Rule>) -> SubstitutionArg {
-    assert_eq!(arg.as_rule(), Rule::substitution_argument);
-    let mut subop = arg.into_inner().next().unwrap();
-    assert_eq!(subop.as_rule(), Rule::suboperation);
-
-    SubstitutionArg(parse_suboperation(subop))
-}
-
 fn parse_suboperation(subop: Pair<Rule>) -> SubOperation {
     assert_eq!(subop.as_rule(), Rule::suboperation);
     let mut subop_content = subop.into_inner().next().unwrap();
@@ -143,6 +112,66 @@ fn parse_suboperation(subop: Pair<Rule>) -> SubOperation {
             SubOperation::Redirect(Box::new(parse_redirect_operation(subop_content)))
         }
         _ => unreachable!(),
+    }
+}
+
+fn parse_command(command: Pair<Rule>) -> Command {
+    assert_eq!(command.as_rule(), Rule::command);
+    let mut command_content = command.into_inner();
+    let name = parse_string_arg(command_content.next().unwrap());
+    let mut args = Vec::new();
+    for arg in command_content {
+        match arg.as_rule() {
+            Rule::string_argument => args.push(Arg::String(parse_string_arg(arg))),
+            Rule::substitution_argument => {
+                let subop = parse_substitution_arg(arg);
+                args.push(Arg::Substitution(Box::new(subop)));
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    Command {
+        name,
+        args: Args(args),
+    }
+}
+
+fn parse_logic_operation(operation: Pair<Rule>) -> LogicOperation {
+    fn parse_rhs(rhs: Pair<Rule>) -> LogicOperationRhs {
+        assert_eq!(rhs.as_rule(), Rule::logic_operation_rhs);
+        let mut rhs_content = rhs.into_inner();
+        let operator = parse_operator(rhs_content.next().unwrap());
+        let right_subop = parse_suboperation(rhs_content.next().unwrap());
+
+        LogicOperationRhs {
+            operator,
+            right_subop,
+        }
+    }
+
+    fn parse_operator(operator: Pair<Rule>) -> LogicOperator {
+        assert_eq!(operator.as_rule(), Rule::logic_operator);
+        match operator.as_str() {
+            "&&" => LogicOperator::And,
+            "||" => LogicOperator::Or,
+            _ => unreachable!(),
+        }
+    }
+
+    assert_eq!(operation.as_rule(), Rule::logic_operation);
+    let mut operation_content = operation.into_inner();
+    let left_subop = parse_suboperation(operation_content.next().unwrap());
+    let mut continued = Vec::new();
+    let mut right = parse_rhs(operation_content.next().unwrap());
+    for rhs in operation_content {
+        continued.push(parse_rhs(rhs));
+    }
+
+    LogicOperation {
+        left_subop,
+        right,
+        continued,
     }
 }
 
@@ -186,42 +215,28 @@ fn parse_redirect_operation(operation: Pair<Rule>) -> RedirectOperation {
     }
 }
 
-fn parse_logic_operation(operation: Pair<Rule>) -> LogicOperation {
-    fn parse_rhs(rhs: Pair<Rule>) -> LogicOperationRhs {
-        assert_eq!(rhs.as_rule(), Rule::logic_operation_rhs);
-        let mut rhs_content = rhs.into_inner();
-        let operator = parse_operator(rhs_content.next().unwrap());
-        let right_subop = parse_suboperation(rhs_content.next().unwrap());
+fn parse_substitution_arg(arg: Pair<Rule>) -> SubstitutionArg {
+    assert_eq!(arg.as_rule(), Rule::substitution_argument);
+    let mut subop = arg.into_inner().next().unwrap();
+    assert_eq!(subop.as_rule(), Rule::suboperation);
 
-        LogicOperationRhs {
-            operator,
-            right_subop,
-        }
-    }
+    SubstitutionArg(parse_suboperation(subop))
+}
 
-    fn parse_operator(operator: Pair<Rule>) -> LogicOperator {
-        assert_eq!(operator.as_rule(), Rule::logic_operator);
-        match operator.as_str() {
-            "&&" => LogicOperator::And,
-            "||" => LogicOperator::Or,
-            _ => unreachable!(),
-        }
-    }
+fn parse_string_arg(arg: Pair<Rule>) -> StringArg {
+    assert_eq!(arg.as_rule(), Rule::string_argument);
+    let arg_content = arg.into_inner().next().unwrap();
+    assert!(matches!(
+        arg_content.as_rule(),
+        Rule::nonliteral_argument | Rule::nonliteral_arguments | Rule::literal_arguments
+    ));
 
-    assert_eq!(operation.as_rule(), Rule::logic_operation);
-    let mut operation_content = operation.into_inner();
-    let left_subop = parse_suboperation(operation_content.next().unwrap());
-    let mut continued = Vec::new();
-    let mut right = parse_rhs(operation_content.next().unwrap());
-    for rhs in operation_content {
-        continued.push(parse_rhs(rhs));
-    }
+    StringArg(arg_content.as_str().to_owned())
+}
 
-    LogicOperation {
-        left_subop,
-        right,
-        continued,
-    }
+fn debug_expression(line: &str) {
+    let parse_result = RushTokenizer::parse(Rule::expression, line);
+    println!("{:#?}", parse_result);
 }
 
 #[cfg(test)]
@@ -239,6 +254,13 @@ mod test {
         let command = r#"echo Hello world!"#;
         let parse_result = parse_expression(command);
         println!("{:#?}", parse_result);
+
+        let expected = Expression::Command(Box::new(Command {
+            name: StringArg("echo".to_owned()),
+            args: Args(vec![arg!("Hello"), arg!("world!")]),
+        }));
+
+        assert_eq!(parse_result, expected);
     }
 
     #[test]
@@ -246,6 +268,13 @@ mod test {
         let command = r#"echo "Hello world!""#;
         let parse_result = parse_expression(command);
         println!("{:#?}", parse_result);
+
+        let expected = Expression::Command(Box::new(Command {
+            name: StringArg("echo".to_owned()),
+            args: Args(vec![arg!("Hello world!")]),
+        }));
+
+        assert_eq!(parse_result, expected);
     }
 
     #[test]
@@ -253,6 +282,13 @@ mod test {
         let command = r#"echo 'Hello world!'"#;
         let parse_result = parse_expression(command);
         println!("{:#?}", parse_result);
+
+        let expected = Expression::Command(Box::new(Command {
+            name: StringArg("echo".to_owned()),
+            args: Args(vec![arg!("Hello world!")]),
+        }));
+
+        assert_eq!(parse_result, expected);
     }
 
     #[test]
