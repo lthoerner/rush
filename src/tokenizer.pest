@@ -1,19 +1,18 @@
 // Whitespace characters can occur in any non-atomic rule and any amount of Unicode space is accepted.
 WHITESPACE = _{ SPACE_SEPARATOR }
 // Most "non-significant" chars are accepted in both nonliteral and literal syntax.
-char = _{ CASED_LETTER | NUMBER | "." | "," | "-" | "!" }
+char = _{ CASED_LETTER | NUMBER | "." | "," | "-" | "!" | "*" }
 // Nonliteral chars are chars which can be recognized in the context of an unquoted or double-quoted argument.
 // This is generally to allow for special characters prefixed by an escape ('\'), such as '\n'.
-nonliteral_char = _{ char | "\\(" | "\\)" | "\\\'" | "\\\"" }
+nonliteral_char = _{ char | "\\(" | "\\)" | "\\\'" | "\\\"" | "\\ " | "\\n" | "\\t" }
 // Literal chars are chars which can only be recognized in the context of a single-quoted argument.
 // This is generally to interpret all characters to have no special significance.
-literal_char = _{ char | "(" | ")" | "\\\'" | "\"" }
+literal_char = _{ WHITESPACE | char | "(" | ")" | "\\\'" | "\"" }
 
 nonliteral_argument = @{ nonliteral_char+ }
-literal_argument = @{ literal_char+ }
+literal_argument = @{ literal_char* }
 nonliteral_arguments = { nonliteral_argument* }
-literal_arguments = { literal_argument* }
-single_quoted_argument = _{ "\'" ~ literal_arguments ~ "\'" }
+single_quoted_argument = _{ "\'" ~ literal_argument ~ "\'" }
 double_quoted_argument = _{ "\"" ~ nonliteral_arguments ~ "\"" }
 
 // A command substitution is a way to inject the output of a given command into the arguments of another command.
@@ -25,7 +24,7 @@ argument = _{ substitution_argument | string_argument }
 // A command will always have an argument in the first position (command name) and may include additional arguments.
 command = { string_argument ~ argument* }
 
-redirect_operator = { ">>" | "<" | ">" | "|" }
+redirect_operator = { "<>" | ">>" | "<" | ">" | "|" }
 logic_operator = { "&&" | "||" }
 
 // Redirect operations can be chained but always include at least one left command operator, and right command.

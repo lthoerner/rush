@@ -74,7 +74,8 @@ enum LogicOperator {
 
 #[derive(PartialEq, Debug)]
 enum RedirectOperator {
-    DoubleRedirect,
+    TwoWayRedirect,
+    AppendRedirect,
     LeftRedirect,
     RightRedirect,
     Pipe,
@@ -162,8 +163,8 @@ fn parse_logic_operation(operation: Pair<Rule>) -> LogicOperation {
     assert_eq!(operation.as_rule(), Rule::logic_operation);
     let mut operation_content = operation.into_inner();
     let left_subop = parse_suboperation(operation_content.next().unwrap());
-    let mut continued = Vec::new();
     let mut right = parse_rhs(operation_content.next().unwrap());
+    let mut continued = Vec::new();
     for rhs in operation_content {
         continued.push(parse_rhs(rhs));
     }
@@ -191,7 +192,8 @@ fn parse_redirect_operation(operation: Pair<Rule>) -> RedirectOperation {
     fn parse_operator(operator: Pair<Rule>) -> RedirectOperator {
         assert_eq!(operator.as_rule(), Rule::redirect_operator);
         match operator.as_str() {
-            ">>" => RedirectOperator::DoubleRedirect,
+            "<>" => RedirectOperator::TwoWayRedirect,
+            ">>" => RedirectOperator::AppendRedirect,
             "<" => RedirectOperator::LeftRedirect,
             ">" => RedirectOperator::RightRedirect,
             "|" => RedirectOperator::Pipe,
@@ -202,8 +204,8 @@ fn parse_redirect_operation(operation: Pair<Rule>) -> RedirectOperation {
     assert_eq!(operation.as_rule(), Rule::redirect_operation);
     let mut operation_content = operation.into_inner();
     let left_command = parse_command(operation_content.next().unwrap());
-    let mut continued = Vec::new();
     let mut right = parse_rhs(operation_content.next().unwrap());
+    let mut continued = Vec::new();
     for rhs in operation_content {
         continued.push(parse_rhs(rhs));
     }
@@ -228,7 +230,7 @@ fn parse_string_arg(arg: Pair<Rule>) -> StringArg {
     let arg_content = arg.into_inner().next().unwrap();
     assert!(matches!(
         arg_content.as_rule(),
-        Rule::nonliteral_argument | Rule::nonliteral_arguments | Rule::literal_arguments
+        Rule::nonliteral_argument | Rule::nonliteral_arguments | Rule::literal_argument
     ));
 
     StringArg(arg_content.as_str().to_owned())
@@ -243,9 +245,54 @@ fn debug_expression(line: &str) {
 mod test {
     use super::*;
 
+    macro_rules! expr {
+        (C: $expr:expr) => {
+            Expression::Command(Box::new($expr))
+        };
+        (R: $expr:expr) => {
+            Expression::Redirect(Box::new($expr))
+        };
+        (L: $expr:expr) => {
+            Expression::Logic(Box::new($expr))
+        };
+    }
+
+    macro_rules! suboperation {
+        (C: $content:expr) => {
+            SubOperation::Command(Box::new($content))
+        };
+        (R: $content:expr) => {
+            SubOperation::Redirect(Box::new($content))
+        };
+    }
+
+    macro_rules! command {
+        ($name:literal) => {
+            Command {
+                name: StringArg($name.to_owned()),
+                args: Args(Vec::new()),
+            }
+        };
+        ($name:literal, [$($args:tt),*]) => {
+            Command {
+                name: StringArg($name.to_owned()),
+                args: Args(vec![$(Arg::String(arg!($args))),*]),
+            }
+        };
+    }
+
+    macro_rules! substitution {
+        (C: $content:expr) => {
+            Arg::Substitution(Box::new(SubstitutionArg(suboperation!(C: $content))))
+        };
+        (R: $content:expr) => {
+            Arg::Substitution(Box::new(SubstitutionArg(suboperation!(R: $content))))
+        };
+    }
+
     macro_rules! arg {
         ($arg:literal) => {
-            Arg::String(StringArg($arg.to_owned()))
+            StringArg($arg.to_owned())
         };
     }
 
@@ -253,48 +300,39 @@ mod test {
     fn simple_command_no_quotes() {
         let command = r#"echo Hello world!"#;
         let parse_result = parse_expression(command);
-        println!("{:#?}", parse_result);
-
-        let expected = Expression::Command(Box::new(Command {
-            name: StringArg("echo".to_owned()),
-            args: Args(vec![arg!("Hello"), arg!("world!")]),
-        }));
+        let expected = expr!(C: command!("echo", ["Hello", "world!"]));
 
         assert_eq!(parse_result, expected);
+        println!("{:#?}", parse_result);
     }
 
     #[test]
     fn simple_command_double_quotes() {
         let command = r#"echo "Hello world!""#;
         let parse_result = parse_expression(command);
-        println!("{:#?}", parse_result);
-
-        let expected = Expression::Command(Box::new(Command {
-            name: StringArg("echo".to_owned()),
-            args: Args(vec![arg!("Hello world!")]),
-        }));
+        let expected = expr!(C: command!("echo", ["Hello world!"]));
 
         assert_eq!(parse_result, expected);
+        println!("{:#?}", parse_result);
     }
 
     #[test]
     fn simple_command_single_quotes() {
         let command = r#"echo 'Hello world!'"#;
         let parse_result = parse_expression(command);
-        println!("{:#?}", parse_result);
-
-        let expected = Expression::Command(Box::new(Command {
-            name: StringArg("echo".to_owned()),
-            args: Args(vec![arg!("Hello world!")]),
-        }));
+        let expected = expr!(C: command!("echo", ["Hello world!"]));
 
         assert_eq!(parse_result, expected);
+        println!("{:#?}", parse_result);
     }
 
     #[test]
     fn simple_command_escapes() {
         let command = r#"echo Hello\ world!"#;
         let parse_result = parse_expression(command);
+        let expected = expr!(C: command!("echo", ["Hello world!"]));
+
+        assert_eq!(parse_result, expected);
         println!("{:#?}", parse_result);
     }
 
@@ -302,6 +340,12 @@ mod test {
     fn simple_command_substitution() {
         let command = r#"echo *(date)"#;
         let parse_result = parse_expression(command);
+        let expected = expr!(C: Command {
+            name: arg!("echo"),
+            args: Args(vec![substitution!(C: command!("date"))]),
+        });
+
+        assert_eq!(parse_result, expected);
         println!("{:#?}", parse_result);
     }
 
@@ -309,6 +353,16 @@ mod test {
     fn single_pipe() {
         let command = r#"ls | sort"#;
         let parse_result = parse_expression(command);
+        let expected = expr!(R: RedirectOperation {
+            left_command: command!("ls"),
+            right: RedirectOperationRhs {
+                operator: RedirectOperator::Pipe,
+                right_command: command!("sort"),
+            },
+            continued: Vec::new(),
+        });
+
+        assert_eq!(parse_result, expected);
         println!("{:#?}", parse_result);
     }
 
@@ -316,6 +370,19 @@ mod test {
     fn multi_pipe() {
         let command = r#"ls | sort | grep rwx"#;
         let parse_result = parse_expression(command);
+        let expected = expr!(R: RedirectOperation {
+            left_command: command!("ls"),
+            right: RedirectOperationRhs {
+                operator: RedirectOperator::Pipe,
+                right_command: command!("sort"),
+            },
+            continued: vec![RedirectOperationRhs {
+                operator: RedirectOperator::Pipe,
+                right_command: command!("grep", ["rwx"]),
+            }],
+        });
+
+        assert_eq!(parse_result, expected);
         println!("{:#?}", parse_result);
     }
 
@@ -323,6 +390,16 @@ mod test {
     fn single_logic_operation() {
         let command = r#"mkdir testdir && cd testdir"#;
         let parse_result = parse_expression(command);
+        let expected = expr!(L: LogicOperation {
+            left_subop: suboperation!(C: command!("mkdir", ["testdir"])),
+            right: LogicOperationRhs {
+                operator: LogicOperator::And,
+                right_subop: suboperation!(C: command!("cd", ["testdir"])),
+            },
+            continued: Vec::new(),
+        });
+
+        assert_eq!(parse_result, expected);
         println!("{:#?}", parse_result);
     }
 
@@ -330,6 +407,19 @@ mod test {
     fn multi_logic_operation() {
         let command = r#"mkdir testdir && cd testdir && touch testfile"#;
         let parse_result = parse_expression(command);
+        let expected = expr!(L: LogicOperation {
+            left_subop: suboperation!(C: command!("mkdir", ["testdir"])),
+            right: LogicOperationRhs {
+                operator: LogicOperator::And,
+                right_subop: suboperation!(C: command!("cd", ["testdir"])),
+            },
+            continued: vec![LogicOperationRhs {
+                operator: LogicOperator::And,
+                right_subop: suboperation!(C: command!("touch", ["testfile"])),
+            }],
+        });
+
+        assert_eq!(parse_result, expected);
         println!("{:#?}", parse_result);
     }
 
@@ -337,6 +427,15 @@ mod test {
     fn single_redirect() {
         let command = r#"sort < file.txt"#;
         let parse_result = parse_expression(command);
+        let expected = expr!(R: RedirectOperation {
+            left_command: command!("sort"),
+            right: RedirectOperationRhs {
+                operator: RedirectOperator::LeftRedirect,
+                right_command: command!("file.txt"),
+            },
+            continued: Vec::new(),
+        });
+
         println!("{:#?}", parse_result);
     }
 
@@ -344,6 +443,19 @@ mod test {
     fn multi_redirect() {
         let command = r#"sort < unsorted.txt >> sorted.txt"#;
         let parse_result = parse_expression(command);
+        let expected = expr!(R: RedirectOperation {
+            left_command: command!("sort"),
+            right: RedirectOperationRhs {
+                operator: RedirectOperator::LeftRedirect,
+                right_command: command!("unsorted.txt"),
+            },
+            continued: vec![RedirectOperationRhs {
+                operator: RedirectOperator::AppendRedirect,
+                right_command: command!("sorted.txt"),
+            }],
+        });
+
+        assert_eq!(parse_result, expected);
         println!("{:#?}", parse_result);
     }
 
@@ -351,6 +463,10 @@ mod test {
     fn special_chars() {
         let command = r#"echo \nHello\ world!\n"#;
         let parse_result = parse_expression(command);
+        // $ This is correct, but not very helpful - need to process special chars/escapes
+        let expected = expr!(C: command!("echo", [r#"\nHello\ world!\n"#]));
+
+        assert_eq!(parse_result, expected);
         println!("{:#?}", parse_result);
     }
 
@@ -358,6 +474,15 @@ mod test {
     fn nested_substitution() {
         let command = r#"echo *(echo *(date))"#;
         let parse_result = parse_expression(command);
+        let expected = expr!(C: Command {
+            name: arg!("echo"),
+            args: Args(vec![substitution!(C: Command {
+                name: arg!("echo"),
+                args: Args(vec![substitution!(C: command!("date"))]),
+            })]),
+        });
+
+        assert_eq!(parse_result, expected);
         println!("{:#?}", parse_result);
     }
 
@@ -365,6 +490,19 @@ mod test {
     fn nested_substitution_with_pipe() {
         let command = r#"echo *(ls | wc -l)"#;
         let parse_result = parse_expression(command);
+        let expected = expr!(C: Command {
+            name: arg!("echo"),
+            args: Args(vec![substitution!(R: RedirectOperation {
+                left_command: command!("ls"),
+                right: RedirectOperationRhs {
+                    operator: RedirectOperator::Pipe,
+                    right_command: command!("wc", ["-l"]),
+                },
+                continued: Vec::new(),
+            })]),
+        });
+
+        assert_eq!(parse_result, expected);
         println!("{:#?}", parse_result);
     }
 
@@ -387,6 +525,16 @@ mod test {
     fn double_sided_redirect() {
         let command = r#"command <> file.txt"#;
         let parse_result = parse_expression(command);
+        let expected = expr!(R: RedirectOperation {
+            left_command: command!("command"),
+            right: RedirectOperationRhs {
+                operator: RedirectOperator::TwoWayRedirect,
+                right_command: command!("file.txt"),
+            },
+            continued: Vec::new(),
+        });
+
+        assert_eq!(parse_result, expected);
         println!("{:#?}", parse_result);
     }
 
@@ -394,6 +542,10 @@ mod test {
     fn pattern_matching() {
         let command = r#"ls *.txt"#;
         let parse_result = parse_expression(command);
+        // ? Should this be interpreted as multiple arguments, like a substitution?
+        let expected = expr!(C: command!("ls", ["*.txt"]));
+
+        assert_eq!(parse_result, expected);
         println!("{:#?}", parse_result);
     }
 
@@ -401,13 +553,19 @@ mod test {
     fn multi_argument() {
         let command = r#"command --option argument"#;
         let parse_result = parse_expression(command);
+        let expected = expr!(C: command!("command", ["--option", "argument"]));
+
+        assert_eq!(parse_result, expected);
         println!("{:#?}", parse_result);
     }
 
     #[test]
     fn double_quotes_with_escapes() {
-        let command = r#"echo "This is a \"test\""#;
+        let command = r#"echo "This is a \"test\"""#;
         let parse_result = parse_expression(command);
+        let expected = expr!(C: command!("echo", [r#"This is a \"test\""#]));
+
+        assert_eq!(parse_result, expected);
         println!("{:#?}", parse_result);
     }
 
@@ -415,6 +573,9 @@ mod test {
     fn double_quotes_with_special_chars() {
         let command = r#"echo -e "First line\nSecond line""#;
         let parse_result = parse_expression(command);
+        let expected = expr!(C: command!("echo", ["-e", r#"First line\nSecond line"#]));
+
+        assert_eq!(parse_result, expected);
         println!("{:#?}", parse_result);
     }
 }
