@@ -216,7 +216,7 @@ fn list_directory_long(
     if !hide_file_sizes {
         for i in &item {
             let path = path_to_read.join(i);
-            let file_size = std::fs::metadata(path.clone()).replace_err(|| file_err!(UnreadableMetadata: path_to_read))?.size();
+            let file_size = fs_err::metadata(path.clone()).replace_err(|| file_err!(UnreadableMetadata: path_to_read))?.size();
             let formatted_fsize = Size::from_bytes(file_size).to_string();
 
             file_size_len_last = formatted_fsize.len();
@@ -244,7 +244,7 @@ fn list_directory_long(
         let permission_octal = {
             let x = format!(
                 "{:o}",
-                std::fs::metadata(path.clone())
+                fs_err::metadata(path.clone())
                     .replace_err(|| file_err!(UnreadableMetadata: path_to_read))?
                     .permissions()
                     .mode()
@@ -300,13 +300,13 @@ fn list_directory_long(
             DirectoryListPermissionMode::Hidden => "".to_string().white(),
         };
 
-        let file_size = std::fs::metadata(path.clone()).replace_err(|| file_err!(UnreadableMetadata: path_to_read))?.size();
+        let file_size = fs_err::metadata(path.clone()).replace_err(|| file_err!(UnreadableMetadata: path_to_read))?.size();
         let formatted_fsize = Size::from_bytes(file_size).to_string();
         let timestamp = match timestamp {
             DirectoryListTimestampMode::Modified => format!(
                 "{}",
                 DateTime::<Local>::from(
-                    std::fs::metadata(path.clone()).replace_err(|| file_err!(UnreadableMetadata: path_to_read))?.modified().unwrap()
+                    fs_err::metadata(path.clone()).replace_err(|| file_err!(UnreadableMetadata: path_to_read))?.modified().replace_err(|| file_err!(UnreadableMetadata: path_to_read))?
                 )
                 .format("%b %d %Y %T")
             )
@@ -314,7 +314,7 @@ fn list_directory_long(
             DirectoryListTimestampMode::Created => format!(
                 "{}",
                 DateTime::<Local>::from(
-                    std::fs::metadata(path.clone()).replace_err(|| file_err!(UnreadableMetadata: path_to_read))?.created().unwrap()
+                    fs_err::metadata(path.clone()).replace_err(|| file_err!(UnreadableMetadata: path_to_read))?.created().replace_err(|| file_err!(UnreadableMetadata: path_to_read))?
                 )
                 .format("%b %d %Y %T")
             )
@@ -322,7 +322,7 @@ fn list_directory_long(
             DirectoryListTimestampMode::Accessed => format!(
                 "{}",
                 DateTime::<Local>::from(
-                    std::fs::metadata(path.clone()).replace_err(|| file_err!(UnreadableMetadata: path_to_read))?.accessed().unwrap()
+                    fs_err::metadata(path.clone()).replace_err(|| file_err!(UnreadableMetadata: path_to_read))?.accessed().replace_err(|| file_err!(UnreadableMetadata: path_to_read))?
                 )
                 .format("%b %d %Y %T")
             )
